@@ -1,0 +1,6 @@
+interface:
+  display_name: "To Android Run"
+  short_description: "Run one supplied operation on an Android App"
+  default_prompt: "Use $to-android-run to execute one supplied Inline or Module operation on an Android App."
+policy:
+  allow_implicit_invocation: false

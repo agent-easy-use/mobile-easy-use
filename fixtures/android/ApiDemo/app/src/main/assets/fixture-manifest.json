@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "applicationId": "com.agenteasyuse.mobileeasyuse.apidemo",
+  "controllerClass": "com.agenteasyuse.mobileeasyuse.apidemo.control.ApiDemoController",
+  "stateClass": "com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState",
+  "javaFixtureClass": "com.agenteasyuse.mobileeasyuse.apidemo.state.SdkFixtureState",
+  "capabilities": [
+    {
+      "key": "input",
+      "activity": ".ui.InputActivity",
+      "scenarios": ["click", "long_press", "text_input", "vertical_scroll", "horizontal_scroll", "target_errors"]
+    },
+    {
+      "key": "ui",
+      "activity": ".ui.UiActivity",
+      "scenarios": ["resource_id", "path", "visibility", "runtime_wrapper"]
+    },
+    {
+      "key": "resource",
+      "activity": ".ui.ResourceActivity",
+      "scenarios": ["resolve", "missing"]
+    },
+    {
+      "key": "wait",
+      "activity": ".ui.WaitActivity",
+      "scenarios": ["immediate", "delayed_visible", "delayed_gone", "attach_detach", "resize", "timeout"]
+    },
+    {
+      "key": "window",
+      "activity": ".ui.WindowActivity",
+      "scenarios": ["activity_root", "dialog", "popup_focusable", "popup_nonfocusable", "no_focused_window"]
+    },
+    {
+      "key": "override",
+      "activity": ".ui.OverrideActivity",
+      "scenarios": ["single", "overload", "filter", "async_cleanup"]
+    },
+    {
+      "key": "evidence",
+      "activity": ".ui.EvidenceActivity",
+      "scenarios": ["state", "ui", "chain"]
+    }
+  ]
+}

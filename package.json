@@ -1,0 +1,46 @@
+{
+  "name": "@agent-easy-use/mobile-easy-use",
+  "version": "0.1.0",
+  "description": "Agent-oriented Android and iOS runtime automation through MCP.",
+  "type": "module",
+  "files": [
+    "src",
+    "sdk/dist",
+    "templates",
+    "integration/ios/bin",
+    "integration/ios/Scripts/load-mobile-easy-use.sh",
+    "integration/ios/Scripts/load_mobile_easy_use.py",
+    "README.md",
+    "README.zh.md"
+  ],
+  "bin": {
+    "mobile-easy-use": "src/index.js",
+    "mobile-easy-use-ios": "integration/ios/bin/mobile-easy-use-ios"
+  },
+  "scripts": {
+    "build": "npm run build:android && npm run build:ios && npm run build:ios-runner",
+    "build:android": "frida-compile sdk/android/index.js -o sdk/dist/android.js -S",
+    "build:ios": "frida-compile sdk/ios/index.js -o sdk/dist/ios.js -S",
+    "build:ios-runner": "frida-compile runners/ios-xctest/runtime/index.js -o runners/ios-xctest/runtime/dist.js -S",
+    "prepack": "npm run build",
+    "prestart": "npm run build",
+    "start": "node src/index.js",
+    "pretest": "npm run build",
+    "test": "node --experimental-vm-modules --test"
+  },
+  "dependencies": {
+    "frida": "17.16.4",
+    "frida-java-bridge": "^7.0.12",
+    "frida-objc-bridge": "8.0.6"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/frida-gum": "^18.7.2",
+    "frida-compile": "^16.4.1"
+  }
+}

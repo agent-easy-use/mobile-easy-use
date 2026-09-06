@@ -1,0 +1,3 @@
+-keep class com.agenteasyuse.mobileeasyuse.apidemo.control.** { *; }
+-keep class com.agenteasyuse.mobileeasyuse.apidemo.state.** { *; }
+-keep class com.agenteasyuse.mobileeasyuse.apidemo.input.** { *; }

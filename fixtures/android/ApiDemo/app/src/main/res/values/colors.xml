@@ -1,0 +1,9 @@
+<resources>
+    <color name="api_resource_color">#3157C8</color>
+    <color name="api_background">#F4F6FA</color>
+    <color name="api_surface">#FFFFFF</color>
+    <color name="api_text">#18213B</color>
+    <color name="api_secondary">#66708A</color>
+    <color name="api_accent">#3157C8</color>
+    <color name="api_success">#237A57</color>
+</resources>

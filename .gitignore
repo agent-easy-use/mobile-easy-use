@@ -1,0 +1,52 @@
+node_modules/
+__pycache__/
+*.pyc
+sdk/dist/*.js
+!sdk/dist/.gitignore
+
+# Generated evidence and MCP logs
+.evidence/
+.logs/
+
+# Android build output
+fixtures/android/HelloWorld/.gradle/
+fixtures/android/HelloWorld/.kotlin/
+fixtures/android/HelloWorld/build/
+fixtures/android/HelloWorld/app/build/
+fixtures/android/ApiDemo/.gradle/
+fixtures/android/ApiDemo/build/
+fixtures/android/ApiDemo/app/build/
+fixtures/android/ApiDemo/local.properties
+
+# Xcode build output and diagnostics
+fixtures/ios/HelloWorld/build/
+fixtures/ios/HelloWorld/.derived-data/
+fixtures/ios/HelloWorld/.derived-data-*/
+fixtures/ios/HelloWorld/.meu-derived-data/
+fixtures/ios/HelloWorld/.uitest-derived-data/
+fixtures/ios/HelloWorld/.xctest-*-derived-data/
+fixtures/ios/HelloWorld/.xctest-frida-diagnostics/
+fixtures/ios/ApiDemo/.derived-data/
+fixtures/ios/ApiDemo/.derived-data-device/
+fixtures/ios/ApiDemo/.derived-data-release/
+fixtures/ios/ApiDemo/.derived-data-simulator/
+fixtures/ios/StandaloneUITestRunner/.derived-data/
+fixtures/ios/StandaloneUITestRunner/.derived-data-device/
+runners/ios-xctest/.derived-data/
+runners/ios-xctest/.derived-data-device/
+runners/ios-xctest/MEUStandaloneRunner/.derived-data/
+fixtures/ios/ApiDemo/build/
+fixtures/ios/ApiDemo/Pods/
+fixtures/ios/ApiDemo/ApiDemo.xcworkspace/
+fixtures/ios/ApiDemo/ApiDemo.xcodeproj/project.xcworkspace/
+
+# Xcode per-user state
+**/xcuserdata/
+*.xcuserstate
+
+.DS_Store
+
+artifacts/
+.worktree/
+.codex
+.idea

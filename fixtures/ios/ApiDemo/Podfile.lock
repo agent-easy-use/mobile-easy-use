@@ -1,0 +1,16 @@
+PODS:
+  - MobileEasyUse (0.1.0)
+
+DEPENDENCIES:
+  - MobileEasyUse (from `../../..`)
+
+EXTERNAL SOURCES:
+  MobileEasyUse:
+    :path: "../../.."
+
+SPEC CHECKSUMS:
+  MobileEasyUse: c51c0814d1dbe085d5ca0bd6f422cef433c2eea5
+
+PODFILE CHECKSUM: 69704220f4942ccc7ba2d2792ca7e36dc9401cf9
+
+COCOAPODS: 1.16.2

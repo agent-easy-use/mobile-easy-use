@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.ApiDemo" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:colorAccent">@color/api_accent</item>
+        <item name="android:statusBarColor">@color/api_background</item>
+        <item name="android:navigationBarColor">@color/api_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

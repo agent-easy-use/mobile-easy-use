@@ -1,0 +1,6 @@
+interface:
+  display_name: "Integrate MobileEasyUse iOS"
+  short_description: "Integrate MobileEasyUse into an iOS App"
+  default_prompt: "Use $to-ios-integrate to add MobileEasyUse to this iOS App."
+policy:
+  allow_implicit_invocation: false

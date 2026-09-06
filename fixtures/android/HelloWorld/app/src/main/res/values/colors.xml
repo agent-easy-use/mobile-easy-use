@@ -1,0 +1,15 @@
+<resources>
+    <color name="white">#FFFFFF</color>
+    <color name="page_background">#F5F7FC</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="brand_blue">#4F6FEF</color>
+    <color name="brand_blue_dark">#344CB7</color>
+    <color name="brand_blue_light">#E8EEFF</color>
+    <color name="text_primary">#18213B</color>
+    <color name="text_secondary">#66708A</color>
+    <color name="text_muted">#8E96AA</color>
+    <color name="input_background">#F6F7FA</color>
+    <color name="divider">#E9ECF3</color>
+    <color name="error">#C43D4B</color>
+    <color name="success_dark">#257A5B</color>
+</resources>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <activity
+            android:name=".ui.EvidenceActivity"
+            android:exported="false"
+            tools:replace="android:exported" />
+        <activity
+            android:name=".ui.OverrideActivity"
+            android:exported="false"
+            tools:replace="android:exported" />
+        <activity
+            android:name=".ui.WindowActivity"
+            android:exported="false"
+            tools:replace="android:exported" />
+        <activity
+            android:name=".ui.WaitActivity"
+            android:exported="false"
+            tools:replace="android:exported" />
+        <activity
+            android:name=".ui.ResourceActivity"
+            android:exported="false"
+            tools:replace="android:exported" />
+        <activity
+            android:name=".ui.UiActivity"
+            android:exported="false"
+            tools:replace="android:exported" />
+        <activity
+            android:name=".ui.InputActivity"
+            android:exported="false"
+            tools:replace="android:exported" />
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="false"
+            tools:replace="android:exported" />
+    </application>
+</manifest>

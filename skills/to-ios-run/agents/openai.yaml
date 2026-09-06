@@ -1,0 +1,6 @@
+interface:
+  display_name: "To iOS Run"
+  short_description: "Load MobileEasyUse and run one iOS operation"
+  default_prompt: "Use $to-ios-run to start or resolve an iOS App, load MobileEasyUse, and execute one supplied Inline or Module operation."
+policy:
+  allow_implicit_invocation: false

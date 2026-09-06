@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Android SDK ApiDemo</string>
+    <string name="api_resource_string">API_RESOURCE_STRING</string>
+    <string name="api_duplicate_text">API_DUPLICATE_TEXT</string>
+    <string name="api_ready_format">generation=%1$d</string>
+    <string name="api_back">Back</string>
+</resources>

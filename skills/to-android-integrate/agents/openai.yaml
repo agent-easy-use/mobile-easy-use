@@ -1,0 +1,6 @@
+interface:
+  display_name: "Integrate MobileEasyUse Android"
+  short_description: "Integrate MobileEasyUse into an Android App"
+  default_prompt: "Use $to-android-integrate to add MobileEasyUse to this Android App."
+policy:
+  allow_implicit_invocation: false

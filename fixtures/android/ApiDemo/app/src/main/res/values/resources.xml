@@ -1,0 +1,9 @@
+<resources>
+    <bool name="api_resource_bool">true</bool>
+    <integer name="api_resource_integer">42</integer>
+    <string-array name="api_resource_array">
+        <item>first</item>
+        <item>second</item>
+    </string-array>
+    <dimen name="api_resource_dimen">24dp</dimen>
+</resources>
