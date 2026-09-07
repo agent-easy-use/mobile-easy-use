@@ -2,25 +2,39 @@
 
 ## Format
 
-The top-level `actionDescription` identifies the action. `chain` is an ordered array. Method records contain `type: "method"`, `className`, `method`, and `phase`; `phase` is `enter`, `leave`, or `throw`, with `error` on throws. Log records contain `type: "log"`, `level`, `tag`, and `message`.
+`actionDescription` identifies the observed action. `chain` contains method and log events in observation order.
 
 Relevant section example:
 
 ```json
 {
-  "actionDescription": "Open search",
+  "actionDescription": "Submit search",
   "chain": [
     {
       "type": "method",
-      "className": "com.example.SearchRouter",
-      "method": "open",
-      "phase": "enter"
+      "className": "com.example.SearchService",
+      "method": "submitQuery",
+      "phase": "enter",
+      "capture": { "args": { "query": "shoes" } }
     },
     {
       "type": "log",
       "level": "d",
       "tag": "Search",
-      "message": "page opened"
+      "message": "request queued"
+    },
+    {
+      "type": "method",
+      "className": "com.example.SearchService",
+      "method": "submitQuery",
+      "phase": "leave",
+      "capture": {
+        "result": { "accepted": true },
+        "elapsedMs": 2.5,
+        "memory": {
+          "javaHeapUsedBytes": { "unit": "bytes", "before": 1000000, "after": 1004096, "delta": 4096 }
+        }
+      }
     }
   ]
 }
@@ -28,4 +42,14 @@ Relevant section example:
 
 ## Analysis
 
-Describe only observed events and the source branch they support. Array order is observation order, not proof of causality. A missing event is inconclusive unless the hook scope and action window make absence meaningful. TAG capture may include unrelated background logs emitted in the same window.
+Read `chain` chronologically as observed: entry, intervening logs or nested calls, then completion.
+
+- **Entry (`enter`)** identifies the class and method; optional `capture.args` shows selected inputs.
+- **Log (`log`)** provides level, TAG, and message as execution context.
+- **Completion (`leave`)** identifies the returning method; optional `capture` provides the selected result,
+  elapsed time, and before/after process memory changes. A `throw` instead records the original error and optional timing/memory, without a result.
+
+Consult the method definition for capture details and failures; evaluate collection errors alongside values.
+Observation order alone does not establish causality or pair overlapping calls. Logs may include unrelated
+background work; missing events are inconclusive without a complete observation window. Explain only what
+the evidence supports: method return is not async completion, and memory growth alone is not a leak.

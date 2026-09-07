@@ -2,7 +2,7 @@
 
 ## Format
 
-The top-level `actionDescription` identifies the action. `chain` is an ordered array. Method records contain `type: "method"`, `className`, `selector`, and `phase`; `phase` is `enter` or `leave`. Log records contain `type: "log"`, `level: "default"`, `tag`, and `message`.
+`actionDescription` identifies the observed action. `chain` contains method and log events in observation order.
 
 Relevant section example:
 
@@ -12,15 +12,29 @@ Relevant section example:
   "chain": [
     {
       "type": "method",
-      "className": "SearchViewController",
-      "selector": "- submit",
-      "phase": "enter"
+      "className": "SearchService",
+      "selector": "- submitQuery:",
+      "phase": "enter",
+      "capture": { "args": { "query": "shoes" } }
     },
     {
       "type": "log",
       "level": "default",
       "tag": "Search",
-      "message": "[Search] request started"
+      "message": "[Search] request queued"
+    },
+    {
+      "type": "method",
+      "className": "SearchService",
+      "selector": "- submitQuery:",
+      "phase": "leave",
+      "capture": {
+        "result": { "accepted": true },
+        "elapsedMs": 2.5,
+        "memory": {
+          "physicalFootprintBytes": { "unit": "bytes", "before": 1000000, "after": 1004096, "delta": 4096 }
+        }
+      }
     }
   ]
 }
@@ -28,4 +42,14 @@ Relevant section example:
 
 ## Analysis
 
-Describe only observed selectors and TAG-prefixed `NSLog` messages and the source branch they support. Array order is observation order, not proof of causality. A missing event is inconclusive unless the hook scope, exact TAG contract, and action window make absence meaningful. TAG capture may include unrelated background logs emitted in the same window.
+Read `chain` chronologically as observed: entry, intervening logs or nested calls, then completion.
+
+- **Entry (`enter`)** identifies the class and selector; optional `capture.args` shows selected inputs.
+- **Log (`log`)** provides level, TAG, and message as execution context.
+- **Completion (`leave`)** identifies the returning method; optional `capture` provides the selected result,
+  elapsed time, and before/after process memory changes. There is no generic Objective-C `throw` event.
+
+Consult the method definition for capture details and failures; evaluate collection errors alongside values.
+Observation order alone does not establish causality or pair overlapping calls. Logs may include unrelated
+background work; missing events are inconclusive without a complete observation window. Explain only what
+the evidence supports: method return is not async completion, and memory growth alone is not a leak.

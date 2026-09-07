@@ -1,3 +1,4 @@
+import { createCapture } from './capture.js';
 import { errorMessage, safeConsole, safeEmit } from '../../common/reporting.js';
 import Java from 'frida-java-bridge';
 import { installNativeLogEvidenceHooks } from './native-log.js';
@@ -32,6 +33,7 @@ function installHook(targetClass, methodName, options = {}) {
     if (mode !== 'observe' && mode !== 'mutate') {
       throw new Error(`Unsupported hook mode: ${mode}`);
     }
+    const capture = createCapture(options.capture);
     const installed = [];
     const runCallback = (phase, callback, input) => {
       if (typeof callback !== 'function') {
@@ -60,17 +62,24 @@ function installHook(targetClass, methodName, options = {}) {
             && runCallback('filter', options.filter, invocation) !== true) {
             return original.call(this, ...rawArgs);
           }
-          runCallback('onEnter', options.onEnter, invocation);
+          const emitEnter = evidenceCapture => runCallback('onEnter', options.onEnter, { ...invocation, evidenceCapture });
+          const captured = capture ? capture.begin(() => invocation, emitEnter) : undefined;
+          if (!capture) emitEnter(undefined);
           let result;
           try {
             result = original.call(this, ...rawArgs);
           } catch (error) {
-            runCallback('onError', options.onError, { ...invocation, error });
+            capture?.end(captured);
+            const evidenceCapture = capture?.finish(captured, () => invocation, false);
+            runCallback('onError', options.onError, { ...invocation, error, evidenceCapture });
             throw error;
           }
+          capture?.end(captured);
+          const evidenceCapture = capture?.finish(captured, () => ({ ...invocation, result }), true);
           const replacement = runCallback('onLeave', options.onLeave, {
             ...invocation,
             result,
+            evidenceCapture,
           });
           if (mode === 'mutate' && replacement !== undefined) {
             result = replacement;
@@ -151,14 +160,17 @@ async function withChainEvidence(action, actionDescription, logTag, methodHooks 
         allOverloads: definition.allOverloads,
         mode: 'observe',
         filter: definition.filter,
-        onEnter() {
+        capture: definition.capture,
+        onEnter(invocation) {
           writeEvidence('chain', {
             type: 'method', actionDescription, className, method: methodName, phase: 'enter',
+            ...(invocation.evidenceCapture === undefined ? {} : { capture: invocation.evidenceCapture }),
           });
         },
-        onLeave() {
+        onLeave(invocation) {
           writeEvidence('chain', {
             type: 'method', actionDescription, className, method: methodName, phase: 'leave',
+            ...(invocation.evidenceCapture === undefined ? {} : { capture: invocation.evidenceCapture }),
           });
         },
         onError(invocation) {
@@ -169,6 +181,7 @@ async function withChainEvidence(action, actionDescription, logTag, methodHooks 
             method: methodName,
             phase: 'throw',
             error: errorMessage(invocation.error),
+            ...(invocation.evidenceCapture === undefined ? {} : { capture: invocation.evidenceCapture }),
           });
         },
       }));

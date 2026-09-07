@@ -181,6 +181,39 @@ declare global {
     selector: string;
   }
 
+  type IOSChainMemoryMetric = 'physicalFootprintBytes';
+  /** Pointer/object/selector arguments remain NativePointer; convert known objects with ObjC.Object.
+   * Integer <=32-bit values are numbers, BOOL is boolean, 64-bit integers are decimal strings.
+   * Float/double/aggregate argument signatures are unsupported and report captureErrors.
+   */
+  interface IOSChainArgsInvocation extends IOSMethodHookInvocation {
+    /** Explicit method arguments only; excludes self and _cmd. */
+    readonly args: readonly (NativePointer | number | boolean | string)[];
+  }
+
+  interface IOSChainCapture {
+    /** Synchronous read-only entry extraction; finite, acyclic plain JSON only, no runtime wrappers. */
+    args?: (invocation: IOSChainArgsInvocation) => IOSJsonValue;
+    /** Synchronous, read-only JSON extraction on normal return only; same JSON restrictions as args.
+     * Same scalar decoding as args; void is undefined (omit extraction or explicitly return JSON null).
+     * Float/double/aggregate returns are unsupported. Receiver/entry args are not retained.
+     */
+    result?: (invocation: { className: string; selector: string;
+      result: NativePointer | number | boolean | string | undefined }) => IOSJsonValue;
+    /** Default false. Emits elapsedMs as a number with fractional milliseconds, using CLOCK_UPTIME_RAW.
+     * Includes children/waits, excludes sleep.
+     * Requires arm64/x64. Not CPU time or async completion time.
+     */
+    timing?: boolean;
+    /** Default off. arm64/x64 task_info TASK_VM_INFO phys_footprint, in bytes, before/after only.
+     * No polling/forced collection; process delta includes concurrent activity, not method allocations.
+     */
+    memory?: {
+      /** Non-empty selection; unsupported names are rejected before the action runs. */
+      metrics: readonly IOSChainMemoryMetric[];
+    };
+  }
+
   interface IOSMethodHook {
     /** Objective-C class name or class wrapper. */
     target: string | ObjCBridge.Object;
@@ -188,6 +221,16 @@ declare global {
     selector: `- ${string}` | `+ ${string}`;
     /** Keep evidence only when this synchronous, read-only callback returns true. */
     filter?: (invocation: IOSMethodHookInvocation) => boolean;
+    /** Optional capture: args and args errors on enter; result on leave, with elapsedMs (number, fractional milliseconds),
+     * memory[metric] {unit:'bytes',before,after,delta}, captureErrors [{field,message}].
+     * Failed memory reads and dependent deltas are null; failed extraction/timing fields are omitted.
+     * Omitting capture preserves legacy events. Capture data goes to Evidence, not the action return value.
+     * Invalid configuration rejects before the action; runtime capture failures preserve original behavior.
+     * No invocation ID or generic ObjC exception capture.
+     * Nested hooks affect parent timings. Argument callbacks must not alter observed objects.
+     * @example capture: { timing: true, memory: {metrics: ['physicalFootprintBytes']} }
+     */
+    capture?: IOSChainCapture;
   }
 
   type IOSStateGetters = Readonly<Record<string, () => IOSJsonValue>>;

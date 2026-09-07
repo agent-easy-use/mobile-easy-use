@@ -1,3 +1,4 @@
+import { createCapture, decodeArguments, decodeValue } from './capture.js';
 import ObjC from 'frida-objc-bridge';
 import {
   errorMessage,
@@ -37,6 +38,7 @@ function installMethodHook(definition, actionDescription) {
     throw new Error('Hook filter must be a function');
   }
 
+  const capture = createCapture(definition.capture);
   const listener = Interceptor.attach(method.implementation, {
     onEnter(args) {
       this.mobileEasyUseMatched = true;
@@ -63,22 +65,33 @@ function installMethodHook(definition, actionDescription) {
         });
         return;
       }
-      writeEvidence('chain', {
+      const emitEnter = evidenceCapture => writeEvidence('chain', {
         type: 'method',
         actionDescription,
         className: receiver?.$className ?? className,
         selector: methodName,
         phase: 'enter',
+        ...(evidenceCapture === undefined ? {} : { capture: evidenceCapture }),
       });
+      this.mobileEasyUseCapture = capture?.begin(() => ({
+        receiver, className, selector: methodName,
+        args: decodeArguments(method, args),
+      }), emitEnter);
+      if (!capture) emitEnter(undefined);
     },
-    onLeave() {
+    onLeave(result) {
       if (this.mobileEasyUseMatched !== true) return;
+      capture?.end(this.mobileEasyUseCapture);
+      const evidenceCapture = capture?.finish(this.mobileEasyUseCapture, () => ({
+        className, selector: methodName, result: decodeValue(method.returnType, result),
+      }), true);
       writeEvidence('chain', {
         type: 'method',
         actionDescription,
         className,
         selector: methodName,
         phase: 'leave',
+        ...(evidenceCapture === undefined ? {} : { capture: evidenceCapture }),
       });
     },
   });

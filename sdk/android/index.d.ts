@@ -351,6 +351,27 @@ declare global {
     argumentTypes: readonly string[];
   }
 
+  type AndroidChainMemoryMetric = 'javaHeapUsedBytes' | 'nativeHeapAllocatedBytes';
+
+  interface ProbeChainCapture {
+    /** Synchronous, read-only extraction at entry; return finite, acyclic plain JSON only. */
+    args?: (invocation: ProbeHookInvocation) => ProbeJsonValue;
+    /** Synchronous, read-only extraction on normal return only; never on throw. Same JSON restrictions as args. */
+    result?: (invocation: ProbeHookInvocation & { result: unknown }) => ProbeJsonValue;
+    /** Default false. Emits elapsedMs as a number with fractional milliseconds, using System.nanoTime.
+     * Includes children/waits; not CPU time or async completion time.
+     */
+    timing?: boolean;
+    /** Default off. Read each selected process metric before/after; no polling or forced GC.
+     * Java heap: Runtime.totalMemory-freeMemory; native heap: Debug.getNativeHeapAllocatedSize.
+     * Deltas include concurrent work/GC and do not measure this method's allocations or leaks.
+     */
+    memory?: {
+      /** Non-empty selection; unsupported names are rejected before the action runs. */
+      metrics: readonly AndroidChainMemoryMetric[];
+    };
+  }
+
   interface ProbeChainMethodHook {
     target: string | Java.Wrapper;
     method: string;
@@ -360,6 +381,17 @@ declare global {
     allOverloads?: boolean;
     /** Keep evidence only for matching invocations; must be synchronous and read-only. */
     filter?: (invocation: ProbeHookInvocation) => boolean;
+    /** Optional capture: args and args errors on enter; timing/memory on leave/throw; result on leave only.
+     * Exit capture contains result, elapsedMs (number, fractional milliseconds), memory[metric]
+     * {unit:'bytes',before,after,delta}, and captureErrors [{field,message}] on failure.
+     * Failed memory reads and dependent deltas are null; failed extraction/timing fields are omitted.
+     * Omitting capture preserves legacy events. Capture data goes to Evidence, not the action return value.
+     * Invalid configuration rejects before the action; runtime capture failures preserve original behavior.
+     * Nested probes still perturb parent timings. Keep callbacks and target sets small.
+     * @example capture: { args: ({args}) => ({key: String(args[0])}), timing: true,
+     *   memory: {metrics: ['javaHeapUsedBytes']} }
+     */
+    capture?: ProbeChainCapture;
   }
 
   type ProbeStateGetters = Readonly<Record<string, () => ProbeJsonValue>>;
