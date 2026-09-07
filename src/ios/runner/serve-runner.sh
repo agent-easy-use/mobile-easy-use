@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-runner_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 kind=""
 destination_id=""
 team_id=""
@@ -10,8 +10,8 @@ listen_port="8485"
 
 usage() {
   echo "Usage:"
-  echo "  mobile-easy-use-ios runner --simulator UDID [--port PORT]"
-  echo "  mobile-easy-use-ios runner --device UDID --team TEAM_ID [--port PORT]"
+  echo "  serve-runner.sh --simulator UDID [--port PORT]"
+  echo "  serve-runner.sh --device UDID --team TEAM_ID [--port PORT]"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -51,6 +51,42 @@ if [[ -z "${kind}" ]]; then usage >&2; exit 2; fi
 if [[ "${kind}" == "device" && -z "${team_id}" ]]; then
   echo "--team is required for a physical device build" >&2
   exit 2
+fi
+
+runner_dir="${MOBILE_EASY_USE_IOS_RUNNER_ROOT:-}"
+if [[ -z "${runner_dir}" ]]; then
+  package_root="$(cd "${script_dir}/../../.." && pwd)"
+  package_json="${package_root}/package.json"
+  if [[ ! -f "${package_json}" ]]; then
+    echo "MobileEasyUse package metadata is unavailable at '${package_json}'." >&2
+    exit 1
+  fi
+  if ! package_version="$(
+    node -e '
+      const fs = require("node:fs");
+      const value = JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version;
+      if (typeof value !== "string" || value.length === 0) process.exit(1);
+      process.stdout.write(value);
+    ' "${package_json}"
+  )" || [[ ! "${package_version}" =~ ^[0-9A-Za-z][0-9A-Za-z.+_-]*$ ]]; then
+    echo "MobileEasyUse package version is invalid in '${package_json}'." >&2
+    exit 1
+  fi
+  meu_home="${MEU_HOME:-}"
+  if [[ -z "${meu_home}" ]]; then
+    if [[ -z "${HOME:-}" ]]; then
+      echo "HOME or MEU_HOME is required to locate MobileEasyUse iOS Runner ${package_version}." >&2
+      exit 1
+    fi
+    meu_home="${HOME}/.meu"
+  fi
+  runner_dir="${meu_home}/ios/${package_version}/runner"
+fi
+
+if [[ ! -d "${runner_dir}" ]]; then
+  echo "MobileEasyUse iOS Runner is unavailable at '${runner_dir}'." >&2
+  echo "Install the matching Runner under '<MEU_HOME>/ios/<version>/runner' or set MOBILE_EASY_USE_IOS_RUNNER_ROOT." >&2
+  exit 1
 fi
 
 if [[ "${kind}" == "simulator" ]]; then

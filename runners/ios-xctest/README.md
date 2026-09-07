@@ -11,24 +11,15 @@ session remains the main script, Override, and Evidence runtime.
 
 ## Automatic start
 
-The target App must already be running. After MCP `connect` validates the App runtime, the Host runs
-the matching command below automatically and stores the Runner on that connection. Users do not
-start or retain a separate Runner process.
+The target App must already be running. After MCP `connect` validates the App runtime, the Host starts
+the internal Runner script for the selected simulator or physical device and stores the Runner on
+that connection. Users do not start or retain a separate Runner process, and no public Runner command
+is exposed.
 
-Simulator:
-
-```bash
-mobile-easy-use-ios runner \
-  --simulator <SIMULATOR_UDID>
-```
-
-Physical device:
-
-```bash
-mobile-easy-use-ios runner \
-  --device <DEVICE_UDID> \
-  --team <APPLE_TEAM_ID>
-```
+The Host resolves the Runner artifact from `MOBILE_EASY_USE_IOS_RUNNER_ROOT` when explicitly set.
+Otherwise it reads the installed MobileEasyUse package version and requires
+`<MEU_HOME>/ios/<version>/runner`, where `MEU_HOME` defaults to `~/.meu`. Missing artifacts fail
+immediately; the runtime does not download an artifact or fall back to the repository checkout.
 
 The command builds into a destination-specific directory under `.derived-data/` when no compatible
 signed Runner is cached, then runs `testServeInputCommands` until the command is stopped. A cached

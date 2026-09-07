@@ -7,11 +7,11 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 const execFile = promisify(execFileCallback);
-const RUNNER_CLI = fileURLToPath(
-  new URL('../../integration/ios/bin/mobile-easy-use-ios', import.meta.url),
+const RUNNER_COMMAND = fileURLToPath(
+  new URL('../ios/runner/serve-runner.sh', import.meta.url),
 );
 const IOS_XCTEST_DRIVER_BUNDLE_PATH = fileURLToPath(
-  new URL('../../runners/ios-xctest/runtime/dist.js', import.meta.url),
+  new URL('../../sdk/dist/ios-xctest-driver.js', import.meta.url),
 );
 const RUNNER_DEVICE_PORT = 8485;
 const RUNNER_HOST_PORT = 28485;
@@ -41,7 +41,7 @@ export class IOSRunner {
   constructor(owner, connection, appId, {
     execute = execFile,
     spawn = spawnProcess,
-    runnerCli = RUNNER_CLI,
+    runnerCommand = RUNNER_COMMAND,
     developmentTeam = process.env.MOBILE_EASY_USE_IOS_DEVELOPMENT_TEAM,
     loadDriver = loadIOSXCTestDriverSource,
     allocatePort = reserveLocalPort,
@@ -54,7 +54,7 @@ export class IOSRunner {
     this.appId = appId;
     this.execute = execute;
     this.spawn = spawn;
-    this.runnerCli = runnerCli;
+    this.runnerCommand = runnerCommand;
     this.developmentTeam = developmentTeam;
     this.loadDriver = loadDriver;
     this.allocatePort = allocatePort;
@@ -101,10 +101,10 @@ export class IOSRunner {
         ])
         : null;
       const runnerArgs = physical
-        ? ['runner', '--device', destinationId, '--team', this.developmentTeam,
+        ? ['--device', destinationId, '--team', this.developmentTeam,
           '--port', String(runnerPort)]
-        : ['runner', '--simulator', simulator.udid, '--port', String(runnerPort)];
-      this.process = startChild(this.spawn, this.runnerCli, runnerArgs);
+        : ['--simulator', simulator.udid, '--port', String(runnerPort)];
+      this.process = startChild(this.spawn, this.runnerCommand, runnerArgs);
 
       await Promise.all([
         waitForChildStartup(this.proxy, 'iproxy'),

@@ -5,11 +5,23 @@ description: Integrate MobileEasyUse into one existing iOS App debug configurati
 
 # Integrate MobileEasyUse into iOS
 
+## Acquire the artifacts
+
+Before editing the target project, run `node scripts/ensure-artifacts.mjs`, resolving the script path relative to this `SKILL.md`. The script requires Node.js 20 or newer and downloads on Windows, macOS, and Linux. It resolves the latest GitHub Release, verifies `SHA256SUMS`, and installs both archives under `~/.meu/ios/<version>`:
+
+- `integration` contains the App integration binaries and scripts;
+- `runner` contains the XCTest runner and runtime used by MobileEasyUse.
+
+The script prints one JSON object containing `version`, `integrationPath`, `runnerPath`, and `cacheHit`. Use `MEU_HOME` to override `~/.meu` and `GITHUB_TOKEN` when authenticated GitHub API access is required. Stop and report the script error if acquisition or checksum validation fails.
+
+Artifact acquisition is cross-platform. Xcode project changes, building, signing, and runtime verification require macOS; on Windows or Linux, finish the download, report both cache paths, and explain that the integration phase must continue on macOS.
+
 ## Workflow
 
-1. Inspect the workspace/project, App target, schemes, build configurations, and Podfile. Use the internal configuration named by the user. If one debug configuration exists, select it. If several exist, ask once for the selection.
-2. Select `Binaries/iphoneos` for a device build or `Binaries/iphonesimulator` for a simulator build.
-3. Produce this layout in the selected App:
+1. Acquire the artifacts and retain the JSON result.
+2. Inspect the workspace/project, App target, schemes, build configurations, and Podfile. Use the internal configuration named by the user. If one debug configuration exists, select it. If several exist, ask once for the selection.
+3. Select `Binaries/iphoneos` for a device build or `Binaries/iphonesimulator` for a simulator build.
+4. Produce this layout in the selected App:
 
    ```text
    <App>.app/Frameworks/MobileEasyUse.dylib
@@ -17,27 +29,27 @@ description: Integrate MobileEasyUse into one existing iOS App debug configurati
    <App>.app/MobileEasyUseRuntime.config
    ```
 
-4. Keep both dylib filenames unchanged. After copying and any Mach-O changes, sign both dylibs with the App build's signing identity. For an already signed App or IPA, sign the dylibs first and then sign the App.
-5. Scope the copy and signing operation to the selected internal configuration.
+5. Keep both dylib filenames unchanged. After copying and any Mach-O changes, sign both dylibs with the App build's signing identity. For an already signed App or IPA, sign the dylibs first and then sign the App.
+6. Scope the copy and signing operation to the selected internal configuration.
 
 Use the Xcode or CocoaPods procedure below to implement these steps.
 
 ## Xcode
 
-Place the published `integration/ios` directory at a stable project-relative path. Add an after-compile Run Script phase to the App target:
+Use the returned `integrationPath`. Configure a user-defined Xcode build setting named `MEU_HOME` as `$(HOME)/.meu`, unless the environment uses an explicit cache root, and `MEU_VERSION` as the returned version. Add an after-compile Run Script phase to the App target:
 
 ```bash
-<IntegrationRoot>/Scripts/embed-mobile-easy-use.sh \
+"${MEU_HOME}/ios/${MEU_VERSION}/integration/Scripts/embed-mobile-easy-use.sh" \
   --configuration "<SelectedInternalConfiguration>"
 ```
 
 Declare these inputs:
 
 ```text
-<IntegrationRoot>/Scripts/embed-mobile-easy-use.sh
-<IntegrationRoot>/Binaries/${PLATFORM_NAME}/MobileEasyUse.dylib
-<IntegrationRoot>/Binaries/${PLATFORM_NAME}/MobileEasyUseRuntime.dylib
-<IntegrationRoot>/MobileEasyUseRuntime.config
+${MEU_HOME}/ios/${MEU_VERSION}/integration/Scripts/embed-mobile-easy-use.sh
+${MEU_HOME}/ios/${MEU_VERSION}/integration/Binaries/${PLATFORM_NAME}/MobileEasyUse.dylib
+${MEU_HOME}/ios/${MEU_VERSION}/integration/Binaries/${PLATFORM_NAME}/MobileEasyUseRuntime.dylib
+${MEU_HOME}/ios/${MEU_VERSION}/integration/MobileEasyUseRuntime.config
 ```
 
 Declare these outputs:
@@ -52,7 +64,7 @@ The Run Script phase is the App target integration. It selects the platform bina
 
 ## CocoaPods
 
-Choose the MobileEasyUse integration directory for the selected Pod source:
+The release cache is the default integration source. Use CocoaPods only when the user already has a published Pod source or a compatible local checkout. Choose that integration directory for the selected Pod source:
 
 ```ruby
 # Published Pod
@@ -95,4 +107,4 @@ For a local checkout, add its `:path` to the Pod declaration. Follow the project
 
 ## Finish
 
-Report the App target, selected configuration, integration method, changed files, and embed command. When verification is requested, read [references/validation.md](references/validation.md) completely and follow it.
+Report the artifact version, integration and runner cache paths, App target, selected configuration, integration method, changed files, and embed command. When verification is requested, read [references/validation.md](references/validation.md) completely and follow it.

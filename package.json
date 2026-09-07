@@ -7,21 +7,17 @@
     "src",
     "sdk/dist",
     "templates",
-    "integration/ios/bin",
-    "integration/ios/Scripts/load-mobile-easy-use.sh",
-    "integration/ios/Scripts/load_mobile_easy_use.py",
     "README.md",
     "README.zh.md"
   ],
   "bin": {
-    "mobile-easy-use": "src/index.js",
-    "mobile-easy-use-ios": "integration/ios/bin/mobile-easy-use-ios"
+    "mobile-easy-use": "src/index.js"
   },
   "scripts": {
     "build": "npm run build:android && npm run build:ios && npm run build:ios-runner",
     "build:android": "frida-compile sdk/android/index.js -o sdk/dist/android.js -S",
     "build:ios": "frida-compile sdk/ios/index.js -o sdk/dist/ios.js -S",
-    "build:ios-runner": "frida-compile runners/ios-xctest/runtime/index.js -o runners/ios-xctest/runtime/dist.js -S",
+    "build:ios-runner": "frida-compile sdk/runners/ios-xctest-driver.js -o sdk/dist/ios-xctest-driver.js -S",
     "prepack": "npm run build",
     "prestart": "npm run build",
     "start": "node src/index.js",

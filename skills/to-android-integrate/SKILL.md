@@ -7,17 +7,29 @@ description: Integrate MobileEasyUse into one existing Android App debug variant
 
 Complete the integration, report the changes, and ask whether to verify. Verification covers building, installation, launch, connection, and probing.
 
+## Acquire the artifact
+
+Before editing the target project, run `node scripts/ensure-artifacts.mjs`, resolving the script path relative to this `SKILL.md`. The script requires Node.js 20 or newer and works on Windows, macOS, and Linux. It:
+
+- resolves the latest GitHub Release;
+- reuses a complete matching artifact in `~/.meu`;
+- otherwise downloads the Android Maven archive, verifies it against `SHA256SUMS`, and extracts it;
+- prints one JSON object containing `version`, `repositoryPath`, `artifactPath`, and `cacheHit`.
+
+Use `MEU_HOME` when the user or environment needs a cache root other than `~/.meu`. Use `GITHUB_TOKEN` when authenticated GitHub API access is required. Stop and report the script error if acquisition or checksum validation fails. Do not substitute a source-tree build.
+
 ## Workflow
 
-1. Inspect the Android modules, Gradle files, repositories, build types, and product flavors. Identify the App module and its debuggable variants.
-2. Resolve the target variant:
+1. Acquire the artifact and retain the JSON result.
+2. Inspect the Android modules, Gradle files, repositories, build types, and product flavors. Identify the App module and its debuggable variants.
+3. Resolve the target variant:
    - Use a variant already named by the user.
    - If exactly one debug variant is available, use it.
    - If multiple debug variants are available, ask the user exactly once to choose from the discovered names, then continue with that selection.
-3. Use Automatic startup. Scope `com.agenteasyuse:mobile-easy-use:0.1.0` to the selected debuggable variant with `debugImplementation(...)`, or the matching variant-aware configuration such as `internalDebugImplementation(...)`.
-4. The AAR manifest provider `com.agenteasyuse.mobileeasyuse.internal.MobileEasyUseInitProvider` calls `MobileEasyUse.initialize()` before `Application.onCreate()`. The variant dependency completes the startup integration.
-5. Reuse a configured Maven repository that contains the artifact. For a local MobileEasyUse checkout, run `./gradlew :mobile-easy-use:publishReleasePublicationToLocalRepository` from `integration/android`, then add the project-level repository at `integration/android/build/maven-repository` (or the equivalent path from the target project).
-6. Report the target module, variant, changed files, dependency configuration, and Automatic startup. Ask whether the user wants to verify the integration.
+4. Add the returned `repositoryPath` as a project-level Maven repository. Keep the path portable by deriving it from `MEU_HOME`, or from the current user's home plus `.meu`, in the target Gradle settings. Do not commit one user's absolute home path.
+5. Use Automatic startup. Scope `com.agenteasyuse:mobile-easy-use:<returned version>` to the selected debuggable variant with `debugImplementation(...)`, or the matching variant-aware configuration such as `internalDebugImplementation(...)`.
+6. The AAR manifest provider `com.agenteasyuse.mobileeasyuse.internal.MobileEasyUseInitProvider` calls `MobileEasyUse.initialize()` before `Application.onCreate()`. The variant dependency completes the startup integration.
+7. Report the artifact version and cache path, target module, variant, changed files, dependency configuration, and Automatic startup. Ask whether the user wants to verify the integration.
 
 ## Manual startup
 

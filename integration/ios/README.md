@@ -1,9 +1,8 @@
 # mobile-easy-use iOS CocoaPods integration
 
 This integration is for internal test builds only. It embeds the MobileEasyUse bridge and runtime
-in the App without linking or loading either image at startup. LLDB attaches first and loads the
-lightweight `MobileEasyUse.dylib` bootstrap, which then loads `MobileEasyUseRuntime.dylib` on a
-background thread while LLDB remains attached.
+in the App without linking either image. LLDB loads the bridge and Runtime synchronously through
+`SBTarget.EvaluateExpression`; a simulator first waits until launch-time dyld work has settled.
 
 ## Add the Pod
 
@@ -67,20 +66,14 @@ configuration. For the selected configuration it chooses the device or simulator
 copies both dylibs to the App's `Frameworks` directory, installs
 `MobileEasyUseRuntime.config`, and signs both dylibs with the App's current signing identity.
 
-`MobileEasyUse.dylib` contains the Objective-C bridge and Runtime bootstrap, but has no load command
+`MobileEasyUse.dylib` contains the Objective-C bridge, but has no load command
 for `MobileEasyUseRuntime.dylib`. The App executable contains neither bridge symbols nor a startup
 dependency on either image.
 
-The debugger-only load boundary is provided by the App not linking either image and by the LLDB
-loader checking image absence before loading the bootstrap in the attached process. The bootstrap
-constructor calls `mobile_easy_use_load_runtime_async`, which rejects the request unless `P_TRACED`
-confirms that a debugger is attached. LLDB keeps its default single-thread execution policy while
-`SBProcess.LoadImage` runs, then continues the process so the bootstrap worker can load Runtime. The
-Loader remains attached until the bootstrap reports completion. It normally reads the exported
-`mobile_easy_use_runtime_bootstrap_status` memory block after validating its magic value. The
-existing `mobile_easy_use_runtime_bootstrap_state` and
-`mobile_easy_use_runtime_bootstrap_error` functions remain available as a fallback when that block
-is missing, unreadable, or has an unexpected magic value.
+The load boundary is provided by the App not linking either image and by the LLDB loader checking
+image absence in the attached process. The Loader resolves the target process's
+`libdyld.dylib` `dlopen` address and uses `SBTarget.EvaluateExpression` to load the bridge and then
+Runtime synchronously.
 
 When the native bridge sources change, rebuild both platform bridge binaries from the repository
 root before publishing:
@@ -93,42 +86,34 @@ The script matches each committed Frida runtime's architecture slices, verifies 
 direct runtime dependency, and applies an ad-hoc repository signature. The App embed hook replaces that signature
 with the selected build's signing identity.
 
-## Load after LLDB attaches
+## Load during MCP connect
 
-Build the App. You may launch it through its normal path before running the command; otherwise the command launches it:
+Build the App, prepare the simulator endpoint or physical-device `iproxy`, and call MCP `connect`. A new or replacement iOS connection invokes its internal Loader before the Frida attach. A healthy matching connection is reused without invoking the Loader. There is no separate public Loader command.
 
-```bash
-# Physical device
-mobile-easy-use-ios load \
-  --device "My iPhone" \
-  --bundle-id "com.example.MyApp"
+For a simulator, a newly launched App first runs freely for 500 milliseconds before LLDB attaches.
+The Loader queries dyld's process state and proceeds only when it reports `program_running`; an
+early query failure or active top-level `dyld` frame is retried after another 500 milliseconds of
+actual process runtime. It then synchronously loads the bridge and Runtime through
+`SBTarget.EvaluateExpression` in the same stopped LLDB session, detaches, and waits for that exact
+PID to listen on Runtime port 8484. An already-running
+App is preserved, and an App that already contains both loaded images is returned immediately.
 
-# Booted simulator
-mobile-easy-use-ios load \
-  --simulator "iPhone 17" \
-  --bundle-id "com.example.MyApp"
-```
-
-The command resolves CoreDevice and hardware identifiers separately, resolves or launches the App
+The Loader command resolves CoreDevice and hardware identifiers separately, resolves or launches the App
 through a direct `devicectl` invocation with file-backed JSON and diagnostic output, then keeps a scoped
 CoreDevice console session alive while LLDB runs. On a physical device, it verifies that the same PID
 still identifies the same executable before attaching LLDB. Device
-discovery, selection, process attach, and the Python loader all
-execute in the same LLDB process. The loader waits for `SBProcess` to report the stopped state and
-derives the remote App Frameworks path. When both images already exist exactly once it detaches and
-reports them immediately. When both are absent, it uses `SBProcess.LoadImage` only for the lightweight
-bridge; its constructor schedules the asynchronous Runtime trigger, and the Loader continues the App.
-The bootstrap loads Runtime on its worker thread and records whether it reached `loaded` or `failed`.
-The Loader briefly interrupts the process while polling that state; unrelated App stops encountered
-while the bootstrap is `loading` are continued. This uses the first and only LLDB
-attachment and does not run Runtime initialization inside an LLDB expression.
+discovery, selection, process attach, and the Python loader all execute in the same LLDB process.
+The loader waits for `SBProcess` to report the stopped state and derives the remote App Frameworks
+path. When both images already exist exactly once it detaches and reports them immediately. On both
+platforms it invokes the loaded `libdyld.dylib` `dlopen` symbol synchronously through
+`SBTarget.EvaluateExpression` for the bridge and then Runtime. The simulator additionally applies
+the dyld readiness gate before these calls.
 Any invalid or duplicate image state fails. It then verifies both images appear exactly once and
 detaches with `SBProcess.Detach`. It does not parse LLDB prompts or terminal output.
 A successful command prints `loadState` as `loaded` or `already-loaded`, both image identities, and a
-`detachState` of `detached`. For either target type, the
-bundle ID resolves the App PID without terminating an existing process; an App that is not already
-running is launched. The physical-device Loader verifies the newly resolved process immediately before
-LLDB attaches; subsequent Probe operations reuse the loaded runtime and do not rerun the Loader.
+`detachState` of `detached`. The physical-device Loader preserves an existing process or launches the
+App when needed, and verifies the newly resolved process immediately before
+LLDB attaches. Repeated `connect` calls reuse a healthy retained Session and do not rerun the Loader. After a disconnect or stale Session, the next real connection invokes the Loader again; its image-state check returns `already-loaded` without loading either dylib a second time.
 On a physical device, the CoreDevice launch resolution is bounded by `--timeout`
 and a transient timeout is retried up to three times. The scoped console session holds CoreDevice's
 usage assertion until LLDB detaches, so `device list` and `device select` see the same connected
@@ -143,7 +128,10 @@ For a physical device, keep `iproxy -u "<device-udid>" 28484:8484` running and c
 `127.0.0.1:28484`. Port 28484 is the fixed iOS host-side mapping; the device runtime remains on 8484.
 
 After MCP `connect` validates the target App runtime, the connection starts `MEUStandaloneRunner`
-and opens its second Frida Session automatically. On a physical device, set
+and opens its second Frida Session automatically. It uses
+`MOBILE_EASY_USE_IOS_RUNNER_ROOT` when set; otherwise it requires the matching package version at
+`<MEU_HOME>/ios/<version>/runner`, where `MEU_HOME` defaults to `~/.meu`. There is no
+source-checkout fallback. On a physical device, set
 `MOBILE_EASY_USE_IOS_DEVELOPMENT_TEAM=<team-id>` before starting the Host; it also owns the Runner's
 dynamically reserved Host-port forwarding to device port `8485`. Do not start or forward the Runner
 manually.

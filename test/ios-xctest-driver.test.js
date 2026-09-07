@@ -112,7 +112,7 @@ test('connection-owned iOS Runner starts, forwards, and closes on a simulator', 
       spawnCalls.push({ command, args, options });
       return new FakeChild();
     },
-    runnerCli: '/test/mobile-easy-use-ios',
+    runnerCommand: '/test/serve-runner.sh',
     loadDriver: async () => 'runner-bundle',
     allocatePort: async () => 8485,
     releasePort: (port) => releasedPorts.push(port),
@@ -126,8 +126,8 @@ test('connection-owned iOS Runner starts, forwards, and closes on a simulator', 
   }), { ok: true, action: 'click', mode: 'semantic' });
 
   assert.deepEqual(spawnCalls, [{
-    command: '/test/mobile-easy-use-ios',
-    args: ['runner', '--simulator', 'SIM-1', '--port', '8485'],
+    command: '/test/serve-runner.sh',
+    args: ['--simulator', 'SIM-1', '--port', '8485'],
     options: { stdio: ['ignore', 'pipe', 'pipe'] },
   }]);
   assert.deepEqual(remoteAddresses, ['127.0.0.1:8485']);

@@ -1,6 +1,6 @@
 ---
 name: to-ios-run
-description: Resolve one USB iOS device or running simulator, connect its App runtime, use one idempotent LLDB load only when the initial connection fails, and execute exactly one supplied operation.
+description: Resolve one USB iOS device or running simulator, connect its App runtime with MCP-managed idempotent loading, and execute exactly one supplied operation.
 ---
 
 # To iOS Run
@@ -32,7 +32,7 @@ For a USB physical device, keep one exact iproxy mapping from a free Host port t
 iproxy -u "<hardware-udid>" 28484:8484
 ```
 
-Choose another free Host port when 28484 is unavailable. Call `connect` immediately; do not run the Loader first:
+Choose another free Host port when 28484 is unavailable. Call `connect` exactly once:
 
 ```js
 connect({
@@ -45,20 +45,11 @@ connect({
 })
 ```
 
-The connection instance key is `deviceId + appId`. A healthy matching instance is reused even when a new endpoint or device-side port is supplied.
+The connection instance key is `deviceId + appId`. MCP reuses a healthy matching instance even when a new endpoint or device-side port is supplied; this path validates the retained Runtime and does not invoke the Loader.
 
-If this first `connect` succeeds, proceed directly to execution. If it fails because the runtime cannot be connected, run exactly one matching command:
+For a new or replacement iOS connection, MCP resolves the target kind and runs the idempotent LLDB Loader before creating the Frida connection. The Loader preserves an already-running App or launches it when absent. It accepts only `loaded` or `already-loaded`, requires each bridge/runtime image exactly once, detaches LLDB, and then proceeds with Frida attach. An already-loaded App is verified without loading either dylib again.
 
-- If the runtime reports that its `appId` differs from the requested `appId`, stop and return the original port-occupied error. Another App owns `runtimePort`; do not run the Loader or start, stop, or restart either App.
-
-```bash
-mobile-easy-use-ios load --simulator "<simulator-udid>" --bundle-id "<app-id>"
-mobile-easy-use-ios load --device "<device-id>" --bundle-id "<app-id>"
-```
-
-The Loader preserves an already-running App or launches it when absent, attaches LLDB, and loads MobileEasyUse idempotently. Require `loadState` to be `loaded` or `already-loaded`, each bridge/runtime image to appear exactly once, and `detachState: "detached"`. Stop if it fails. After it succeeds, call the same complete `connect` exactly once more and stop if that connection fails.
-
-Do not run the Loader for invalid arguments, an App identity mismatch, or an operation already in progress. Do not install Apps or call `disconnect` after success.
+Return a `connect` failure directly. Do not invoke the Loader separately, retry `connect`, install Apps, or call `disconnect` after success.
 
 ## Execute
 

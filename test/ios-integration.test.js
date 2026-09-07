@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
-const iosCliPath = path.resolve('integration/ios/bin/mobile-easy-use-ios');
+const iosLoadScriptPath = path.resolve('src/ios/load/load-mobile-easy-use.sh');
+const iosRunnerScriptPath = path.resolve('src/ios/runner/serve-runner.sh');
 const embedScriptPath = path.resolve('integration/ios/Scripts/embed-mobile-easy-use.sh');
 
 function runEmbedScript(configuration, args = []) {
@@ -76,7 +77,7 @@ test('iOS embed hook rejects invalid configuration arguments', () => {
   assert.match(unknown.stderr, /unknown argument/);
 });
 
-test('iOS bridge dylibs contain native APIs and asynchronously bootstrap the Frida runtime', () => {
+test('iOS bridge dylibs contain native APIs without linking the Frida runtime', () => {
   for (const platform of ['iphoneos', 'iphonesimulator']) {
     const bridge = `integration/ios/Binaries/${platform}/MobileEasyUse.dylib`;
     const dependencies = spawnSync('otool', ['-L', bridge], { encoding: 'utf8' });
@@ -91,14 +92,12 @@ test('iOS bridge dylibs contain native APIs and asynchronously bootstrap the Fri
     assert.match(symbols.stdout, /_OBJC_CLASS_\$_MEUUIQuery/);
     assert.match(symbols.stdout, /_mobile_easy_use_replace_nslog/);
     assert.match(symbols.stdout, /_mobile_easy_use_set_nslog_capture/);
-    assert.match(symbols.stdout, /_mobile_easy_use_load_runtime_async/);
-    assert.match(symbols.stdout, /_mobile_easy_use_runtime_bootstrap_status/);
-    assert.match(symbols.stdout, /_mobile_easy_use_runtime_bootstrap_state/);
-    assert.match(symbols.stdout, /_mobile_easy_use_runtime_bootstrap_error/);
+    assert.doesNotMatch(symbols.stdout, /_mobile_easy_use_load_runtime_async/);
+    assert.doesNotMatch(symbols.stdout, /_mobile_easy_use_runtime_bootstrap_/);
   }
 });
 
-test('mobile-easy-use-ios resolves a device bundle ID and attaches its PID', async (t) => {
+test('iOS Loader resolves a device bundle ID and attaches its PID', async (t) => {
   if (process.platform !== 'darwin') {
     t.skip('the LLDB wrapper is macOS-only');
     return;
@@ -187,9 +186,8 @@ printf '{"ok":true,"pid":2468,"attachState":"stopped","images":{"MobileEasyUse.d
   await chmod(fakeXcrun, 0o755);
 
   const result = spawnSync(
-    iosCliPath,
+    iosLoadScriptPath,
     [
-      'load',
       '--device', 'Test iPhone',
       '--bundle-id', 'com.example.TestApp',
       '--timeout', '5',
@@ -208,10 +206,10 @@ printf '{"ok":true,"pid":2468,"attachState":"stopped","images":{"MobileEasyUse.d
   assert.match(result.stdout, /"detachState":"detached"/);
 });
 
-test('mobile-easy-use-ios rejects the removed --process option', () => {
+test('iOS Loader rejects the removed --process option', () => {
   const result = spawnSync(
-    iosCliPath,
-    ['load', '--device', 'Test iPhone', '--process', 'TestApp'],
+    iosLoadScriptPath,
+    ['--device', 'Test iPhone', '--process', 'TestApp'],
     { encoding: 'utf8' },
   );
 
@@ -220,7 +218,64 @@ test('mobile-easy-use-ios rejects the removed --process option', () => {
   assert.doesNotMatch(result.stderr, /--process NAME/);
 });
 
-test('mobile-easy-use-ios retries transient CoreDevice launch-resolution timeouts', async (t) => {
+test('iOS Runner help does not require an installed Runner artifact', () => {
+  const result = spawnSync(
+    iosRunnerScriptPath,
+    ['--help'],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        MOBILE_EASY_USE_IOS_RUNNER_ROOT: '/path/that/does/not/exist',
+      },
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /serve-runner\.sh --simulator/);
+});
+
+test('iOS Runner rejects an unavailable explicit artifact root', () => {
+  const missingRoot = `/path/that/does/not/exist-${process.pid}`;
+  const result = spawnSync(
+    iosRunnerScriptPath,
+    ['--simulator', 'SIMULATOR-UDID'],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        MOBILE_EASY_USE_IOS_RUNNER_ROOT: missingRoot,
+      },
+    },
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, new RegExp(`unavailable at '${missingRoot}'`));
+  assert.match(result.stderr, /MOBILE_EASY_USE_IOS_RUNNER_ROOT/);
+});
+
+test('iOS Runner resolves its versioned artifact under MEU_HOME', () => {
+  const meuHome = `/path/that/does/not/exist-${process.pid}`;
+  const expectedRoot = path.join(meuHome, 'ios', '0.1.0', 'runner');
+  const result = spawnSync(
+    iosRunnerScriptPath,
+    ['--simulator', 'SIMULATOR-UDID'],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        HOME: '/different/home',
+        MEU_HOME: meuHome,
+        MOBILE_EASY_USE_IOS_RUNNER_ROOT: '',
+      },
+    },
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, new RegExp(`unavailable at '${expectedRoot}'`));
+});
+
+test('iOS Loader retries transient CoreDevice launch-resolution timeouts', async (t) => {
   if (process.platform !== 'darwin') {
     t.skip('the LLDB wrapper is macOS-only');
     return;
@@ -307,9 +362,8 @@ printf '{"ok":true,"pid":2468,"attachState":"stopped","images":{"MobileEasyUse.d
   await chmod(fakeXcrun, 0o755);
 
   const result = spawnSync(
-    iosCliPath,
+    iosLoadScriptPath,
     [
-      'load',
       '--device', 'Test iPhone',
       '--bundle-id', 'com.example.TestApp',
       '--timeout', '5',
@@ -328,26 +382,29 @@ printf '{"ok":true,"pid":2468,"attachState":"stopped","images":{"MobileEasyUse.d
   assert.match(result.stdout, /"MobileEasyUseRuntime\.dylib"/);
 });
 
-test('mobile-easy-use-ios loads a booted simulator through a local PID attach', async (t) => {
+test('iOS Loader dynamically loads a booted simulator after dyld startup', async (t) => {
   if (process.platform !== 'darwin') {
-    t.skip('the LLDB wrapper is macOS-only');
+    t.skip('the simulator loader is macOS-only');
     return;
   }
 
   const fakeBin = await mkdtemp(path.join(os.tmpdir(), 'meu-ios-simulator-'));
-  t.after(async () => rm(fakeBin, { recursive: true, force: true }));
-
-  const fakeSleep = path.join(fakeBin, 'sleep');
-  await writeFile(fakeSleep, `#!/bin/bash
-if [[ "$1" == "2" ]]; then
-  echo "simulator flow must not use the physical-device startup delay" >&2
-  exit 99
-fi
-exec /bin/sleep "$@"
+  const fakeApp = path.join(fakeBin, 'ApiDemo.app');
+  const frameworks = path.join(fakeApp, 'Frameworks');
+  await mkdir(frameworks, { recursive: true });
+  await writeFile(path.join(fakeApp, 'Info.plist'), `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict><key>CFBundleExecutable</key><string>ApiDemo</string></dict></plist>
 `, 'utf8');
-  await chmod(fakeSleep, 0o755);
-
+  await writeFile(path.join(frameworks, 'MobileEasyUse.dylib'), 'bridge', 'utf8');
+  await writeFile(path.join(frameworks, 'MobileEasyUseRuntime.dylib'), 'runtime', 'utf8');
   const commandLog = path.join(fakeBin, 'commands');
+  const pidFile = path.join(fakeBin, 'pid');
+  t.after(async () => {
+    try { process.kill(Number(await readFile(pidFile, 'utf8')), 'SIGKILL'); } catch { }
+    await rm(fakeBin, { recursive: true, force: true });
+  });
+
   const fakeXcrun = path.join(fakeBin, 'xcrun');
   await writeFile(fakeXcrun, `#!/bin/bash
 if [[ "$1" == "devicectl" ]]; then
@@ -358,31 +415,48 @@ if [[ "$1" == "simctl" && "$2" == "getenv" ]]; then
   echo "SIMULATOR-UDID"
   exit 0
 fi
-if [[ "$1" == "simctl" && "$2" == "launch" ]]; then
-  if [[ " $* " == *" --terminate-running-process "* ]]; then
-    echo "must preserve an already-running simulator process" >&2
-    exit 2
-  fi
-  echo "com.example.TestApp: 3579"
+if [[ "$1" == "simctl" && "$2" == "get_app_container" ]]; then
+  echo "${fakeApp}"
   exit 0
 fi
-if [[ "$1" != "lldb" ]]; then
-  exit 2
+if [[ "$1" == "simctl" && "$2" == "launch" ]]; then
+  printf 'launch-env=%s\n' "\${SIMCTL_CHILD_DYLD_INSERT_LIBRARIES:-}" > "${commandLog}"
+  /usr/bin/python3 -c 'import socket,time; s=socket.socket(); s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1); s.bind(("127.0.0.1",8484)); s.listen(); time.sleep(30)' </dev/null >/dev/null 2>&1 &
+  child_pid=$!
+  printf '%s' "$child_pid" > "${pidFile}"
+  echo "com.example.TestApp: $child_pid"
+  exit 0
 fi
-printf 'mode=%s\ntarget=%s\npid=%s\ntimeout=%s\nargs=%s\n' \
-  "$MOBILE_EASY_USE_LLDB_MODE" \
-  "$MOBILE_EASY_USE_LLDB_TARGET" \
-  "$MOBILE_EASY_USE_LLDB_PID" \
-  "$MOBILE_EASY_USE_LLDB_TIMEOUT" \
-  "$*" > "${commandLog}"
-printf '{"ok":true,"pid":3579,"attachState":"stopped","images":{"MobileEasyUse.dylib":[{}],"MobileEasyUseRuntime.dylib":[{}]},"detachState":"detached"}\n'
+if [[ "$1" == "lldb" ]]; then
+  [[ "$MOBILE_EASY_USE_LLDB_MODE" == "simulator" ]] || exit 2
+  [[ "$MOBILE_EASY_USE_LLDB_TARGET" == "iPhone Test" ]] || exit 2
+  printf 'lldb=%s\n' "$*" >> "${commandLog}"
+  printf '%s\n' '${JSON.stringify({
+    ok: true,
+    mode: 'simulator',
+    target: 'iPhone Test',
+    pid: 1234,
+    attachState: 'stopped',
+    imagePath: `${fakeApp}/Frameworks/MobileEasyUse.dylib`,
+    imageToken: null,
+    loadState: 'loaded',
+    loadMethod: 'dyld-program-running+sbtarget-dlopen',
+    images: {
+      'MobileEasyUse.dylib': [{ path: `${fakeApp}/Frameworks/MobileEasyUse.dylib` }],
+      'MobileEasyUseRuntime.dylib': [{ path: `${fakeApp}/Frameworks/MobileEasyUseRuntime.dylib` }],
+    },
+    detachState: 'detached',
+  })}'
+  exit 0
+fi
+echo "simulator flow invoked an unknown command: $*" >&2
+exit 2
 `, 'utf8');
   await chmod(fakeXcrun, 0o755);
 
   const result = spawnSync(
-    iosCliPath,
+    iosLoadScriptPath,
     [
-      'load',
       '--simulator', 'iPhone Test',
       '--bundle-id', 'com.example.TestApp',
       '--timeout', '5',
@@ -395,24 +469,22 @@ printf '{"ok":true,"pid":3579,"attachState":"stopped","images":{"MobileEasyUse.d
   );
 
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-  assert.match(result.stdout, /simulator 'iPhone Test' and process 3579/);
+  assert.match(result.stdout, /"attachState":"stopped"/);
+  assert.match(result.stdout, /"loadMethod":"dyld-program-running\+sbtarget-dlopen"/);
   assert.match(result.stdout, /"MobileEasyUseRuntime\.dylib"/);
   const commands = await readFile(commandLog, 'utf8');
-  assert.match(commands, /^mode=simulator$/m);
-  assert.match(commands, /^target=iPhone Test$/m);
-  assert.match(commands, /^pid=3579$/m);
-  assert.match(commands, /--batch/);
-  assert.match(commands, /process attach --pid 3579/);
-  assert.doesNotMatch(commands, /device select/);
-  assert.match(commands, /mobile-easy-use-load/);
+  assert.match(commands, /^launch-env=$/m);
+  assert.match(commands, /lldb=.*process attach --pid/);
+  assert.match(commands, /lldb=.*mobile-easy-use-load/);
 });
 
-test('iOS integration scripts are valid shell programs', () => {
+test('iOS integration and runtime scripts are valid shell programs', () => {
   for (const script of [
     'integration/ios/Scripts/build-mobile-easy-use.sh',
     'integration/ios/Scripts/embed-mobile-easy-use.sh',
-    'integration/ios/Scripts/load-mobile-easy-use.sh',
-    'integration/ios/bin/mobile-easy-use-ios',
+    'runners/ios-xctest/scripts/embed-runtime.sh',
+    'src/ios/load/load-mobile-easy-use.sh',
+    'src/ios/runner/serve-runner.sh',
   ]) {
     const result = spawnSync('bash', ['-n', script], { encoding: 'utf8' });
     assert.equal(result.status, 0, `${script}: ${result.stderr}`);

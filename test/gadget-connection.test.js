@@ -270,6 +270,62 @@ test('connect reuses the same healthy target even when a new endpoint is supplie
   assert.equal(manager.runtimeStatusCalls, 2);
 });
 
+test('iOS connect loads before a real connection and skips loading on reuse', async () => {
+  const manager = new FakeDeviceManager();
+  manager.runtimeStatus = {
+    platform: 'ios',
+    available: true,
+    appId: 'com.example.app',
+  };
+  const events = [];
+  const addRemoteDevice = manager.addRemoteDevice.bind(manager);
+  manager.addRemoteDevice = async (address) => {
+    events.push('connect');
+    return addRemoteDevice(address);
+  };
+  const runner = { closing: false, async close() {} };
+  const connection = new GadgetConnection(manager, {
+    loadIOSAppRuntime: async ({ deviceId, appId }) => {
+      events.push(`load:${deviceId}:${appId}`);
+    },
+    startIOSRunner: async () => {
+      events.push('runner');
+      return runner;
+    },
+  });
+  const input = targetInput({ platform: 'ios' });
+
+  const first = await connection.connect(input);
+  const reused = await connection.connect({ ...input, port: 19484 });
+
+  assert.deepEqual(reused, first);
+  assert.deepEqual(events, [
+    'load:device-1:com.example.app',
+    'connect',
+    'runner',
+  ]);
+  assert.equal(manager.runtimeStatusCalls, 2);
+});
+
+test('iOS Loader failure aborts before creating a Frida connection', async () => {
+  const manager = new FakeDeviceManager();
+  const connection = new GadgetConnection(manager, {
+    loadIOSAppRuntime: async () => {
+      throw new Error('LLDB load failed');
+    },
+  });
+
+  await assert.rejects(
+    connection.connect(targetInput({ platform: 'ios' })),
+    /Failed to connect.*LLDB load failed/,
+  );
+
+  assert.equal(connection.state, 'disconnected');
+  assert.equal(connection.currentConnection, null);
+  assert.deepEqual(manager.addresses, []);
+  assert.deepEqual(manager.targets, []);
+});
+
 test('connect identity is deviceId plus appId and reuses a healthy instance across ports', async () => {
   const manager = new FakeDeviceManager();
   const connection = new GadgetConnection(manager);

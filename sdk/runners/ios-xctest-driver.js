@@ -1,3 +1,4 @@
+// Frida driver loaded into the standalone XCTest Runner process.
 import ObjC from 'frida-objc-bridge';
 
 const XCUI_ELEMENT_TYPE_ANY = 0;

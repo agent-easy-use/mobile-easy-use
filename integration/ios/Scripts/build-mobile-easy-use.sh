@@ -40,7 +40,6 @@ build_platform() {
       "${sources_dir}/MEULog.m" \
       "${sources_dir}/MEUScreenshot.m" \
       "${sources_dir}/MEUUIQuery.m" \
-      "${sources_dir}/MEURuntimeBootstrap.c" \
       -framework Foundation \
       -framework CoreGraphics \
       -framework UIKit \
@@ -55,7 +54,7 @@ build_platform() {
 
   if /usr/bin/otool -L "${output_path}" \
     | /usr/bin/grep -q '@loader_path/MobileEasyUseRuntime.dylib'; then
-    echo "error: ${output_path} must bootstrap MobileEasyUseRuntime asynchronously" >&2
+    echo "error: ${output_path} must not link MobileEasyUseRuntime directly" >&2
     return 1
   fi
 }

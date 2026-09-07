@@ -64,6 +64,9 @@ export async function connect(owner, {
   let sdkScript = null;
   let connection = null;
   try {
+    if (platform === 'ios') {
+      await owner.loadIOSAppRuntime({ deviceId, appId });
+    }
     device = await owner.deviceManager.addRemoteDevice(address);
     session = await device.attach(GADGET_PROCESS_NAME);
     connection = {
@@ -100,7 +103,9 @@ export async function connect(owner, {
       await sdkScript.exports.loadPresetBundle(PRESETS_MODULE_PATH, presetsSource);
     }
     if (platform === 'ios') {
-      connection.iosRunner = await IOSRunner.start(owner, connection, appId);
+      connection.iosRunner = owner.startIOSRunner === null
+        ? await IOSRunner.start(owner, connection, appId)
+        : await owner.startIOSRunner(owner, connection, appId);
     }
     owner.currentConnection = connection;
     owner.state = 'connected';

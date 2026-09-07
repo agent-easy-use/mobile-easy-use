@@ -9,8 +9,8 @@ timeout_seconds="90"
 
 usage() {
   echo "Usage:"
-  echo "  mobile-easy-use-ios load --device NAME --bundle-id ID [--timeout SECONDS]"
-  echo "  mobile-easy-use-ios load --simulator NAME_OR_UDID --bundle-id ID [--timeout SECONDS]"
+  echo "  load-mobile-easy-use.sh --device NAME --bundle-id ID [--timeout SECONDS]"
+  echo "  load-mobile-easy-use.sh --simulator NAME_OR_UDID --bundle-id ID [--timeout SECONDS]"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -116,22 +116,87 @@ if [[ -n "${simulator_name}" ]]; then
     exit 1
   fi
 
-  if ! launch_output="$(
-    xcrun simctl launch "${simulator_udid}" "${bundle_id}" 2>&1
+  if ! app_path="$(
+    xcrun simctl get_app_container "${simulator_udid}" "${bundle_id}" app 2>&1
   )"; then
-    echo "Failed to launch '${bundle_id}' on simulator '${simulator_name}'." >&2
-    echo "${launch_output}" >&2
+    echo "Failed to resolve '${bundle_id}' on simulator '${simulator_name}'." >&2
+    echo "${app_path}" >&2
     exit 1
   fi
-  if [[ ! "${launch_output}" =~ :[[:space:]]+([0-9]+) ]]; then
-    echo "Could not determine the simulator App PID from simctl output:" >&2
-    echo "${launch_output}" >&2
+  if ! executable_name="$(
+    /usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "${app_path}/Info.plist" 2>&1
+  )" || [[ -z "${executable_name}" ]]; then
+    echo "Could not resolve the simulator App executable for '${bundle_id}'." >&2
+    echo "${executable_name}" >&2
     exit 1
   fi
-  simulator_pid="${BASH_REMATCH[1]}"
+  app_executable="${app_path}/${executable_name}"
+  bridge_path="${app_path}/Frameworks/MobileEasyUse.dylib"
+  runtime_path="${app_path}/Frameworks/MobileEasyUseRuntime.dylib"
+  for image_path in "${bridge_path}" "${runtime_path}"; do
+    if [[ ! -f "${image_path}" ]]; then
+      echo "MobileEasyUse simulator image is missing: ${image_path}" >&2
+      exit 1
+    fi
+  done
+  simulator_pid="$(
+    ps -axo pid=,command= \
+      | /usr/bin/awk -v executable="${app_executable}" \
+        '$2 == executable && !pid {pid = $1} END {if (pid) print pid}'
+  )"
+  simulator_was_launched=false
+  if [[ ! "${simulator_pid}" =~ ^[1-9][0-9]*$ ]]; then
+    if ! launch_output="$(
+      xcrun simctl launch "${simulator_udid}" "${bundle_id}" 2>&1
+    )"; then
+      echo "Failed to launch '${bundle_id}' on simulator '${simulator_name}'." >&2
+      echo "${launch_output}" >&2
+      exit 1
+    fi
+    if [[ ! "${launch_output}" =~ :[[:space:]]+([0-9]+) ]]; then
+      echo "Could not determine the simulator App PID from simctl output:" >&2
+      echo "${launch_output}" >&2
+      exit 1
+    fi
+    simulator_pid="${BASH_REMATCH[1]}"
+    simulator_was_launched=true
+  fi
+  if [[ "${simulator_was_launched}" == true ]]; then
+    # Let the launch transaction advance before LLDB stops the process. The
+    # in-LLDB dyld state check remains the authority for readiness.
+    sleep 0.5
+  fi
 
-  run_lldb_loader simulator "${simulator_name}" "${simulator_pid}"
-  exit $?
+  if loader_output="$(
+    run_lldb_loader simulator "${simulator_name}" "${simulator_pid}"
+  )"; then
+    :
+  else
+    loader_status=$?
+    echo "${loader_output}" >&2
+    exit "${loader_status}"
+  fi
+
+  ready=false
+  deadline=$((SECONDS + timeout_seconds))
+  while (( SECONDS < deadline )); do
+    if ! kill -0 "${simulator_pid}" 2>/dev/null; then
+      echo "Simulator App process ${simulator_pid} exited during MobileEasyUse startup." >&2
+      exit 1
+    fi
+    if /usr/sbin/lsof -nP -a -p "${simulator_pid}" \
+      -iTCP:8484 -sTCP:LISTEN >/dev/null 2>&1; then
+      ready=true
+      break
+    fi
+    sleep 0.1
+  done
+  if [[ "${ready}" != true ]]; then
+    echo "MobileEasyUse simulator Runtime did not listen on port 8484 within ${timeout_seconds} seconds." >&2
+    exit 1
+  fi
+  printf '%s\n' "${loader_output}"
+  exit 0
 fi
 
 device_tmp_dir="$(mktemp -d -t mobile-easy-use-device)"

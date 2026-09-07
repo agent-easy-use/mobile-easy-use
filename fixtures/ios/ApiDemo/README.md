@@ -26,9 +26,9 @@ operations; they are intentionally not hidden inside a `callFunction` probe.
 The local `MobileEasyUse` Pod is resource-only and scoped to `ProbeDebug`. Its after-compile script
 phase copies and signs the platform `MobileEasyUse.dylib` bridge, the separate
 `MobileEasyUseRuntime.dylib`, and `MobileEasyUseRuntime.config`. Neither dylib is linked by the App,
-and no native bridge source is compiled into the App or Pods target. After LLDB attaches it loads only
-the lightweight bridge. The bridge constructor schedules Runtime loading, which runs after LLDB
-continues the process and while it remains attached.
+and no native bridge source is compiled into the App or Pods target. For both a simulator and a
+physical device, MCP `connect` launches or preserves the App and uses LLDB to load the bridge and
+Runtime synchronously. A simulator additionally waits for launch-time dyld work to settle.
 
 ## Build
 
@@ -45,20 +45,17 @@ xcodebuild \
   build
 ```
 
-Install and launch the resulting App, then load the runtime without terminating the process:
+Install the resulting App. Do not invoke the Loader separately; the first MCP `connect` launches or
+preserves the App and loads both images before attaching Frida:
 
 ```bash
 xcrun simctl install booted .derived-data/Build/Products/ProbeDebug-iphonesimulator/ApiDemo.app
-xcrun simctl launch booted com.agenteasyuse.mobileeasyuse.apidemo.ios
-../../../integration/ios/bin/mobile-easy-use-ios load \
-  --simulator 'iPhone 17' \
-  --bundle-id com.agenteasyuse.mobileeasyuse.apidemo.ios
 ```
 
 The simulator Runtime endpoint is `127.0.0.1:8484`.
 
-For a connected development device, build and install the device product, then load it by device
-name:
+For a connected development device, build and install the device product, then prepare forwarding
+before the first MCP `connect`:
 
 ```bash
 xcodebuild \
@@ -72,10 +69,6 @@ xcodebuild \
 xcrun devicectl device install app \
   --device '<device-udid>' \
   .derived-data-device/Build/Products/ProbeDebug-iphoneos/ApiDemo.app
-
-../../../integration/ios/bin/mobile-easy-use-ios load \
-  --device '<device-name>' \
-  --bundle-id com.agenteasyuse.mobileeasyuse.apidemo.ios
 
 iproxy -u '<device-udid>' 28484:8484
 ```
