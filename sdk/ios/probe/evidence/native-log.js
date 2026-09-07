@@ -1,3 +1,4 @@
+import { currentThreadName } from '../../common/thread.js';
 import { safeConsole, writeEvidence } from '../../common/reporting.js';
 
 const NSLOG_SYMBOL = 'NSLog';
@@ -44,6 +45,7 @@ function getNativeLogRuntime() {
     }
     try {
       writeEvidence('chain', {
+        threadName: currentThreadName(),
         type: 'log',
         actionDescription: capture.actionDescription,
         level: 'default',

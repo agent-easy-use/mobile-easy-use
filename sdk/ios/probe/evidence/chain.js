@@ -1,3 +1,4 @@
+import { currentThreadName } from '../../common/thread.js';
 import { createCapture, decodeArguments, decodeValue } from './capture.js';
 import ObjC from 'frida-objc-bridge';
 import {
@@ -66,6 +67,7 @@ function installMethodHook(definition, actionDescription) {
         return;
       }
       const emitEnter = evidenceCapture => writeEvidence('chain', {
+        threadName: currentThreadName(),
         type: 'method',
         actionDescription,
         className: receiver?.$className ?? className,
@@ -76,7 +78,7 @@ function installMethodHook(definition, actionDescription) {
       this.mobileEasyUseCapture = capture?.begin(() => ({
         receiver, className, selector: methodName,
         args: decodeArguments(method, args),
-      }), emitEnter);
+      }), emitEnter, this.context);
       if (!capture) emitEnter(undefined);
     },
     onLeave(result) {
@@ -86,6 +88,7 @@ function installMethodHook(definition, actionDescription) {
         className, selector: methodName, result: decodeValue(method.returnType, result),
       }), true);
       writeEvidence('chain', {
+        threadName: currentThreadName(),
         type: 'method',
         actionDescription,
         className,

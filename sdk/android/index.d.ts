@@ -354,16 +354,22 @@ declare global {
   type AndroidChainMemoryMetric = 'javaHeapUsedBytes' | 'nativeHeapAllocatedBytes';
 
   interface ProbeChainCapture {
+    /** Default off. true or {} captures the entry stack with at most 5 frames.
+     * maxFrames must be an integer from 1 to 64; actual stacks may be shorter.
+     * Emits capture.stack {kind: 'java', frames: [...]} on enter only.
+     * Java frames contain className, methodName, signature, fileName and lineNumber.
+     * @example stack: true // or stack: {maxFrames: 3}
+     */
+    stack?: boolean | { maxFrames?: number };
     /** Synchronous, read-only extraction at entry; return finite, acyclic plain JSON only. */
     args?: (invocation: ProbeHookInvocation) => ProbeJsonValue;
     /** Synchronous, read-only extraction on normal return only; never on throw. Same JSON restrictions as args. */
     result?: (invocation: ProbeHookInvocation & { result: unknown }) => ProbeJsonValue;
-    /** Default false. Emits elapsedMs as a number with fractional milliseconds, using System.nanoTime.
+    /** Default off. Emits elapsedMs in fractional milliseconds, measured with a monotonic clock.
      * Includes children/waits; not CPU time or async completion time.
      */
     timing?: boolean;
     /** Default off. Read each selected process metric before/after; no polling or forced GC.
-     * Java heap: Runtime.totalMemory-freeMemory; native heap: Debug.getNativeHeapAllocatedSize.
      * Deltas include concurrent work/GC and do not measure this method's allocations or leaks.
      */
     memory?: {
@@ -381,15 +387,13 @@ declare global {
     allOverloads?: boolean;
     /** Keep evidence only for matching invocations; must be synchronous and read-only. */
     filter?: (invocation: ProbeHookInvocation) => boolean;
-    /** Optional capture: args and args errors on enter; timing/memory on leave/throw; result on leave only.
-     * Exit capture contains result, elapsedMs (number, fractional milliseconds), memory[metric]
-     * {unit:'bytes',before,after,delta}, and captureErrors [{field,message}] on failure.
-     * Failed memory reads and dependent deltas are null; failed extraction/timing fields are omitted.
-     * Omitting capture preserves legacy events. Capture data goes to Evidence, not the action return value.
-     * Invalid configuration rejects before the action; runtime capture failures preserve original behavior.
-     * Nested probes still perturb parent timings. Keep callbacks and target sets small.
-     * @example capture: { args: ({args}) => ({key: String(args[0])}), timing: true,
-     *   memory: {metrics: ['javaHeapUsedBytes']} }
+    /** Optional method data: args/stack on enter; timing/memory on leave/throw; result on leave only.
+     * Writes to Evidence; the action result is unchanged. Omit to record execution only.
+     * Invalid configuration rejects before the action. Collection failures preserve business behavior
+     * and emit captureErrors [{field,message}]; failed fields are omitted, failed memory readings/deltas are null.
+     * Memory output: memory[metric] {unit:'bytes',before,after,delta}.
+     * Nested probes add overhead to parent timings; keep capture selective.
+     * @example capture: { stack: true, timing: true }
      */
     capture?: ProbeChainCapture;
   }
@@ -397,10 +401,14 @@ declare global {
   type ProbeStateGetters = Readonly<Record<string, () => ProbeJsonValue>>;
 
   interface ProbeEvidenceApi {
-    /**
-     * Install native liblog TAG listeners and business-method hooks around `action`.
-     * Matching logs stream evidence immediately. The wrapper awaits the action and
-     * uninstalls all hooks when it settles.
+    /** Capture selected Java methods and exact-TAG liblog messages during action.
+     * Await action and remove hooks on completion or failure; return its result or propagate its error.
+     * Records are written to Evidence. Method/log events include threadName (null when unavailable).
+     * Supports multiple TAGs per call;
+     * @param actionDescription Non-empty evidence description, unique within this operation.
+     * @param logTag Exact TAG or TAG set; omit for method-only capture.
+     * @param methodHooks Methods to observe; omit for log-only capture.
+     * @example await Probe.evidence.withChainEvidence(action, 'Submit search', 'Search', methodHooks);
      */
     withChainEvidence<TResult>(
       action: () => TResult,

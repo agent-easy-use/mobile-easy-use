@@ -35,7 +35,7 @@ export function createCapture(config) {
   if (config === undefined) return null;
   if (config === null || typeof config !== 'object' || Array.isArray(config)) throw new Error('capture must be an object');
   for (const key of Object.keys(config)) {
-    if (!['args', 'result', 'timing', 'memory'].includes(key)) throw new Error(`Unknown capture option: ${key}`);
+    if (!['args', 'result', 'timing', 'memory', 'stack'].includes(key)) throw new Error(`Unknown capture option: ${key}`);
   }
   for (const key of ['args', 'result']) {
     if (config[key] !== undefined && typeof config[key] !== 'function') throw new Error(`capture.${key} must be a function`);
@@ -49,6 +49,19 @@ export function createCapture(config) {
     metrics = [...new Set(config.memory.metrics)];
     for (const metric of metrics) if (!METRICS.includes(metric)) throw new Error(`Unsupported memory metric: ${metric}`);
   }
+  let stackDepth = 0;
+  if (config.stack !== undefined && config.stack !== false) {
+    const stack = config.stack;
+    if (stack !== true && (stack === null || typeof stack !== 'object' || Array.isArray(stack)
+      || Object.keys(stack).some(key => key !== 'maxFrames'))) {
+      throw new Error('capture.stack must be boolean or {maxFrames?: number}');
+    }
+    stackDepth = stack === true ? 5 : (stack.maxFrames === undefined ? 5 : stack.maxFrames);
+    if (!Number.isSafeInteger(stackDepth) || stackDepth < 1 || stackDepth > MAX_STACK_FRAMES) {
+      throw new Error(`capture.stack.maxFrames must be an integer from 1 to ${MAX_STACK_FRAMES}`);
+    }
+  }
+  if (stackDepth) prepareStackBackend();
   const args = config.args;
   const result = config.result;
   const timing = config.timing === true;
@@ -74,11 +87,15 @@ export function createCapture(config) {
     }
   }
   return {
-    begin(invocation, emitEnter) {
+    begin(invocation, emitEnter, context) {
       const state = { output: {}, start: undefined };
       if (args) {
         const value = attempt(state, 'args', () => jsonSnapshot(args(invocation())));
         if (value !== undefined) state.output.args = value;
+      }
+      if (stackDepth) {
+        const value = attempt(state, 'stack', () => readStack(stackDepth, context));
+        if (value !== undefined) state.output.stack = value;
       }
       // Publish the entry snapshot before the original method starts, including failures.
       emitEnter(Object.keys(state.output).length ? state.output : undefined);
@@ -111,4 +128,32 @@ export function createCapture(config) {
       return state.output;
     },
   };
+}
+
+const MAX_STACK_FRAMES = 64;
+function readStack(maxFrames) {
+  return {
+    kind: 'java',
+    frames: Java.backtrace({ limit: maxFrames }).frames.slice(0, maxFrames).map(frame => ({
+      className: frame.className,
+      methodName: frame.methodName,
+      signature: frame.signature,
+      fileName: frame.fileName ?? null,
+      lineNumber: frame.lineNumber ?? null,
+    })),
+  };
+}
+
+let stackBackendPrepared = false;
+function prepareStackBackend() {
+  if (stackBackendPrepared) return;
+  // frida-java-bridge lazily creates a global CModule for Java.backtrace().
+  // Initialize it during serial hook installation, before concurrent app threads
+  // can race its first use and release an overwritten module's native callbacks.
+  try {
+    Java.backtrace({limit: 1});
+    stackBackendPrepared = true;
+  } catch (_) {
+    // Entry-side capture will report the actual failure through captureErrors.
+  }
 }

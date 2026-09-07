@@ -73,7 +73,7 @@ export function createCapture(config) {
   if (config === undefined) return null;
   if (config === null || typeof config !== 'object' || Array.isArray(config)) throw new Error('capture must be an object');
   for (const key of Object.keys(config)) {
-    if (!['args', 'result', 'timing', 'memory'].includes(key)) throw new Error(`Unknown capture option: ${key}`);
+    if (!['args', 'result', 'timing', 'memory', 'stack'].includes(key)) throw new Error(`Unknown capture option: ${key}`);
   }
   for (const key of ['args', 'result']) {
     if (config[key] !== undefined && typeof config[key] !== 'function') throw new Error(`capture.${key} must be a function`);
@@ -86,6 +86,18 @@ export function createCapture(config) {
     }
     metrics = [...new Set(config.memory.metrics)];
     for (const metric of metrics) if (!METRICS.includes(metric)) throw new Error(`Unsupported memory metric: ${metric}`);
+  }
+  let stackDepth = 0;
+  if (config.stack !== undefined && config.stack !== false) {
+    const stack = config.stack;
+    if (stack !== true && (stack === null || typeof stack !== 'object' || Array.isArray(stack)
+      || Object.keys(stack).some(key => key !== 'maxFrames'))) {
+      throw new Error('capture.stack must be boolean or {maxFrames?: number}');
+    }
+    stackDepth = stack === true ? 5 : (stack.maxFrames === undefined ? 5 : stack.maxFrames);
+    if (!Number.isSafeInteger(stackDepth) || stackDepth < 1 || stackDepth > MAX_STACK_FRAMES) {
+      throw new Error(`capture.stack.maxFrames must be an integer from 1 to ${MAX_STACK_FRAMES}`);
+    }
   }
   const args = config.args;
   const result = config.result;
@@ -112,11 +124,15 @@ export function createCapture(config) {
     }
   }
   return {
-    begin(invocation, emitEnter) {
+    begin(invocation, emitEnter, context) {
       const state = { output: {}, start: undefined };
       if (args) {
         const value = attempt(state, 'args', () => jsonSnapshot(args(invocation())));
         if (value !== undefined) state.output.args = value;
+      }
+      if (stackDepth) {
+        const value = attempt(state, 'stack', () => readStack(stackDepth, context));
+        if (value !== undefined) state.output.stack = value;
       }
       // Publish the entry snapshot before the original method starts, including failures.
       emitEnter(Object.keys(state.output).length ? state.output : undefined);
@@ -148,5 +164,24 @@ export function createCapture(config) {
       }
       return state.output;
     },
+  };
+}
+
+// Frida's native unwinder currently returns at most 16 frames.
+const MAX_STACK_FRAMES = 16;
+function readStack(maxFrames, context) {
+  return {
+    kind: 'native',
+    frames: Thread.backtrace(context, Backtracer.ACCURATE).slice(0, maxFrames).map(address => {
+      let symbol;
+      try { symbol = DebugSymbol.fromAddress(address); } catch (_) {}
+      return {
+        address: address.toString(),
+        moduleName: symbol?.moduleName ?? null,
+        name: symbol?.name ?? null,
+        fileName: symbol?.fileName || null,
+        lineNumber: symbol?.lineNumber || null,
+      };
+    }),
   };
 }

@@ -1,3 +1,4 @@
+import { currentThreadName } from '../../common/thread.js';
 import { createCapture } from './capture.js';
 import { errorMessage, safeConsole, safeEmit } from '../../common/reporting.js';
 import Java from 'frida-java-bridge';
@@ -163,18 +164,21 @@ async function withChainEvidence(action, actionDescription, logTag, methodHooks 
         capture: definition.capture,
         onEnter(invocation) {
           writeEvidence('chain', {
+            threadName: currentThreadName(),
             type: 'method', actionDescription, className, method: methodName, phase: 'enter',
             ...(invocation.evidenceCapture === undefined ? {} : { capture: invocation.evidenceCapture }),
           });
         },
         onLeave(invocation) {
           writeEvidence('chain', {
+            threadName: currentThreadName(),
             type: 'method', actionDescription, className, method: methodName, phase: 'leave',
             ...(invocation.evidenceCapture === undefined ? {} : { capture: invocation.evidenceCapture }),
           });
         },
         onError(invocation) {
           writeEvidence('chain', {
+            threadName: currentThreadName(),
             type: 'method',
             actionDescription,
             className,

@@ -18,9 +18,12 @@ const methodHooks = [{
 
 The optional filter is synchronous, read-only, and receives only `{ receiver, className, selector }`. It does not receive Objective-C arguments. Returning anything other than `true`, or throwing, skips evidence for that invocation while the original method continues.
 
-Add `capture` only when the question requires method inputs, return values, elapsed time, or memory
+Add `capture` only when the question requires method inputs, return values, call stacks, elapsed time, or memory
 changes. Omit it when method execution and existing logs provide enough evidence. Select only the
-needed capture options; consult the method definition for their configuration and constraints.
+needed capture options; consult the SDK declaration for their configuration and constraints.
+`capture.stack: true` captures up to 5 entry frames; use `{maxFrames: n}` for a different limit.
+
+Method and log events always include `threadName` (null when unavailable);
 
 ## Wrap the action
 
@@ -39,15 +42,15 @@ The wrapper installs all listeners before the action, rolls back partial install
 
 ## NSLog TAG evidence
 
-The action-scoped native replacement observes `NSLog` only. The format may begin with a static `[TAG] ` or dynamic `[%@]` prefix:
+Capture observes `NSLog` only during the action. The format may begin with a static `[TAG] ` or dynamic `[%@]` prefix:
 
 ```objc
 NSLog(@"[Network] request failed: %@", error.localizedDescription); // captured
 NSLog(@"[%@]request failed", @"Network");                           // captured
 ```
 
-TAG matching is exact and case-sensitive. For dynamic `[%@]`, the first variadic argument must be an `NSString` equal to the requested TAG. Other dynamic format shapes, `print`, `os_log`, and Swift `Logger` are outside this contract. Matching `NSLog` messages are formatted from a copied argument list, streamed immediately with `level: "default"`, and retain both the separate `tag` field and the leading `[TAG]` text. The replacement preserves the original format, arguments, and system log output.
+TAG matching is exact and case-sensitive. For dynamic `[%@]`, the first variadic argument must be an `NSString` equal to the requested TAG. Other dynamic format shapes, `print`, `os_log`, and Swift `Logger` are outside this contract. Matching messages stream immediately with `level: "default"`, a separate `tag` field, and the leading `[TAG]` text. Original logging is preserved; evidence may be incomplete if the process crashes.
 
-Only one TAG capture may be active at a time. Do not nest or concurrently run wrappers that specify `logTag`. Attribution uses the replace/revert time window, so unrelated background work using the same TAG may also appear.
+Only one TAG capture may be active at a time. Do not nest or concurrently run wrappers that specify `logTag`. Attribution uses the action window, so unrelated background work using the same TAG may also appear.
 
 Keep messages and captured identifiers small and sanitized. Filter or evidence failures must not change App behavior or replace the action error.

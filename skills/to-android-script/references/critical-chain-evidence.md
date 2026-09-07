@@ -23,9 +23,12 @@ const methodHooks = [
 
 Add a `filter` whenever receiver identity, arguments, or another cheap identifier can narrow calls. Keep it synchronous, read-only, and fast. Returning `false` skips evidence but still calls the original method; filter errors are treated as not matched.
 
-Add `capture` only when the question requires method inputs, return values, elapsed time, or memory
+Add `capture` only when the question requires method inputs, return values, call stacks, elapsed time, or memory
 changes. Omit it when method execution and existing logs provide enough evidence. Select only the
-needed capture options; consult the method definition for their configuration and constraints.
+needed capture options; consult the SDK declaration for their configuration and constraints.
+`capture.stack: true` captures up to 5 entry frames; use `{maxFrames: n}` for a different limit.
+
+Method and log events always include `threadName` (null when unavailable);
 
 ## Wrap the action
 
@@ -42,7 +45,9 @@ The arguments are `action`, `actionDescription`, optional `logTag`, and optional
 
 The wrapper installs hooks before the action and removes them after a synchronous return, throw, or returned Promise settles. Keep its scope short. Native TAG filtering happens before a matching log enters JavaScript.
 
-The Android log hook matches TAGs by exact equality. It observes `__android_log_write_log_message` when that modern liblog symbol exists, otherwise it falls back to `__android_log_buf_write` for older Android releases. Only one entry is hooked, avoiding duplicate Java/Kotlin logs while covering matching native liblog traffic on modern Android. Every match writes Evidence immediately instead of waiting for the action to finish, so records emitted before a process crash remain available. Priorities map to `v`, `d`, `i`, `w`, `e`, or `f`. Do not generate regex, message predicates, or unbounded global logging.
+TAG matching is exact. Matching Java/Kotlin and native liblog messages are streamed immediately,
+with priorities `v`, `d`, `i`, `w`, `e`, or `f`; evidence may be incomplete if the process crashes.
+Do not generate regex, message predicates, or unbounded global logging.
 
 Only one native TAG capture may be active at a time. Do not nest or concurrently run `withChainEvidence` calls that specify `logTag`. Logs are attributed by the action's attach/detach time window; unrelated background work using the same TAG may also be captured.
 

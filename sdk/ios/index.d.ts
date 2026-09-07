@@ -192,6 +192,13 @@ declare global {
   }
 
   interface IOSChainCapture {
+    /** Default off. true or {} captures the entry stack with at most 5 frames.
+     * maxFrames must be an integer from 1 to 16; actual stacks may be shorter.
+     * Emits capture.stack {kind: 'native', frames: [...]} on enter only.
+     * Native frames contain address, moduleName, name, fileName and lineNumber; symbols may be null.
+     * @example stack: true // or stack: {maxFrames: 3}
+     */
+    stack?: boolean | { maxFrames?: number };
     /** Synchronous read-only entry extraction; finite, acyclic plain JSON only, no runtime wrappers. */
     args?: (invocation: IOSChainArgsInvocation) => IOSJsonValue;
     /** Synchronous, read-only JSON extraction on normal return only; same JSON restrictions as args.
@@ -200,12 +207,12 @@ declare global {
      */
     result?: (invocation: { className: string; selector: string;
       result: NativePointer | number | boolean | string | undefined }) => IOSJsonValue;
-    /** Default false. Emits elapsedMs as a number with fractional milliseconds, using CLOCK_UPTIME_RAW.
+    /** Default off. Emits elapsedMs in fractional milliseconds, measured with a monotonic clock.
      * Includes children/waits, excludes sleep.
      * Requires arm64/x64. Not CPU time or async completion time.
      */
     timing?: boolean;
-    /** Default off. arm64/x64 task_info TASK_VM_INFO phys_footprint, in bytes, before/after only.
+    /** Default off. Read process physical footprint in bytes before/after; requires arm64/x64.
      * No polling/forced collection; process delta includes concurrent activity, not method allocations.
      */
     memory?: {
@@ -221,14 +228,13 @@ declare global {
     selector: `- ${string}` | `+ ${string}`;
     /** Keep evidence only when this synchronous, read-only callback returns true. */
     filter?: (invocation: IOSMethodHookInvocation) => boolean;
-    /** Optional capture: args and args errors on enter; result on leave, with elapsedMs (number, fractional milliseconds),
-     * memory[metric] {unit:'bytes',before,after,delta}, captureErrors [{field,message}].
-     * Failed memory reads and dependent deltas are null; failed extraction/timing fields are omitted.
-     * Omitting capture preserves legacy events. Capture data goes to Evidence, not the action return value.
-     * Invalid configuration rejects before the action; runtime capture failures preserve original behavior.
-     * No invocation ID or generic ObjC exception capture.
-     * Nested hooks affect parent timings. Argument callbacks must not alter observed objects.
-     * @example capture: { timing: true, memory: {metrics: ['physicalFootprintBytes']} }
+    /** Optional method data: args/stack on enter; result/timing/memory on leave. No generic Objective-C throw capture.
+     * Writes to Evidence; the action result is unchanged. Omit to record execution only.
+     * Invalid configuration rejects before the action. Collection failures preserve business behavior
+     * and emit captureErrors [{field,message}]; failed fields are omitted, failed memory readings/deltas are null.
+     * Memory output: memory[metric] {unit:'bytes',before,after,delta}.
+     * Nested probes add overhead to parent timings; keep capture selective.
+     * @example capture: { stack: true, timing: true }
      */
     capture?: IOSChainCapture;
   }
@@ -237,12 +243,14 @@ declare global {
   type IOSUiTargets = Readonly<Record<string, string | IOSUiPath>>;
 
   interface IOSProbeEvidenceApi {
-    /**
-     * Install a TAG-prefix NSLog capture and observe-only IMP hooks around the action.
-     * A matching format may begin with a static `[TAG] ` or dynamic `[%@]` prefix.
-     * Dynamic capture requires the first variadic argument to be an NSString equal to TAG.
-     * Matching logs retain `[TAG] ` in the message and stream evidence immediately without
-     * modifying the original format, arguments, or system log output.
+    /** Capture selected Objective-C methods and TAG-prefixed NSLog messages during action.
+     * Await action and remove hooks on completion or failure; return its result or propagate its error.
+     * Records are written to Evidence. Method/log events include threadName (null when unavailable).
+     * Supports multiple TAGs per call.
+     * @param actionDescription Non-empty evidence description, unique within this operation.
+     * @param logTag Exact TAG or TAG set; matches `[TAG] ` or `[%@]` with TAG as the first NSString argument.
+     * @param methodHooks Methods to observe; omit for log-only capture.
+     * @example await Probe.evidence.withChainEvidence(action, 'Submit search', 'Search', methodHooks);
      */
     withChainEvidence<TResult>(
       action: () => TResult,

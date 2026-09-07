@@ -1,3 +1,4 @@
+import { currentThreadName } from '../../common/thread.js';
 import { safeConsole } from '../../common/reporting.js';
 import { writeEvidence } from './utils.js';
 
@@ -111,6 +112,7 @@ function getNativeLogRuntime() {
     }
     try {
       writeEvidence('chain', {
+        threadName: currentThreadName(),
         type: 'log',
         actionDescription: capture.actionDescription,
         level: logLevel(priority),
