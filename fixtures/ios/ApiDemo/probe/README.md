@@ -5,8 +5,8 @@ contains a side-effect-free standard ESM `probe.js` and matching `probe.d.ts`.
 
 Probe functions must be executed serially by an agent using `skills/to-ios-run` in Module mode.
 There is no standalone runner or suite entry point. Before the first operation, build/install
-`ProbeDebug`, start the App on its Main page, and load the iOS runtime through
-`mobile-easy-use-ios load`.
+`ProbeDebug`. The first MCP `connect` launches a simulator App with the injected images, or loads
+them into a physical-device App, automatically; a healthy retained connection skips this work.
 
 Give the agent one operation at a time:
 
@@ -22,7 +22,7 @@ one SDK contract, asserts an independent Objective-C oracle, and returns to Main
 success is insufficient: require `result.passed === true`. Evidence probes must also return the
 expected evidence file.
 
-UI Evidence operations have a mandatory second validation layer. Read `result.evidenceContract`
+Evidence operations have a mandatory second validation layer. Read `result.evidenceContract`
 from the probe result and validate the single returned Evidence JSON file on the host:
 
 ```bash
@@ -42,3 +42,14 @@ Module operation returns; a probe cannot truthfully validate its own final MCP a
 
 Standalone screenshot probes instead validate `result.window` and `result.targets`; these paths point to JPEG
 files written by the Controller without adding a top-level `screenshots` field to Evidence JSON.
+
+See the [chain capture coverage matrix](../../../common/README.md) for the full set of platform exports,
+manifest assertions, and fault-injection boundaries.
+
+## Thread names and entry stacks
+
+The chain module also exports `probeThreadNames`, `probeCaptureStackOptions`,
+`probeCaptureStackConfig`, and `probeCaptureStackLifecycle`. Run each separately and validate the
+returned `chain-context-*-v1` Evidence contract with the same host verifier. These cover default
+thread names on method/log events, log-only capture, concurrent named workers, optional entry
+stacks (default depth 5), depth validation, filtering, recursion and hook cleanup.

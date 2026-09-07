@@ -219,6 +219,7 @@ test('iOS chain evidence streams static and dynamic NSLog TAGs without changing 
   assert.deepEqual(fixture.evidenceRecords().map((record) => record.payload), [
     {
       type: 'log',
+      threadName: null,
       actionDescription: 'Submit request',
       level: 'default',
       tag: 'Network',
@@ -226,6 +227,7 @@ test('iOS chain evidence streams static and dynamic NSLog TAGs without changing 
     },
     {
       type: 'log',
+      threadName: null,
       actionDescription: 'Submit request',
       level: 'default',
       tag: 'Network',

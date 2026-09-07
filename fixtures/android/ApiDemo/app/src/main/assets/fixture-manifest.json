@@ -38,7 +38,7 @@
     {
       "key": "evidence",
       "activity": ".ui.EvidenceActivity",
-      "scenarios": ["state", "ui", "chain"]
+      "scenarios": ["state", "ui", "chain", "chain_capture"]
     }
   ]
 }

@@ -111,3 +111,91 @@
 }
 
 @end
+
+
+@interface APIChainCaptureFixture ()
+@property(nonatomic) NSInteger callCount;
+@property(nonatomic, strong) NSMutableData *retained;
+@property(nonatomic) NSInteger done;
+@property(nonatomic) NSInteger active;
+@property(nonatomic) NSInteger peak;
+@property(nonatomic, strong) NSMutableArray<NSNumber *> *results;
+@end
+
+@implementation APIChainCaptureFixture
++ (instancetype)sharedState {
+    static APIChainCaptureFixture *state;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ state = [APIChainCaptureFixture new]; [state reset]; });
+    return state;
+}
+- (void)reset { @synchronized(self) { self.callCount=0; self.retained=nil; self.done=0; self.active=0; self.peak=0; self.results=[NSMutableArray array]; } }
+- (NSInteger)calls { @synchronized(self) { return self.callCount; } }
+- (NSUInteger)retainedBytes { @synchronized(self) { return self.retained.length; } }
+- (NSString *)work:(NSString *)key bytes:(int)bytes delay:(int)delayMs {
+    NSParameterAssert(bytes >= 0 && bytes <= 1048576 && delayMs >= 0 && delayMs <= 50);
+    @synchronized(self) { self.callCount++; self.retained=[NSMutableData dataWithLength:bytes];
+        if(bytes) memset(self.retained.mutableBytes, 1, bytes); }
+    [NSThread sleepForTimeInterval:delayMs / 1000.0];
+    return [NSString stringWithFormat:@"%@:%d", key, bytes];
+}
+- (NSString *)plain:(NSString *)key { @synchronized(self) { self.callCount++; } return [@"plain:" stringByAppendingString:key]; }
+- (int)recursive:(int)depth {
+    NSParameterAssert(depth >= 0 && depth <= 4);
+    @synchronized(self) { self.callCount++; }
+    return depth == 0 ? 1 : [self recursive:depth - 1] + 1;
+}
+- (NSInteger)workersDone { @synchronized(self) { return self.done; } }
+- (NSInteger)workersPeak { @synchronized(self) { return self.peak; } }
+- (NSString *)workerResults { @synchronized(self) { return self.results.description; } }
+- (void)startWorkers {
+    @synchronized(self) { self.done=0; self.active=0; self.peak=0; [self.results removeAllObjects]; }
+    for(int identifier=1; identifier<=2; identifier++) {
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0), ^{
+            @autoreleasepool {
+                NSThread *thread = NSThread.currentThread;
+                NSString *previousName = thread.name;
+                thread.name = [NSString stringWithFormat:@"capture-worker-%d", identifier];
+                @try {
+                    int result=[self worker:identifier];
+                    @synchronized(self) { [self.results addObject:@(result)]; }
+                } @finally {
+                    thread.name = previousName;
+                    @synchronized(self) { self.done++; }
+                }
+            }
+        });
+    }
+}
+- (int)worker:(int)identifier {
+    @synchronized(self) { self.callCount++; self.active++; self.peak=MAX(self.peak,self.active); }
+    NSLog(@"[MEU.Context] worker:%d", identifier);
+    [NSThread sleepForTimeInterval:0.05];
+    @synchronized(self) { self.active--; }
+    return identifier * 10;
+}
+- (int)contextDepth:(int)depth {
+    NSParameterAssert(depth >= 0 && depth <= 12);
+    return depth == 0 ? [self contextLeaf] : [self contextDepth:depth - 1] + 1;
+}
+- (int)contextLeaf {
+    @synchronized(self) { self.callCount++; }
+    NSLog(@"[MEU.Context] leaf");
+    return 7;
+}
+- (BOOL)booleanValue:(BOOL)value { @synchronized(self) { self.callCount++; } return value; }
+- (signed char)byteValue:(signed char)value { @synchronized(self) { self.callCount++; } return value; }
+- (int64_t)signedValue:(int64_t)value { @synchronized(self) { self.callCount++; } return value; }
+- (uint64_t)unsignedValue:(uint64_t)value { @synchronized(self) { self.callCount++; } return value; }
+- (NSString *)nullable:(NSString *)value { @synchronized(self) { self.callCount++; } return value; }
+- (void)consume:(NSString *)value { @synchronized(self) { self.callCount++; } }
+- (BOOL)exerciseScalars {
+    [self consume:nil];
+    return ![self booleanValue:NO] && [self byteValue:-7] == -7
+        && [self signedValue:INT64_MIN] == INT64_MIN && [self unsignedValue:UINT64_MAX] == UINT64_MAX
+        && [self nullable:nil] == nil;
+}
+- (double)floating:(double)value { @synchronized(self) { self.callCount++; } return value + 0.5; }
+- (NSRange)rangeValue:(NSRange)value { @synchronized(self) { self.callCount++; } return NSMakeRange(value.location + 1, value.length); }
+- (BOOL)exerciseUnsupported { return [self floating:1.0] == 1.5 && [self rangeValue:NSMakeRange(2,3)].location == 3; }
+@end

@@ -967,6 +967,7 @@ test('withChainEvidence installs one native listener per TAG and passes TAG as l
   assert.deepEqual(records.map((record) => record.payload), [
     {
       type: 'log',
+      threadName: null,
       actionDescription: 'Submit login',
       level: 'w',
       tag: 'Auth',
@@ -974,6 +975,7 @@ test('withChainEvidence installs one native listener per TAG and passes TAG as l
     },
     {
       type: 'log',
+      threadName: null,
       actionDescription: 'Submit login',
       level: 'e',
       tag: 'Network',

@@ -7,6 +7,7 @@ import android.widget.TextView;
 
 import com.agenteasyuse.mobileeasyuse.apidemo.R;
 import com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState;
+import com.agenteasyuse.mobileeasyuse.apidemo.state.ChainCaptureFixture;
 import com.agenteasyuse.mobileeasyuse.apidemo.state.SdkFixtureState;
 
 import java.util.LinkedHashMap;
@@ -24,6 +25,7 @@ public final class EvidenceActivity extends CapabilityActivity {
         target.put("state", "State before and after action");
         target.put("ui", "UI before and after action");
         target.put("chain", "Java method and log chain");
+        target.put("chain_capture", "Method capture: data, time and memory");
     }
 
     @Override
@@ -32,8 +34,25 @@ public final class EvidenceActivity extends CapabilityActivity {
             case "state": return stateFixture();
             case "ui": return uiFixture();
             case "chain": return chainFixture();
+            case "chain_capture": return captureFixture();
             default: throw new IllegalArgumentException("Unknown Evidence scenario: " + scenario);
         }
+    }
+
+    private View captureFixture() {
+        ChainCaptureFixture.getInstance().reset();
+        LinearLayout content = UiFactory.column(this);
+        TextView value = UiFactory.label(this, "Capture probes: success, throw, filter, recursion, extraction errors");
+        Button action = UiFactory.button(this, "Run bounded allocation", View.generateViewId());
+        action.setOnClickListener(view -> value.setText(
+                ChainCaptureFixture.getInstance().work("manual", 65536, 10)));
+        content.addView(action);
+        content.addView(value);
+        return content;
+    }
+
+    @Override protected void cleanupFixture() {
+        ChainCaptureFixture.getInstance().reset();
     }
 
     private View stateFixture() {

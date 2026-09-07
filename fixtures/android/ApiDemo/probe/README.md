@@ -27,7 +27,7 @@ The caller is responsible for evaluating the returned `result` and `evidence`. I
 transport-level success alone does not mean the probe oracle passed; require `result.passed === true`
 and inspect Evidence when the operation is intended to produce it.
 
-UI Evidence operations return an `evidenceContract`. Validate their single Evidence manifest after
+Evidence operations return an `evidenceContract`. Validate their single Evidence manifest after
 the operation:
 
 ```bash
@@ -38,3 +38,43 @@ node fixtures/android/ApiDemo/probe/evidence/verify-evidence.mjs \
 
 Standalone screenshot probes validate `result.window` and `result.targets`. These paths point to JPEG
 files written by the Controller. Screenshots are intentionally not written as a top-level Evidence field.
+
+## Chain capture on a physical Android device
+
+The `Evidence > Method capture: data, time and memory` scene uses a bounded Java fixture.
+Execute each export in `evidence/chain/probe.js` separately, from MainActivity:
+
+| Export | Evidence contract | Assertion |
+| --- | --- | --- |
+| `probeCaptureSuccess` | `chain-capture-success-v2` | 256 KiB retained buffer, 15 ms delay, extracted args/result, actual Java/native heap reads |
+| `probeCaptureThrow` | `chain-capture-throw-v2` | Original Java exception and before/after capture, no result extractor |
+| `probeCaptureFilterAndDisabled` | `chain-capture-filter-v2` | Excluded call absent; unconfigured method retains legacy evidence |
+| `probeCaptureRecursive` | `chain-capture-recursive-v2` | Three nested calls retain their own inputs, outputs and elapsed times |
+| `probeCaptureExtractorErrors` | `chain-capture-errors-v2` | Two extractor errors do not change original return or suppress metrics |
+| `probeCaptureInvalidConfigCleanup` | `chain-capture-cleanup-v2` | Invalid later hook rolls back earlier hook; reinstallation succeeds |
+
+Require both `result.passed === true` and a successful manifest verification:
+
+```bash
+node fixtures/android/ApiDemo/probe/evidence/verify-evidence.mjs <contract> <evidencePath>
+```
+
+A successful RPC alone is insufficient. Memory deltas may be negative because these are process
+readings, not per-method allocations; tests check valid readings and exact subtraction, not a
+minimum allocation delta. Each probe releases its retained fixture buffer and returns to MainActivity.
+
+The v2 contracts require `capture.args` (or its extraction error) on `enter` before the original
+method runs. `leave`/`throw` carries `capture.elapsedMs` as a number with fractional milliseconds,
+before/after memory, and exit-side capture errors. Only normal `leave` carries `capture.result`.
+Previously archived v1 device evidence keeps its original format and is not a v2 verification run.
+
+See the [chain capture coverage matrix](../../../common/README.md) for the full set of platform exports,
+manifest assertions, and fault-injection boundaries.
+
+## Thread names and entry stacks
+
+The chain module also exports `probeThreadNames`, `probeCaptureStackOptions`,
+`probeCaptureStackConfig`, and `probeCaptureStackLifecycle`. Run each separately and validate the
+returned `chain-context-*-v1` Evidence contract with the same host verifier. These cover default
+thread names on method/log events, log-only capture, concurrent named workers, optional entry
+stacks (default depth 5), depth validation, filtering, recursion and hook cleanup.

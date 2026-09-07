@@ -1,3 +1,5 @@
+import { verifyChainContext } from '../../../../common/chain-context-contracts.mjs';
+import { verifyCompleteCapture } from '../../../../common/chain-capture-contracts.mjs';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
@@ -80,7 +82,29 @@ function verifyChain(document) {
   return { contract: 'chain-method-log-v2', methodRecords: 2, logRecords: 3 };
 }
 
+function verifyChainCapture(document) {
+  verifyChain(document);
+  const methods = document.chain.filter(event => event.type === 'method');
+  requireEvidence(methods.length === 2 && methods[0].phase === 'enter' && methods[1].phase === 'leave', 'one completed method');
+  const entry = methods[0].capture;
+  const exit = methods[1].capture;
+  requireEvidence(entry?.args?.value === 'chain' && !entry.captureErrors, 'entry args capture');
+  requireEvidence(exit?.result?.value === 'single:chain' && !exit.captureErrors, 'exit result capture');
+  requireEvidence(!Object.hasOwn(exit, 'args') && !Object.hasOwn(exit, 'elapsedNs'), 'current exit format');
+  requireEvidence(!Object.hasOwn(entry, 'result') && !Object.hasOwn(entry, 'memory') && !Object.hasOwn(entry, 'elapsedMs'), 'entry contains only entry data');
+  requireEvidence(typeof exit.elapsedMs === 'number' && Number.isFinite(exit.elapsedMs) && exit.elapsedMs >= 0, 'numeric elapsedMs');
+  for (const metric of ['physicalFootprintBytes']) {
+    const value = exit.memory?.[metric];
+    requireEvidence(value?.unit === 'bytes' && Number.isSafeInteger(value.before) && value.before >= 0
+      && Number.isSafeInteger(value.after) && value.after >= 0 && value.delta === value.after - value.before, metric);
+  }
+  return { contract: 'chain-method-log-capture-v3', methodRecords: 2 };
+}
+
 function verifyEvidence(contract, document) {
+  if (contract.startsWith('chain-context-')) return verifyChainContext('ios', contract, document);
+  if (contract.startsWith('chain-complete-')) return verifyCompleteCapture('ios', contract, document);
+  if (contract === 'chain-method-log-capture-v3') return verifyChainCapture(document);
   if (contract === 'state-click-v2') return verifyState(document);
   if (contract === 'ui-visibility-v4') return verifyUi(document);
   if (contract === 'chain-method-log-v2') return verifyChain(document);
