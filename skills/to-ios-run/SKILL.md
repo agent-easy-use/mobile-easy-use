@@ -20,7 +20,9 @@ Discover currently booted CoreSimulator devices and currently available USB Core
 - Supplied `deviceId`: require an exact eligible match.
 - Omitted `deviceId`: use the only eligible target; on zero or multiple matches, stop and report canonical IDs, names, and kinds.
 
-Do not boot devices or simulators. Use a simulator UDID for CoreSimulator. For a physical device, resolve the canonical CoreDevice identity and hardware UDID once for the Loader and iproxy.
+Do not boot devices or simulators. For a simulator, use its UDID as `deviceId`.
+
+For a physical device, resolve both IDs once: use the CoreDevice ID for MCP `deviceId` and `devicectl --device`, and the hardware UDID for `iproxy -u`.
 
 ## Connect
 
