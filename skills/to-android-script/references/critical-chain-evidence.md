@@ -23,6 +23,10 @@ const methodHooks = [
 
 Add a `filter` whenever receiver identity, arguments, or another cheap identifier can narrow calls. Keep it synchronous, read-only, and fast. Returning `false` skips evidence but still calls the original method; filter errors are treated as not matched.
 
+Add `capture` only when the question requires method inputs, return values, elapsed time, or memory
+changes. Omit it when method execution and existing logs provide enough evidence. Select only the
+needed capture options; consult the method definition for their configuration and constraints.
+
 ## Wrap the action
 
 ```javascript

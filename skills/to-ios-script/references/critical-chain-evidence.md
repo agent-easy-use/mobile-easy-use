@@ -18,6 +18,10 @@ const methodHooks = [{
 
 The optional filter is synchronous, read-only, and receives only `{ receiver, className, selector }`. It does not receive Objective-C arguments. Returning anything other than `true`, or throwing, skips evidence for that invocation while the original method continues.
 
+Add `capture` only when the question requires method inputs, return values, elapsed time, or memory
+changes. Omit it when method execution and existing logs provide enough evidence. Select only the
+needed capture options; consult the method definition for their configuration and constraints.
+
 ## Wrap the action
 
 ```javascript
