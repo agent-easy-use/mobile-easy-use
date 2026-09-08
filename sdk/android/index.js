@@ -13,6 +13,7 @@ globalThis.Probe = Probe;
 globalThis.runtimeStatus = () => {
   const available = Java.available === true;
   let appId = null;
+  let releaseVersion = null;
   if (available) {
     Java.performNow(() => {
       const ActivityThread = Java.use('android.app.ActivityThread');
@@ -21,12 +22,16 @@ globalThis.runtimeStatus = () => {
         ? ActivityThread.currentPackageName()
         : application.getPackageName();
       appId = packageName === null ? null : packageName.toString();
+      const MobileEasyUse = Java.use('com.agenteasyuse.mobileeasyuse.MobileEasyUse');
+      releaseVersion = MobileEasyUse.version().toString();
     });
   }
   return {
     platform: 'android',
     available,
     appId,
+    sdkVersion: globalThis.__mobileEasyUseSdkVersion ?? null,
+    releaseVersion,
   };
 };
 

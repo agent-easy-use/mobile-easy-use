@@ -28,14 +28,27 @@ globalThis.Probe = Probe;
 globalThis.runtimeStatus = () => {
   const available = ObjC.available === true;
   let appId = null;
+  let releaseVersion = null;
   if (available) {
     const identifier = ObjC.classes.NSBundle.mainBundle().bundleIdentifier();
     appId = identifier === null ? null : identifier.toString();
+    try {
+      const versionFunction = new NativeFunction(
+        Module.getGlobalExportByName('mobile_easy_use_version'),
+        'pointer',
+        [],
+      );
+      releaseVersion = versionFunction().readCString();
+    } catch {
+      releaseVersion = null;
+    }
   }
   return {
     platform: 'ios',
     available,
     appId,
+    sdkVersion: globalThis.__mobileEasyUseSdkVersion ?? null,
+    releaseVersion,
   };
 };
 
