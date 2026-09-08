@@ -27,6 +27,7 @@
     "test": "node --experimental-vm-modules --test"
   },
   "dependencies": {
+    "@types/frida-gum": "18.7.2",
     "frida": "17.16.4",
     "frida-java-bridge": "^7.0.12",
     "frida-objc-bridge": "8.0.6"
@@ -38,7 +39,6 @@
     "access": "public"
   },
   "devDependencies": {
-    "@types/frida-gum": "^18.7.2",
     "frida-compile": "^16.4.1"
   }
 }

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ConnectionInstance, connectionKey } from './mcp-connection.js';
 import { operationErrorResult } from './mcp-api/operation-result.js';
+import { getSdkDeclarations } from './mcp-api/sdk-declarations.js';
 import { McpJsonlLogger } from './mcp-logger.js';
 import { MCP_VERSION } from './package-info.js';
 
@@ -179,6 +180,10 @@ export class MobileMcpServer {
         return resultResponse(message.id, { tools: toolDefinitions });
       }
       if (message.method === 'tools/call') {
+        if (toolName === 'get_sdk_declarations') {
+          const value = await getSdkDeclarations(message.params?.arguments);
+          return toolCallSuccessResponse(message, value);
+        }
         throw new Error(`Unknown tool: ${toolName}`);
       }
       return errorResponse(message.id, -32601, `Method not found: ${message.method}`);
@@ -240,6 +245,43 @@ function parseTarget(input) {
 }
 
 export const toolDefinitions = [
+  {
+    name: 'get_sdk_declarations',
+    description: 'Locate local SDK, platform bridge, and Frida Gum declaration files for to-script. Requires a shared filesystem, not a device connection.',
+    annotations: { readOnlyHint: true, openWorldHint: false },
+    inputSchema: {
+      type: 'object',
+      required: ['platform'],
+      properties: {
+        platform: { type: 'string', enum: ['android', 'ios'] },
+      },
+      additionalProperties: false,
+    },
+    outputSchema: {
+      type: 'object',
+      required: ['platform', 'sdkVersion', 'files'],
+      properties: {
+        platform: { type: 'string', enum: ['android', 'ios'] },
+        sdkVersion: { type: 'string' },
+        files: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['source', 'description', 'packageName', 'packageVersion', 'path'],
+            properties: {
+              source: { type: 'string', enum: ['sdk', 'bridge', 'gum'] },
+              description: { type: 'string' },
+              packageName: { type: 'string' },
+              packageVersion: { type: 'string' },
+              path: { type: 'string' },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+      additionalProperties: false,
+    },
+  },
   {
     name: 'connect',
     description: 'Create or reuse the connection identified by deviceId and appId, initialize its Android or iOS SDK runtime, and report runtime and Release compatibility. Surface compatibilityWarning and a non-null compatibility.upgradeRecommendation to the user as non-blocking advisories.',

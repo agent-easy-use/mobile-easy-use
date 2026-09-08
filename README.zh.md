@@ -125,6 +125,14 @@ npx -y @agent-easy-use/mobile-easy-use@latest
 
 面向不同 Agent 的 Plugin 及其安装说明将在独立仓库中维护。
 
+生成或修改 probe 前，`to-android-script` 和 `to-ios-script` 会调用
+`get_sdk_declarations` MCP 工具，传入 `platform: "android"` 或 `platform: "ios"`。
+工具返回 `{ platform, sdkVersion, files }`，每个文件包含 `source`（`sdk`、`bridge` 或
+`gum`）、一句话 `description`、`packageName`、`packageVersion` 和本地绝对 `path`。Agent 自行搜索并读取任务
+涉及的声明及关联类型，MCP 不传输声明正文。Agent 和 MCP 需要共享文件系统访问权限，
+无需连接设备或进行本地编译。Frida Gum 声明作为 npm 生产依赖安装，项目自身的
+`presets.d.ts` 仍从本地读取。
+
 ## 灵感来源
 
 Mobile Easy Use 受到 **quickjs-android**、**xLua**、**Frida** 等项目互操作机制的启发，重点借鉴了脚本运行时嵌入、JavaScript 或 Lua 与原生对象桥接，以及跨运行时调用平台能力等方面的设计思想。

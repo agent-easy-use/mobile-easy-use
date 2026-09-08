@@ -37,6 +37,7 @@ test('initialize and tools/list expose a minimal MCP server', async () => {
   const listed = await server.handle({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
   assert.deepEqual(listed.result.tools, toolDefinitions);
   assert.deepEqual(toolDefinitions.map((tool) => tool.name), [
+    'get_sdk_declarations',
     'connect',
     'disconnect',
     'call_function',
