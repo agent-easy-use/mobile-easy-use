@@ -7,14 +7,14 @@ function screenshot(checkpoint, scope, uiKey) {
   return `/tmp/${checkpoint}-${scope}${uiKey ? `-${uiKey}` : ''}.jpg`;
 }
 
-test('iOS State Evidence contract verifies changed and unchanged state', () => {
+test('iOS State Evidence contract verifies before and after snapshots', () => {
   const result = verifyEvidence('state-click-v2', {
     actionDescription: 'ApiDemo iOS click state',
     chain: [],
     ui: {},
     state: {
-      counter: { before: 0, after: 1, changed: true },
-      scenario: { before: 'state_evidence', after: 'state_evidence', changed: false },
+      counter: { before: 0, after: 1 },
+      scenario: { before: 'state_evidence', after: 'state_evidence' },
     },
   });
   assert.equal(result.contract, 'state-click-v2');

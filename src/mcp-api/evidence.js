@@ -77,7 +77,7 @@ function collectCheckpoint(target, payload, keyName) {
       ...(keyName === 'path' ? { path: payload.path } : { className: null }),
       before: null,
       after: null,
-      changed: false,
+      ...(keyName === 'uiKey' ? { changed: false } : {}),
     };
     Object.defineProperty(target, key, {
       value: entry,
@@ -90,10 +90,12 @@ function collectCheckpoint(target, payload, keyName) {
     entry.className = payload.className;
   }
   entry[payload.checkpoint] = payload.value;
-  entry.changed = !isDeepStrictEqual(
-    valueWithoutScreenshots(entry.before),
-    valueWithoutScreenshots(entry.after),
-  );
+  if (keyName === 'uiKey') {
+    entry.changed = !isDeepStrictEqual(
+      valueWithoutScreenshots(entry.before),
+      valueWithoutScreenshots(entry.after),
+    );
+  }
 }
 
 function valueWithoutScreenshots(value) {

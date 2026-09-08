@@ -22,10 +22,10 @@ function verifyState(document) {
   requireEmpty(document.ui, 'ui');
   const counter = document.state?.counter;
   requireEvidence(counter?.before === 0 && counter?.after === 1, 'counter must change from 0 to 1');
-  requireEvidence(counter?.changed === true, 'counter.changed must be true');
+  requireEvidence(!Object.hasOwn(counter, 'changed'), 'counter must omit changed');
   const scenario = document.state?.scenario;
   requireEvidence(scenario?.before === 'state_evidence' && scenario?.after === 'state_evidence', 'scenario must remain state_evidence');
-  requireEvidence(scenario?.changed === false, 'scenario.changed must be false');
+  requireEvidence(!Object.hasOwn(scenario, 'changed'), 'scenario must omit changed');
   requireEvidence(Object.keys(document.state ?? {}).length === 2, 'state must contain exactly counter and scenario');
   return { contract: 'state-click-v2', stateKeys: ['counter', 'scenario'] };
 }

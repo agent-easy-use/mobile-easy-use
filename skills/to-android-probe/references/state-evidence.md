@@ -2,7 +2,7 @@
 
 ## Format
 
-The top-level `actionDescription` identifies the action. `state` maps each source-qualified path to `{ path, before, after, changed }`. Values are JSON-compatible snapshots; `changed` is derived from `before` and `after`.
+The top-level `actionDescription` identifies the action. `state` maps each source-qualified path to `{ path, before, after }`. Values are JSON-compatible snapshots. Compare `before` and `after` using the business meaning of each path.
 
 Relevant section example:
 
@@ -13,8 +13,7 @@ Relevant section example:
     "SearchViewModel#query": {
       "path": "SearchViewModel#query",
       "before": "",
-      "after": "codex",
-      "changed": true
+      "after": "codex"
     }
   }
 }
@@ -22,4 +21,4 @@ Relevant section example:
 
 ## Analysis
 
-Compare both checkpoints and explain the source meaning of each path. Do not infer intermediate transitions. Do not rely on `changed` alone. A missing checkpoint or getter failure is missing evidence; when `null` may be a valid value, report the ambiguity.
+Compare both checkpoints and explain the source meaning of each path. Do not infer intermediate transitions. Equal checkpoints do not rule out intermediate changes. A missing checkpoint or getter failure is missing evidence; when `null` may be a valid value, report the ambiguity.

@@ -672,7 +672,7 @@ test('evalScript aggregates action-scoped evidence', async () => {
   }]);
   const evidence = JSON.parse(readFileSync(result.evidence[0].evidencePath, 'utf8'));
   assert.equal(evidence.actionDescription, 'Inspect query');
-  assert.equal(evidence.state['SearchState#query'].changed, false);
+  assert.equal(Object.hasOwn(evidence.state['SearchState#query'], 'changed'), false);
   assert.equal(Object.hasOwn(evidence.state['SearchState#query'], 'actionDescription'), false);
 });
 
@@ -800,7 +800,6 @@ test('callFunction writes one aggregated evidence file per action', async () => 
         path: 'SearchState#query',
         before: '',
         after: 'Cat',
-        changed: true,
       },
     },
   });
@@ -1026,7 +1025,6 @@ test('callFunction safely aggregates special evidence keys', async () => {
     path: '__proto__',
     before: 'old',
     after: 'new',
-    changed: true,
   });
   assert.deepEqual({
     before: Object.getOwnPropertyDescriptor(Object.prototype, 'before'),
