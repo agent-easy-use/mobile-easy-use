@@ -1,6 +1,7 @@
 #import "APIController.h"
 #import "../UI/APICapabilityViewController.h"
 #import "../State/APISDKFixtureState.h"
+#import "../UI/APIInputWindowFixture.h"
 
 static __weak APICapabilityViewController *APICurrentController;
 
@@ -45,9 +46,27 @@ static __weak APICapabilityViewController *APICurrentController;
 
 + (void)returnToMain {
     [self onMain:^{
+        [[self requireController].inputWindows invalidate];
         UINavigationController *navigation = [self requireController].navigationController;
         [navigation popToRootViewControllerAnimated:NO];
     }];
+}
+
++ (void)configureInputWindow:(NSString *)mode {
+    [self onMain:^{ [[self requireController].inputWindows configure:mode]; }];
+}
+
++ (UIView *)inputWindowTarget:(NSString *)action front:(BOOL)front {
+    __block UIView *target;
+    [self onMain:^{ target = [[self requireController].inputWindows targetForAction:action front:front]; }];
+    return target;
+}
+
++ (NSString *)inputWindowSnapshotJSON {
+    __block NSDictionary *state;
+    [self onMain:^{ state = [[self requireController].inputWindows snapshot]; }];
+    NSData *data = [NSJSONSerialization dataWithJSONObject:state options:0 error:nil];
+    return [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
 }
 
 + (void)schedule:(NSString *)action key:(NSString *)key delayMs:(NSInteger)delayMs {

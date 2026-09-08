@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A11F00000000000000000003 /* APIInputWindowFixture.m in Sources */ = {isa = PBXBuildFile; fileRef = A11F00000000000000000002 /* APIInputWindowFixture.m */; };
 		16811BC96D20E97972D13D46 /* APISDKFixtureState.m in Sources */ = {isa = PBXBuildFile; fileRef = 1B74CF5A19C940A0DA24CB7D /* APISDKFixtureState.m */; };
 		1F63E229C161DEF6638CC1AE /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4523303CF9F797C0BF594ED0 /* UIKit.framework */; };
 		225BF5E0532642A8124C1D9A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 030C616B0B25C2B6FE6C573C /* Foundation.framework */; };
@@ -22,6 +23,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		A11F00000000000000000001 /* APIInputWindowFixture.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = APIInputWindowFixture.h; sourceTree = "<group>"; };
+		A11F00000000000000000002 /* APIInputWindowFixture.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = APIInputWindowFixture.m; sourceTree = "<group>"; };
 		030C616B0B25C2B6FE6C573C /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		0C029F718BFC05E1D3996F14 /* APIActivatingView.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = APIActivatingView.h; sourceTree = "<group>"; };
 		0E3F15E8167F478CEBF3BF85 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = "<group>"; };
@@ -102,6 +105,8 @@
 			isa = PBXGroup;
 			children = (
 				0C029F718BFC05E1D3996F14 /* APIActivatingView.h */,
+				A11F00000000000000000001 /* APIInputWindowFixture.h */,
+				A11F00000000000000000002 /* APIInputWindowFixture.m */,
 				725C554F0D3AD6289F8489A1 /* APIActivatingView.m */,
 				4D63E2C56B23AB5A6CA30AD3 /* APICapabilityViewController.h */,
 				2324E261E690B94A842F5057 /* APICapabilityViewController.m */,
@@ -281,6 +286,7 @@
 				BF27CF0A3C1B82F8C795D68C /* APIController.m in Sources */,
 				16811BC96D20E97972D13D46 /* APISDKFixtureState.m in Sources */,
 				30A8ED43E4EA1DC12E473A20 /* APIActivatingView.m in Sources */,
+				A11F00000000000000000003 /* APIInputWindowFixture.m in Sources */,
 				4E281982C4CF68FC072BCE99 /* APICapabilityViewController.m in Sources */,
 				4466E250BABE0125FB32B81C /* APIMainViewController.m in Sources */,
 				4E3D313943847C429165AD5A /* APIRejectingInputView.m in Sources */,

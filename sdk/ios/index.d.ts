@@ -98,7 +98,11 @@ declare global {
 
   /** Identifier/path targets resolve with ui.find in the target App, using first-match UIView
    * semantics (no ambiguity error). Lookup, clipping and hit-testing run in one App main-queue turn.
-   * A missing UIView fails; a hidden, detached, non-interactive or covered center also fails.
+   * A missing UIView fails; a hidden, detached or non-interactive target also fails.
+   * The actual touch-down point must hit the target or a descendant through the App's
+   * front-to-back window order in the target scene, including equal-level windows.
+   * Pass-through windows are skipped. This precheck excludes other processes' system windows
+   * and does not track changes after resolution. Raw coordinates do not require a target hit.
    * Only the clipped visible screen center/bounds and gesture endpoints reach the Runner;
    * no XCTest element query is used. Requires a foreground UIWindowScene on the main screen.
    * Virtual accessibility elements without a UIView are not addressable by identifier/path;
@@ -150,11 +154,14 @@ declare global {
     mode: 'semantic';
     error: {
       /** Open set from SDK/Host/Driver, e.g. INVALID_ARGUMENT, INVALID_TARGET, INVALID_COORDINATES,
-       * ELEMENT_NOT_FOUND, ELEMENT_NOT_HITTABLE, VIEW_NOT_VISIBLE,
+       * ELEMENT_NOT_FOUND, TOUCH_TARGET_MISMATCH, NO_TOUCH_RECEIVER, VIEW_NOT_VISIBLE,
        * TARGET_NOT_FOREGROUND, BACKEND_UNAVAILABLE, UNSUPPORTED_SYNTHESIS, INPUT_TIMEOUT,
        * SYNTHESIS_FAILED, SYNTHESIS_UNCERTAIN, or DRIVER_ERROR.
        */
       code: string;
+      /** Touch-target errors identify the requested UIView and screen point; mismatches also
+       * identify the hit UIView and whether it belongs to another App window.
+       */
       message: string;
     };
   }

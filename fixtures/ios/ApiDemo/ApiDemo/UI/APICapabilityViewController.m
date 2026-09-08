@@ -1,6 +1,7 @@
 #import "APICapabilityViewController.h"
 #import "APIActivatingView.h"
 #import "APIRejectingInputView.h"
+#import "APIInputWindowFixture.h"
 #import "../Control/APIController.h"
 #import "../State/APISDKFixtureState.h"
 
@@ -12,6 +13,7 @@
 @property(nonatomic, strong) UIScrollView *scrollFixture;
 @property(nonatomic, strong) NSLayoutConstraint *resizeWidth;
 @property(nonatomic, strong) NSLayoutConstraint *resizeHeight;
+@property(nonatomic, strong, readwrite) APIInputWindowFixture *inputWindows;
 @end
 
 @implementation APICapabilityViewController
@@ -36,9 +38,14 @@
     [APIController unregisterCapabilityController:self];
 }
 
+- (void)viewDidDisappear:(BOOL)animated {
+    [super viewDidDisappear:animated];
+    [self.inputWindows invalidate];
+}
+
 - (NSArray<NSString *> *)scenarioKeys {
     if ([self.category isEqualToString:@"ui"]) return @[@"path", @"visibility", @"window"];
-    if ([self.category isEqualToString:@"input"]) return @[@"click", @"text", @"vertical_scroll", @"horizontal_scroll", @"errors", @"long_press", @"geometry"];
+    if ([self.category isEqualToString:@"input"]) return @[@"click", @"text", @"vertical_scroll", @"horizontal_scroll", @"errors", @"long_press", @"geometry", @"windows"];
     if ([self.category isEqualToString:@"wait"]) return @[@"immediate", @"delayed_visible", @"delayed_gone", @"attach_detach", @"resize", @"timeout"];
     return @[@"method_log", @"state_evidence", @"ui_evidence", @"chain_evidence"];
 }
@@ -96,6 +103,8 @@
 }
 
 - (UIStackView *)resetViewWithTitle:(NSString *)titleText {
+    [self.inputWindows invalidate];
+    self.inputWindows = nil;
     self.view.backgroundColor = UIColor.systemGroupedBackgroundColor;
     self.view.accessibilityIdentifier = [NSString stringWithFormat:@"api.%@.root", self.category];
     [self.view.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
@@ -210,7 +219,9 @@
 }
 
 - (void)buildInputScenario {
-    if ([self.scenario isEqualToString:@"click"]) {
+    if ([self.scenario isEqualToString:@"windows"]) {
+        self.inputWindows = [[APIInputWindowFixture alloc] initWithContainer:self.fixtureContainer];
+    } else if ([self.scenario isEqualToString:@"click"]) {
         UIButton *button = [self buttonWithTitle:@"Touch click" identifier:@"api.input.click"];
         button.accessibilityLabel = @"click fixture";
         button.accessibilityValue = @"count:0";

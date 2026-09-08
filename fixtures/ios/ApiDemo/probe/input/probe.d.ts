@@ -27,3 +27,9 @@ export declare function probeClippedTarget(targetKind?: InputTargetKind): Promis
 export declare function probeCoveredTarget(targetKind?: InputTargetKind): Promise<InputProbeResult>;
 /** Verify first-match selection; the path case also repeats the root as a path step. */
 export declare function probeFirstMatch(targetKind?: 'identifier' | 'path'): Promise<InputProbeResult>;
+/** Fresh Main -> Input -> windows -> configure -> one click -> native counters -> cleanup -> Main. */
+export declare function probeWindowClick(mode?: 'same' | 'higher' | 'lower' | 'hidden' | 'passthrough' | 'outside' | 'top' | 'reshow', targetKind?: InputTargetKind): Promise<InputProbeResult>;
+/** Non-key, equal-level overlay must prevent dispatch for all UIView-resolving parameter forms. */
+export declare function probeWindowBlocked(action: 'input' | 'longPress' | 'scroll', targetKind?: 'identifier' | 'path' | 'view'): Promise<InputProbeResult>;
+/** Reuse two windows through hide/show/key transitions; check UIView and coordinate touches against native counters. */
+export declare function probeWindowLifecycle(): Promise<InputProbeResult>;

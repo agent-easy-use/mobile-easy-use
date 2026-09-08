@@ -230,7 +230,7 @@ export async function probeTargetErrors() {
       missing: 'ELEMENT_NOT_FOUND',
       invalid: 'INVALID_COORDINATES',
       hidden: 'VIEW_NOT_VISIBLE',
-      disabled: 'ELEMENT_NOT_HITTABLE',
+      disabled: 'TOUCH_TARGET_MISMATCH',
       emptyText: 'INVALID_ARGUMENT',
       invalidDirection: 'INVALID_ARGUMENT',
       invalidDistance: 'INVALID_ARGUMENT',
@@ -288,7 +288,7 @@ export async function probeCoveredTarget(targetKind = 'identifier') {
     const target = await targetFor('api.input.covered', targetKind);
     const result = await measured(() => IOS.input.click(target));
     const oracle = await snapshot();
-    const expected = targetKind === 'coordinates' ? result.ok : result.error?.code === 'ELEMENT_NOT_HITTABLE';
+    const expected = targetKind === 'coordinates' ? result.ok : result.error?.code === 'TOUCH_TARGET_MISMATCH';
     return { passed: expected && oracle.counter === 0
       && oracle.fixtures.cover.touchCount === (targetKind === 'coordinates' ? 1 : 0),
     api: `IOS.input.click(covered,${targetKind})`, result, oracle };
@@ -305,5 +305,93 @@ export async function probeFirstMatch(targetKind = 'identifier') {
     return { passed: result.ok && oracle.counter === 1
       && oracle.fixtures.duplicate0.value === 'count:1' && oracle.fixtures.duplicate1.value === 'count:0',
     api: `IOS.input.click(firstMatch,${targetKind})`, result, oracle };
+  });
+}
+
+async function windowState() {
+  return JSON.parse(await onMain(() => String(ObjC.classes[CONTROLLER_CLASS].inputWindowSnapshotJSON())));
+}
+
+async function configureWindow(mode) {
+  await onMain(() => ObjC.classes[CONTROLLER_CLASS].configureInputWindow_(mode));
+}
+
+async function windowTarget(action, kind, front = false) {
+  return onMain(() => {
+    const view = ObjC.classes[CONTROLLER_CLASS].inputWindowTarget_front_(action, front);
+    if (!view) throw new Error('Window fixture target is unavailable');
+    const identifier = String(view.accessibilityIdentifier());
+    if (kind === 'identifier') return identifier;
+    if (kind === 'path') return ['identifier::api.input.fixture', `identifier::${identifier}`];
+    if (kind === 'view') return view;
+    if (kind !== 'coordinates') throw new Error(`Unknown target kind: ${kind}`);
+    const rect = rectValue(view.convertRect_toCoordinateSpace_(view.bounds(), view.window().screen().coordinateSpace()));
+    return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+  });
+}
+
+/** One fresh two-window scenario per call; native counters prove which button received the touch. */
+export async function probeWindowClick(mode = 'same', targetKind = 'view') {
+  if (!['same', 'higher', 'lower', 'hidden', 'passthrough', 'outside', 'top', 'reshow'].includes(mode)) {
+    throw new Error(`Unknown window mode: ${mode}`);
+  }
+  return navigate('windows', async () => {
+    await configureWindow(mode);
+    const before = await windowState();
+    const target = await windowTarget('click', targetKind, mode === 'top');
+    const result = await measured(() => IOS.input.click(target));
+    const after = await windowState();
+    const covered = ['same', 'higher', 'reshow'].includes(mode);
+    const rejected = covered && targetKind !== 'coordinates';
+    const front = mode === 'top' || (covered && targetKind === 'coordinates');
+    const passed = (rejected ? result.ok === false && result.error.code === 'TOUCH_TARGET_MISMATCH' : result.ok === true)
+      && after.baseClicks === (!rejected && !front ? 1 : 0)
+      && after.frontClicks === (!rejected && front ? 1 : 0);
+    return { passed, api: `IOS.input.click(window:${mode},${targetKind})`, result, oracle: { before, after } };
+  });
+}
+
+/** Cover text, long press and scroll targets with a non-key window at the same level. */
+export async function probeWindowBlocked(action, targetKind = 'view') {
+  if (!['input', 'longPress', 'scroll'].includes(action) || !['identifier', 'path', 'view'].includes(targetKind)) {
+    throw new Error('Expected input/longPress/scroll and identifier/path/view');
+  }
+  return navigate('windows', async () => {
+    await configureWindow('same');
+    const before = await windowState();
+    const target = await windowTarget(action, targetKind);
+    const result = await measured(() => action === 'input' ? IOS.input.input(target, 'hello')
+      : action === 'scroll' ? IOS.input.scroll(target, 'up', 100) : IOS.input.longPress(target));
+    const after = await windowState();
+    return { passed: result.ok === false && result.error.code === 'TOUCH_TARGET_MISMATCH'
+      && after.baseClicks === 0 && after.frontClicks === 0 && after.longPresses === 0
+      && after.text === '' && after.scrollY === 0,
+    api: `IOS.input.${action}(window:same,${targetKind})`, result, oracle: { before, after } };
+  });
+}
+
+/** Keep the same window instances across visibility/key transitions; never reset the counters. */
+export async function probeWindowLifecycle() {
+  return navigate('windows', async () => {
+    await configureWindow('same');
+    const steps = [];
+    let baseClicks = 0;
+    let frontClicks = 0;
+    for (const mode of ['show', 'hide', 'show', 'overlay-key', 'main-key', 'hide', 'show']) {
+      await configureWindow(mode);
+      const front = mode !== 'hide';
+      const before = await windowState();
+      const result = await measured(() => windowTarget('click', 'view', front).then((target) => IOS.input.click(target)));
+      const coordinate = await windowTarget('click', 'coordinates', front);
+      const touch = result.ok ? await measured(() => IOS.input.click(coordinate)) : null;
+      if (front) frontClicks += 2; else baseClicks += 2;
+      const after = await windowState();
+      const passed = result.ok === true && touch?.ok === true
+        && after.baseClicks === baseClicks && after.frontClicks === frontClicks;
+      steps.push({ mode, passed, result, coordinateTouch: touch, before, after });
+      if (!passed) break;
+    }
+    return { passed: steps.length === 7 && steps.every((step) => step.passed),
+      api: 'IOS.input.click(window lifecycle)', result: steps, oracle: await windowState() };
   });
 }

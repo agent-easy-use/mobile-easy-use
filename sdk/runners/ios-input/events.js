@@ -1,7 +1,7 @@
 // Runner-only backend: screen points -> native event records. No AX element calls.
 const TAP_SECONDS = 0.05;
 const DRAG_SECONDS = 0.3;
-const TYPING_SPEED = 60;
+const TYPING_SPEED = 30;
 
 function required(object, selector) {
   if (!object || typeof object[selector] !== 'function') {

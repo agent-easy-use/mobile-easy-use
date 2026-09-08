@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 
 @class APICapabilityViewController;
+@class UIView;
 
 @interface APIController : NSObject
 
@@ -18,5 +19,8 @@
 + (void)detachAfter:(NSString *)key delayMs:(NSInteger)delayMs;
 + (void)resizeAfter:(NSString *)key delayMs:(NSInteger)delayMs;
 + (void)returnToMain;
++ (void)configureInputWindow:(NSString *)mode;
++ (UIView *)inputWindowTarget:(NSString *)action front:(BOOL)front;
++ (NSString *)inputWindowSnapshotJSON;
 
 @end

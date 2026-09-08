@@ -58,7 +58,7 @@ test('input retains records and submits text only after successful focus complet
   f.sent[0].complete();
   await tick(); await tick();
   assert.equal(f.sent.length, 2);
-  assert.deepEqual(f.paths[1].calls, [['text', '你好🙂', 0, 60, true]]);
+  assert.deepEqual(f.paths[1].calls, [['text', '你好🙂', 0, 30, true]]);
   f.sent[1].complete();
   await pending;
   assert.ok(f.paths.every((path) => path.refs === 0));

@@ -48,7 +48,7 @@ function inputContext(view = null) {
 }
 
 function viewInputTarget(view) {
-  const { window, space, bounds: area, orientation } = inputContext(view);
+  const { space, bounds: area, orientation } = inputContext(view);
   let bounds = intersectBounds(rectOnScreen(view, space), area);
   for (let ancestor = view; ancestor; ancestor = ancestor.superview()) {
     if (Boolean(ancestor.isHidden()) || Number(ancestor.alpha()) <= 0.01
@@ -62,12 +62,42 @@ function viewInputTarget(view) {
   if (!bounds) throw new Error('VIEW_NOT_VISIBLE: UIView has no visible input area');
   const x = bounds.x + bounds.width / 2;
   const y = bounds.y + bounds.height / 2;
-  const pointInWindow = window.convertPoint_fromCoordinateSpace_([x, y], space);
-  const hit = window.hitTest_withEvent_(pointInWindow, null);
-  if (!hit || (!hit.isEqual_(view) && !hit.isDescendantOfView_(view))) {
-    throw new Error('ELEMENT_NOT_HITTABLE: UIView center is covered by another view');
-  }
   return { point: { x, y }, bounds, orientation };
+}
+
+function describeView(view) {
+  const name = view.$className;
+  // Diagnostics must not replace the original input error if a custom getter fails.
+  try {
+    const identifier = view.accessibilityIdentifier();
+    return identifier ? `${name}(identifier=${JSON.stringify(String(identifier))})` : name;
+  } catch (_) {
+    return name;
+  }
+}
+
+function requireScreenHit(view, point) {
+  const targetWindow = view.window();
+  const scene = targetWindow.windowScene();
+  const space = targetWindow.screen().coordinateSpace();
+  // UIApplication.windows documents back-to-front order, including equal-level windows.
+  // Do not sort by level or substitute scene.windows/keyWindow: neither establishes that order.
+  const windows = ObjC.classes.UIApplication.sharedApplication().windows();
+  if (!Boolean(windows.containsObject_(targetWindow))) {
+    throw new Error('INVALID_TARGET: target window is absent from the ordered App windows');
+  }
+  for (let i = Number(windows.count()) - 1; i >= 0; i -= 1) {
+    const window = windows.objectAtIndex_(i);
+    if (!window.windowScene()?.isEqual_(scene) || Boolean(window.isHidden())
+        || Number(window.alpha()) <= 0.01 || !Boolean(window.isUserInteractionEnabled())) continue;
+    const local = window.convertPoint_fromCoordinateSpace_([point.x, point.y], space);
+    const hit = window.hitTest_withEvent_(local, null);
+    if (!hit) continue;
+    if (hit.isEqual_(view) || hit.isDescendantOfView_(view)) return;
+    const location = window.isEqual_(targetWindow) ? 'the target window' : 'another App window';
+    throw new Error(`TOUCH_TARGET_MISMATCH: target ${describeView(view)} does not receive the touch at screen point (${point.x}, ${point.y}); hit ${describeView(hit)} in ${location}`);
+  }
+  throw new Error(`NO_TOUCH_RECEIVER: no view receives the touch at screen point (${point.x}, ${point.y}) for target ${describeView(view)} in its App scene`);
 }
 
 // Runs entirely in one App main-queue turn: lookup, visibility and screen geometry.
@@ -85,6 +115,7 @@ function prepareInputCommand(action, target, parameters = {}) {
   }
 
   let resolved;
+  let view;
   if (typeof target === 'string' || Array.isArray(target)) {
     try {
       if (typeof target === 'string') {
@@ -93,12 +124,13 @@ function prepareInputCommand(action, target, parameters = {}) {
     } catch (error) {
       throw new Error(`INVALID_TARGET: ${error.message}`);
     }
-    const view = findUiView(target);
+    view = findUiView(target);
     if (!view) throw new Error('ELEMENT_NOT_FOUND: UI target did not match a UIView');
     resolved = viewInputTarget(view);
   } else if (target && typeof target.isKindOfClass_ === 'function'
       && Boolean(target.isKindOfClass_(ObjC.classes.UIView))) {
-    resolved = viewInputTarget(target);
+    view = target;
+    resolved = viewInputTarget(view);
   } else if (target && typeof target === 'object' && Number.isFinite(target.x) && Number.isFinite(target.y)) {
     const { bounds, orientation } = inputContext();
     resolved = { point: requirePoint({ x: target.x, y: target.y }, bounds), bounds, orientation };
@@ -106,10 +138,13 @@ function prepareInputCommand(action, target, parameters = {}) {
     throw new Error('INVALID_TARGET: expected an identifier, UI path, UIView, or {x, y}');
   }
 
-  return { action, ...resolved, ...parameters,
+  const command = { action, ...resolved, ...parameters,
     ...(action === 'scroll'
       ? { gesture: scrollCoordinates(resolved.bounds, resolved.point, direction, distance) } : {}),
   };
+  if (view) requireScreenHit(view, command.gesture
+    ? { x: command.gesture.startX, y: command.gesture.startY } : command.point);
+  return command;
 }
 
 export { prepareInputCommand };
