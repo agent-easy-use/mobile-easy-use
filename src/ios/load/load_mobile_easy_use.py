@@ -2,6 +2,8 @@ import json
 import os
 import posixpath
 import re
+import struct
+import threading
 import time
 
 import lldb
@@ -11,6 +13,7 @@ MODE_ENV = "MOBILE_EASY_USE_LLDB_MODE"
 TARGET_ENV = "MOBILE_EASY_USE_LLDB_TARGET"
 PID_ENV = "MOBILE_EASY_USE_LLDB_PID"
 TIMEOUT_ENV = "MOBILE_EASY_USE_LLDB_TIMEOUT"
+WAIT_FOR_MAIN_ENV = "MOBILE_EASY_USE_LLDB_WAIT_FOR_MAIN"
 
 TERMINAL_FAILURE_STATES = {
     lldb.eStateCrashed,
@@ -124,13 +127,13 @@ def remote_bridge_path(target):
     return app_bridge
 
 
-def expression_options(timeout_seconds):
+def expression_options(timeout_seconds, all_threads=False):
     options = lldb.SBExpressionOptions()
     options.SetLanguage(lldb.eLanguageTypeC)
     options.SetIgnoreBreakpoints(True)
     options.SetUnwindOnError(True)
     options.SetTrapExceptions(False)
-    options.SetStopOthers(True)
+    options.SetStopOthers(not all_threads)
     options.SetTryAllThreads(False)
     options.SetSuppressPersistentResult(True)
     options.SetTimeoutInMicroSeconds(timeout_seconds * 1_000_000)
@@ -337,31 +340,35 @@ def loaded_function_address(target, module_name, function_name):
     return matches[0]
 
 
-def load_image_with_sbtarget(target, path, timeout_seconds):
+def load_image_with_sbtarget(target, path, timeout_seconds, all_threads=False):
     dlopen_address = loaded_function_address(
         target,
         "libdyld.dylib",
         "dlopen",
     )
-    options = expression_options(min(timeout_seconds, 10))
+    options = expression_options(min(timeout_seconds, 10), all_threads)
     process = target.GetProcess()
     previous_stop_id = process.GetStopID(True)
+    started = time.monotonic()
     value = target.EvaluateExpression(
         f"((void *(*)(const char *, int)){dlopen_address:#x})({json.dumps(path)}, 1)",
         options,
     )
+    error = value.GetError()
+    print("MEU_DLOPEN " + json.dumps({
+        "path": path, "seconds": time.monotonic() - started,
+        "error": error.GetCString(), "handle": value.GetValue(),
+        "allThreads": all_threads,
+    }), flush=True)
+    if error.Fail():
+        # Mapping an image does not prove that its initializers returned.
+        raise LoaderError(f"direct dlopen failed: {error.GetCString()}")
     wait_for_inferior_call_stop(
         process,
         previous_stop_id,
         min(timeout_seconds, 10),
         "direct dlopen",
     )
-    error = value.GetError()
-    if error.Fail():
-        load_state, _ = loaded_image_state(target)
-        if load_state in {"bridge-loaded", "already-loaded"}:
-            return
-        raise LoaderError(f"direct dlopen failed: {error.GetCString()}")
     if value.GetValueAsUnsigned(0) == 0:
         raise LoaderError("direct dlopen returned a null image handle")
 
@@ -372,12 +379,143 @@ def continue_process(process):
         raise LoaderError(f"continue failed: {error.GetCString()}")
 
 
+def read_memory(process, address, size):
+    error = lldb.SBError()
+    data = process.ReadMemory(address, size, error)
+    if error.Fail() or len(data) != size:
+        raise LoaderError(f"cannot read Mach-O at {address:#x}: {error.GetCString()}")
+    return data
+
+
+def parse_main_entry(header, commands, load_address):
+    """Parse the running arm64 slice, independent of symbols and local files."""
+    if len(header) != 32:
+        raise LoaderError("truncated Mach-O header")
+    magic, cpu, subtype, filetype, count, size, flags, reserved = struct.unpack("<8I", header)
+    if magic != 0xFEEDFACF or cpu != 0x0100000C or filetype != 2:
+        raise LoaderError("LC_MAIN cold loading requires an arm64 MH_EXECUTE")
+    if size != len(commands) or size > 1024 * 1024 or count > size // 8:
+        raise LoaderError("invalid Mach-O load command bounds")
+    entries, segments = [], []
+    offset = 0
+    for _ in range(count):
+        if offset + 8 > size:
+            raise LoaderError("truncated Mach-O load command")
+        command, command_size = struct.unpack_from("<II", commands, offset)
+        if command_size < 8 or command_size % 8 or offset + command_size > size:
+            raise LoaderError("invalid Mach-O load command size")
+        if command == 0x80000028:
+            if command_size != 24:
+                raise LoaderError("invalid LC_MAIN size")
+            entries.append(struct.unpack_from("<Q", commands, offset + 8)[0])
+        elif command == 0x19:
+            if command_size < 72:
+                raise LoaderError("truncated LC_SEGMENT_64")
+            segment = struct.unpack_from("<16sQQQQiiII", commands, offset + 8)
+            segments.append(segment)
+        offset += command_size
+    if offset != size or len(entries) != 1:
+        raise LoaderError("expected exactly one LC_MAIN; no symbol fallback")
+    headers = [s for s in segments if s[3] == 0 and s[4] >= 32 + size and s[6] & 1]
+    entryoff = entries[0]
+    containing = [s for s in segments if s[3] <= entryoff < s[3] + s[4] and s[6] & 4]
+    if len(headers) != 1 or len(containing) != 1:
+        raise LoaderError("LC_MAIN is not in a unique executable file-backed segment")
+    segment = containing[0]
+    delta = entryoff - segment[3]
+    if delta >= segment[2]:
+        raise LoaderError("LC_MAIN is outside the segment virtual size")
+    slide = load_address - headers[0][1]
+    entry = segment[1] + delta + slide
+    if entry % 4:
+        raise LoaderError("unaligned arm64 LC_MAIN address")
+    return {"entryoff": entryoff, "address": entry, "slide": slide,
+            "headerAddress": load_address, "cpuSubtype": subtype}
+
+
+def wait_for_main_entry(debugger, target, process, timeout_seconds):
+    initial_state, images = loaded_image_state(target)
+    print("MEU_AFTER_ATTACH " + json.dumps({
+        "pid": process.GetProcessID(), "images": images,
+    }), flush=True)
+    if initial_state != "absent":
+        raise LoaderError("a newly launched App requires both MobileEasyUse images absent after attach")
+    module = target.GetModuleAtIndex(0)
+    address = module.GetObjectFileHeaderAddress().GetLoadAddress(target)
+    if address == lldb.LLDB_INVALID_ADDRESS:
+        raise LoaderError("main executable Mach-O header is not mapped")
+    header = read_memory(process, address, 32)
+    size = struct.unpack_from("<I", header, 20)[0]
+    if size > 1024 * 1024:
+        raise LoaderError("Mach-O load commands exceed 1 MiB")
+    entry = parse_main_entry(header, read_memory(process, address + 32, size), address)
+    entry["module"] = module_identity(module)
+    # dyld startup may replace LLDB's provisional module object. Keep this
+    # one-process checkpoint absolute, rather than bound to that object's section.
+    absolute_address = lldb.SBAddress(lldb.SBSection(), entry["address"])
+    breakpoint = target.BreakpointCreateBySBAddress(absolute_address)
+    if not breakpoint.IsValid() or breakpoint.GetNumLocations() != 1:
+        target.BreakpointDelete(breakpoint.GetID())
+        raise LoaderError("could not install LC_MAIN address breakpoint")
+    print("MEU_ENTRY_RESOLVED " + json.dumps(entry), flush=True)
+    print("MEU_ENTRY_BREAKPOINT " + str(breakpoint), flush=True)
+    timed_out = threading.Event()
+
+    def interrupt():
+        timed_out.set()
+        process.SendAsyncInterrupt()
+
+    timer = threading.Timer(min(timeout_seconds, 30), interrupt)
+    debugger.SetAsync(False)
+    timer.start()
+    try:
+        started = time.monotonic()
+        continue_process(process)
+        print("MEU_ENTRY_STOP " + json.dumps({
+            "seconds": time.monotonic() - started,
+            "state": state_name(process.GetState()),
+            "threads": [{"id": thread.GetThreadID(),
+                         "reason": thread.GetStopDescription(256),
+                         "frames": [str(thread.GetFrameAtIndex(i))
+                                    for i in range(min(16, thread.GetNumFrames()))]}
+                        for thread in list(process)[:4]],
+            "breakpoint": str(breakpoint),
+            "currentHeaderAddress": module.GetObjectFileHeaderAddress().GetLoadAddress(target),
+        }), flush=True)
+        if timed_out.is_set():
+            raise LoaderError("LC_MAIN breakpoint timed out")
+        if process.GetState() != lldb.eStateStopped:
+            raise LoaderError("process did not stop at LC_MAIN")
+        for thread in process:
+            if thread.GetStopReason() != lldb.eStopReasonBreakpoint:
+                continue
+            reasons = [thread.GetStopReasonDataAtIndex(i)
+                       for i in range(0, thread.GetStopReasonDataCount(), 2)]
+            if breakpoint.GetID() in reasons and thread.GetFrameAtIndex(0).GetPC() == entry["address"]:
+                current_module = thread.GetFrameAtIndex(0).GetModule()
+                if (current_module.GetUUIDString() != entry["module"]["uuid"]
+                        or current_module.GetObjectFileHeaderAddress().GetLoadAddress(target) != address):
+                    raise LoaderError("main executable identity or mapping changed before LC_MAIN")
+                process.SetSelectedThread(thread)
+                entry["threadID"] = thread.GetThreadID()
+                if loaded_image_state(target)[0] != "absent":
+                    raise LoaderError("MobileEasyUse loaded before the LC_MAIN injection gate")
+                print("MEU_ENTRY_HIT " + json.dumps(entry), flush=True)
+                return entry
+        raise LoaderError("unexpected stop before LC_MAIN; refusing injection")
+    finally:
+        timer.cancel()
+        timer.join()
+        target.BreakpointDelete(breakpoint.GetID())
+
+
 def load_images_synchronously(
     debugger,
     target,
     process,
     timeout_seconds,
     wait_for_dyld,
+    all_threads=False,
 ):
     bridge_path = remote_bridge_path(target)
     runtime_path = posixpath.join(
@@ -391,14 +529,16 @@ def load_images_synchronously(
     if wait_for_dyld:
         wait_for_program_running(debugger, process, timeout_seconds)
     if initial_state == "absent":
-        load_image_with_sbtarget(target, bridge_path, timeout_seconds)
+        load_image_with_sbtarget(target, bridge_path, timeout_seconds, all_threads)
         bridge_state, _ = loaded_image_state(target)
-        if bridge_state != "bridge-loaded":
+        if bridge_state not in {"bridge-loaded", "already-loaded"}:
             raise LoaderError(
                 f"synchronous Bridge load produced unexpected image state: {bridge_state}"
             )
 
-    load_image_with_sbtarget(target, runtime_path, timeout_seconds)
+    # An explicit second dlopen also waits for initialization when the Bridge
+    # already brought Runtime in as a dependency.
+    load_image_with_sbtarget(target, runtime_path, timeout_seconds, all_threads)
     final_state, images = loaded_image_state(target)
     if final_state != "already-loaded":
         raise LoaderError(
@@ -445,10 +585,16 @@ def load_runtime(debugger):
     mode, target_name, expected_pid, timeout_seconds = required_environment()
     debugger.SetAsync(True)
     process = None
+    wait_for_main = os.environ.get(WAIT_FOR_MAIN_ENV) == "true"
+    entry = None
 
     try:
         target, process = wait_for_process(debugger, expected_pid, timeout_seconds)
         debugger.SetAsync(False)
+        if wait_for_main:
+            if mode != "device":
+                raise LoaderError("LC_MAIN cold loading currently supports devices only")
+            entry = wait_for_main_entry(debugger, target, process, timeout_seconds)
         image_path, image_token, images, load_state, load_method = (
             load_images_synchronously(
                 debugger,
@@ -456,6 +602,7 @@ def load_runtime(debugger):
                 process,
                 timeout_seconds,
                 wait_for_dyld=mode == "simulator",
+                all_threads=wait_for_main,
             )
         )
         detach_process(process)
@@ -468,7 +615,8 @@ def load_runtime(debugger):
             "imagePath": image_path,
             "imageToken": image_token,
             "loadState": load_state,
-            "loadMethod": load_method,
+            "loadMethod": "lc-main+all-threads-dlopen" if wait_for_main else load_method,
+            "entryCheckpoint": entry,
             "images": images,
             "detachState": "detached",
         }

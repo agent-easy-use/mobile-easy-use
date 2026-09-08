@@ -76,6 +76,7 @@ run_lldb_loader() {
   local target_name="$2"
   local attach_pid="$3"
   local device_udid="${4:-}"
+  local wait_for_main="${5:-false}"
   local device_udid_escaped="${device_udid//\\/\\\\}"
   device_udid_escaped="${device_udid_escaped//\"/\\\"}"
 
@@ -97,11 +98,13 @@ run_lldb_loader() {
   MOBILE_EASY_USE_LLDB_TARGET="${target_name}" \
   MOBILE_EASY_USE_LLDB_PID="${attach_pid}" \
   MOBILE_EASY_USE_LLDB_TIMEOUT="${timeout_seconds}" \
+  MOBILE_EASY_USE_LLDB_WAIT_FOR_MAIN="${wait_for_main}" \
     xcrun lldb --batch \
       -o "settings set target.preload-symbols false" \
       -o "settings set symbols.enable-external-lookup false" \
       -o "settings set symbols.load-on-demand true" \
       -o "settings set target.memory-module-load-level minimal" \
+      -o "settings set target.experimental.swift-tasks-plugin-enabled false" \
       "${attach_commands[@]}" \
       -o "command script import \"${lldb_loader_escaped}\"" \
       -o "mobile-easy-use-load"
@@ -204,21 +207,18 @@ device_details_json="${device_tmp_dir}/details.json"
 device_details_log="${device_tmp_dir}/details.log"
 device_launch_json="${device_tmp_dir}/launch.json"
 device_launch_log="${device_tmp_dir}/launch.log"
+device_activate_json="${device_tmp_dir}/activate.json"
+device_activate_log="${device_tmp_dir}/activate.log"
+device_apps_json="${device_tmp_dir}/apps.json"
+device_apps_log="${device_tmp_dir}/apps.log"
+device_process_snapshot_json="${device_tmp_dir}/process-snapshot.json"
+device_process_snapshot_log="${device_tmp_dir}/process-snapshot.log"
 device_ddi_json="${device_tmp_dir}/ddi.json"
 device_ddi_log="${device_tmp_dir}/ddi.log"
 device_process_json="${device_tmp_dir}/process.json"
 device_process_log="${device_tmp_dir}/process.log"
-device_console_log="${device_tmp_dir}/console.log"
-device_console_pid=""
 
 cleanup_device_session() {
-  if [[ "${device_console_pid}" =~ ^[1-9][0-9]*$ ]] \
-    && kill -0 "${device_console_pid}" 2>/dev/null; then
-    # SIGKILL stops only the local devicectl console client. Catchable signals
-    # are intentionally avoided because devicectl forwards them to the App.
-    kill -KILL "${device_console_pid}" 2>/dev/null || true
-    wait "${device_console_pid}" 2>/dev/null || true
-  fi
   rm -rf -- "${device_tmp_dir}"
 }
 trap cleanup_device_session EXIT
@@ -250,88 +250,93 @@ if ! hardware_udid="$(
   exit 1
 fi
 
-device_launch_output=""
-device_launch_attempt=1
-device_launch_max_attempts=3
-device_launch_succeeded=false
+if ! xcrun devicectl device info apps \
+    --quiet \
+    --device "${core_device_identifier}" \
+    --bundle-id "${bundle_id}" \
+    --timeout "${timeout_seconds}" \
+    --json-output "${device_apps_json}" \
+    --log-output "${device_apps_log}"; then
+  device_apps_status=$?
+  echo "Could not resolve '${bundle_id}' on device '${device_name}'." >&2
+  [[ -f "${device_apps_log}" ]] && cat "${device_apps_log}" >&2
+  exit "${device_apps_status}"
+fi
 
-while (( device_launch_attempt <= device_launch_max_attempts )); do
-  rm -f "${device_launch_json}" "${device_launch_log}"
-  if xcrun devicectl device process launch \
+if ! xcrun devicectl device info processes \
+    --quiet \
+    --device "${core_device_identifier}" \
+    --timeout "${timeout_seconds}" \
+    --json-output "${device_process_snapshot_json}" \
+    --log-output "${device_process_snapshot_log}"; then
+  device_process_snapshot_status=$?
+  echo "Could not inspect running processes on device '${device_name}'." >&2
+  [[ -f "${device_process_snapshot_log}" ]] && cat "${device_process_snapshot_log}" >&2
+  exit "${device_process_snapshot_status}"
+fi
+
+if ! running_process="$(
+  node - "${device_apps_json}" "${device_process_snapshot_json}" <<'NODE'
+const fs = require('node:fs');
+const apps = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')).result?.apps;
+const processes = JSON.parse(fs.readFileSync(process.argv[3], 'utf8')).result?.runningProcesses;
+if (!Array.isArray(apps) || apps.length !== 1 || typeof apps[0]?.url !== 'string') {
+  throw new Error(`expected exactly one installed App, found ${Array.isArray(apps) ? apps.length : 0}`);
+}
+if (!Array.isArray(processes)) throw new Error('CoreDevice returned no running process list');
+const appUrl = apps[0].url.endsWith('/') ? apps[0].url : `${apps[0].url}/`;
+const matches = processes.filter(({ executable }) =>
+  typeof executable === 'string'
+    && executable.startsWith(appUrl)
+    && !executable.slice(appUrl.length).includes('/'));
+if (matches.length > 1) throw new Error(`found ${matches.length} running processes inside ${appUrl}`);
+if (matches.length === 1) {
+  process.stdout.write(`${matches[0].processIdentifier}\n${matches[0].executable}\n`);
+}
+NODE
+)"; then
+  echo "Could not determine whether '${bundle_id}' is already running." >&2
+  exit 1
+fi
+
+wait_for_main=false
+if [[ -n "${running_process}" ]]; then
+  device_pid="$(printf '%s\n' "${running_process}" | sed -n '1p')"
+  device_executable="$(printf '%s\n' "${running_process}" | sed -n '2p')"
+else
+  if ! xcrun devicectl device process launch \
       --quiet \
       --device "${core_device_identifier}" \
+      --no-activate \
+      --start-stopped \
       --timeout "${timeout_seconds}" \
       --json-output "${device_launch_json}" \
       --log-output "${device_launch_log}" \
       "${bundle_id}"; then
-    device_launch_succeeded=true
-    break
-  else
     device_launch_status=$?
-  fi
-  device_launch_output=""
-  [[ -f "${device_launch_log}" ]] && device_launch_output="$(<"${device_launch_log}")"
-
-  if [[ "${device_launch_output}" != *"Timed out"* \
-    && "${device_launch_output}" != *"timed out"* \
-    && "${device_launch_output}" != *"Timeout"* \
-    && "${device_launch_output}" != *"timeout"* ]]; then
-    echo "Failed to resolve or launch '${bundle_id}' on device '${device_name}'." >&2
-    echo "${device_launch_output}" >&2
+    echo "Failed to launch '${bundle_id}' in a stopped state on device '${device_name}'." >&2
+    [[ -f "${device_launch_log}" ]] && cat "${device_launch_log}" >&2
     exit "${device_launch_status}"
   fi
-
-  if (( device_launch_attempt == device_launch_max_attempts )); then
-    echo "CoreDevice launch resolution for '${device_name}' timed out after ${device_launch_max_attempts} attempts." >&2
-    echo "${device_launch_output}" >&2
+  if ! device_pid="$(
+    /usr/bin/plutil -extract result.process.processIdentifier raw -o - \
+      "${device_launch_json}" 2>/dev/null
+  )" || [[ ! "${device_pid}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Could not determine the newly launched App PID from CoreDevice JSON output." >&2
     exit 1
   fi
-
-  echo "CoreDevice launch resolution attempt ${device_launch_attempt}/${device_launch_max_attempts} timed out; retrying..." >&2
-  sleep 1
-  ((device_launch_attempt += 1))
-done
-
-if [[ "${device_launch_succeeded}" != true ]]; then
-  echo "CoreDevice launch resolution failed for '${device_name}'." >&2
-  exit 1
+  if ! device_executable="$(
+    /usr/bin/plutil -extract result.process.executable raw -o - \
+      "${device_launch_json}" 2>/dev/null
+  )" || [[ -z "${device_executable}" ]]; then
+    echo "Could not determine the newly launched App executable from CoreDevice JSON output." >&2
+    exit 1
+  fi
+  wait_for_main=true
 fi
 
-if ! device_pid="$(
-  /usr/bin/plutil \
-    -extract result.process.processIdentifier \
-    raw \
-    -o - \
-    "${device_launch_json}" \
-    2>/dev/null
-)" || [[ ! "${device_pid}" =~ ^[1-9][0-9]*$ ]]; then
-  echo "Could not determine the device App PID from CoreDevice JSON output." >&2
-  [[ -f "${device_launch_log}" ]] && cat "${device_launch_log}" >&2
-  exit 1
-fi
-if ! device_executable="$(
-  /usr/bin/plutil \
-    -extract result.process.executable \
-    raw \
-    -o - \
-    "${device_launch_json}" \
-    2>/dev/null
-)" || [[ -z "${device_executable}" ]]; then
-  echo "Could not determine the device App executable from CoreDevice JSON output." >&2
-  [[ -f "${device_launch_log}" ]] && cat "${device_launch_log}" >&2
-  exit 1
-fi
-
-xcrun devicectl device process launch \
-  --quiet \
-  --device "${core_device_identifier}" \
-  --console \
-  --log-output "${device_console_log}" \
-  "${bundle_id}" &
-device_console_pid=$!
-if ! kill -0 "${device_console_pid}" 2>/dev/null; then
-  echo "Could not keep the CoreDevice session active for LLDB." >&2
-  [[ -f "${device_console_log}" ]] && cat "${device_console_log}" >&2
+if [[ ! "${device_pid}" =~ ^[1-9][0-9]*$ || -z "${device_executable}" ]]; then
+  echo "CoreDevice returned an invalid running process for '${bundle_id}'." >&2
   exit 1
 fi
 
@@ -385,4 +390,44 @@ if ! ready_executable="$(
   exit 1
 fi
 
-run_lldb_loader device "${device_name}" "${device_pid}" "${hardware_udid}"
+if loader_output="$(
+  run_lldb_loader device "${device_name}" "${device_pid}" "${hardware_udid}" "${wait_for_main}"
+)"; then
+  :
+else
+  loader_status=$?
+  echo "${loader_output}" >&2
+  exit "${loader_status}"
+fi
+
+if [[ "${wait_for_main}" == true ]]; then
+  if ! xcrun devicectl device process launch \
+      --quiet \
+      --device "${core_device_identifier}" \
+      --activate \
+      --timeout "${timeout_seconds}" \
+      --json-output "${device_activate_json}" \
+      --log-output "${device_activate_log}" \
+      "${bundle_id}"; then
+    device_activate_status=$?
+    echo "MobileEasyUse loaded, but '${bundle_id}' could not be activated." >&2
+    [[ -f "${device_activate_log}" ]] && cat "${device_activate_log}" >&2
+    exit "${device_activate_status}"
+  fi
+  if ! activated_pid="$(
+    /usr/bin/plutil -extract result.process.processIdentifier raw -o - \
+      "${device_activate_json}" 2>/dev/null
+  )" || [[ "${activated_pid}" != "${device_pid}" ]]; then
+    echo "App activation changed the injected process PID; refusing success." >&2
+    exit 1
+  fi
+  if ! activated_executable="$(
+    /usr/bin/plutil -extract result.process.executable raw -o - \
+      "${device_activate_json}" 2>/dev/null
+  )" || [[ "${activated_executable}" != "${device_executable}" ]]; then
+    echo "App activation changed the injected process identity; refusing success." >&2
+    exit 1
+  fi
+fi
+
+printf '%s\n' "${loader_output}"
