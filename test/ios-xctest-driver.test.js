@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import test from 'node:test';
 import { IOSRunner } from '../src/mcp-api/ios-runner.js';
 
@@ -101,6 +102,7 @@ test('connection-owned iOS Runner starts, forwards, and closes on a simulator', 
     deviceId: 'SIM-1',
     appId: 'com.example.app',
     iosRunner: null,
+    runtimeStatus: { releaseVersion: '0.1.0' },
   };
   const runner = new IOSRunner(owner, connection, connection.appId, {
     execute: async () => ({
@@ -113,6 +115,7 @@ test('connection-owned iOS Runner starts, forwards, and closes on a simulator', 
       return new FakeChild();
     },
     runnerCommand: '/test/serve-runner.sh',
+    runnerRoot: resolve('runners/ios-xctest'),
     loadDriver: async () => 'runner-bundle',
     allocatePort: async () => 8485,
     releasePort: (port) => releasedPorts.push(port),
@@ -127,7 +130,7 @@ test('connection-owned iOS Runner starts, forwards, and closes on a simulator', 
 
   assert.deepEqual(spawnCalls, [{
     command: '/test/serve-runner.sh',
-    args: ['--simulator', 'SIM-1', '--port', '8485'],
+    args: ['--simulator', 'SIM-1', '--port', '8485', '--runner-root', resolve('runners/ios-xctest')],
     options: { stdio: ['ignore', 'pipe', 'pipe'] },
   }]);
   assert.deepEqual(remoteAddresses, ['127.0.0.1:8485']);

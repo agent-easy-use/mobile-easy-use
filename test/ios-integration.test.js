@@ -92,6 +92,7 @@ test('iOS bridge dylibs contain native APIs without linking the Frida runtime', 
     assert.match(symbols.stdout, /_OBJC_CLASS_\$_MEUUIQuery/);
     assert.match(symbols.stdout, /_mobile_easy_use_replace_nslog/);
     assert.match(symbols.stdout, /_mobile_easy_use_set_nslog_capture/);
+    assert.match(symbols.stdout, /_mobile_easy_use_version/);
     assert.doesNotMatch(symbols.stdout, /_mobile_easy_use_load_runtime_async/);
     assert.doesNotMatch(symbols.stdout, /_mobile_easy_use_runtime_bootstrap_/);
   }
@@ -254,9 +255,8 @@ test('iOS Runner rejects an unavailable explicit artifact root', () => {
   assert.match(result.stderr, /MOBILE_EASY_USE_IOS_RUNNER_ROOT/);
 });
 
-test('iOS Runner resolves its versioned artifact under MEU_HOME', () => {
+test('iOS Runner requires an explicit artifact root from the Host', () => {
   const meuHome = `/path/that/does/not/exist-${process.pid}`;
-  const expectedRoot = path.join(meuHome, 'ios', '0.1.0', 'runner');
   const result = spawnSync(
     iosRunnerScriptPath,
     ['--simulator', 'SIMULATOR-UDID'],
@@ -272,7 +272,8 @@ test('iOS Runner resolves its versioned artifact under MEU_HOME', () => {
   );
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, new RegExp(`unavailable at '${expectedRoot}'`));
+  assert.match(result.stderr, /unavailable at ''/);
+  assert.match(result.stderr, /Pass --runner-root from the Host/);
 });
 
 test('iOS Loader retries transient CoreDevice launch-resolution timeouts', async (t) => {

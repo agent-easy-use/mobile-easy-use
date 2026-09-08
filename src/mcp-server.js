@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { ConnectionInstance, connectionKey } from './mcp-connection.js';
 import { operationErrorResult } from './mcp-api/operation-result.js';
 import { McpJsonlLogger } from './mcp-logger.js';
-import { IOSSigningError } from './mcp-api/ios-signing.js';
+import { MCP_VERSION } from './package-info.js';
 
 const PROTOCOL_VERSION = '2025-11-25';
 const OPERATION_TOOLS = new Set(['call_function', 'eval_script']);
@@ -170,7 +170,7 @@ export class MobileMcpServer {
         return resultResponse(message.id, {
           protocolVersion: PROTOCOL_VERSION,
           capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: 'mobile-easy-use', version: '0.1.0' },
+          serverInfo: { name: 'mobile-easy-use', version: MCP_VERSION },
         });
       }
       if (message.method === 'notifications/initialized') return null;
@@ -216,9 +216,11 @@ export function toolCallErrorResponse(message, error) {
   const toolName = message?.params?.name ?? '<missing>';
   const value = OPERATION_TOOLS.has(toolName)
     ? operationErrorResult(error)
-    : { error: error.message, ...(error instanceof IOSSigningError ? {
-      code: error.code,
-    } : {}) };
+    : {
+      error: error.message,
+      ...(typeof error?.code === 'string' ? { code: error.code } : {}),
+      ...(error?.details !== undefined ? { details: error.details } : {}),
+    };
   return resultResponse(message?.id ?? null, toolResult(value, true));
 }
 
@@ -240,7 +242,7 @@ function parseTarget(input) {
 export const toolDefinitions = [
   {
     name: 'connect',
-    description: 'Create or reuse the connection instance identified by deviceId and appId, then initialize its Android or iOS SDK runtime.',
+    description: 'Create or reuse the connection identified by deviceId and appId, initialize its Android or iOS SDK runtime, and report runtime and Release compatibility. Surface compatibilityWarning and a non-null compatibility.upgradeRecommendation to the user as non-blocking advisories.',
     inputSchema: {
       type: 'object',
       required: ['platform', 'deviceId', 'appId', 'runtimePort', 'ip', 'port'],
@@ -278,7 +280,7 @@ export const toolDefinitions = [
     },
     outputSchema: {
       type: 'object',
-      required: ['connected', 'state', 'target', 'ip', 'port', 'fridaTarget'],
+      required: ['connected', 'state', 'target', 'ip', 'port', 'fridaTarget', 'runtime', 'compatibility'],
       properties: {
         connected: { type: 'boolean' },
         state: { type: 'string', enum: ['connected'] },
@@ -296,6 +298,46 @@ export const toolDefinitions = [
         ip: { type: 'string' },
         port: { type: 'integer' },
         fridaTarget: { type: 'string', enum: ['Gadget'] },
+        runtime: {
+          type: 'object',
+          description: 'Runtime identity reported by the SDK loaded in the target App.',
+          required: ['platform', 'available', 'appId', 'sdkVersion', 'releaseVersion'],
+          properties: {
+            platform: { type: 'string', enum: ['android', 'ios'] },
+            available: { type: 'boolean' },
+            appId: { type: 'string' },
+            sdkVersion: { type: 'string' },
+            releaseVersion: { type: 'string' },
+          },
+          additionalProperties: false,
+        },
+        compatibility: {
+          description: 'Compatibility between the App Release and this MCP version, or null when the online catalog could not be checked.',
+          oneOf: [
+            { type: 'null' },
+            {
+              type: 'object',
+              required: ['releaseVersion', 'mcpVersion', 'minimumMcpVersion', 'maximumMcpVersion', 'mcpCommand', 'compatible', 'upgradeRecommendation'],
+              properties: {
+                releaseVersion: { type: 'string' },
+                mcpVersion: { type: 'string' },
+                minimumMcpVersion: { type: 'string' },
+                maximumMcpVersion: { type: 'string' },
+                mcpCommand: { type: 'string' },
+                compatible: { type: 'boolean', enum: [true] },
+                upgradeRecommendation: {
+                  description: 'Optional non-blocking MCP upgrade advice to surface to the user.',
+                  oneOf: [{ type: 'string' }, { type: 'null' }],
+                },
+              },
+              additionalProperties: false,
+            },
+          ],
+        },
+        compatibilityWarning: {
+          type: 'string',
+          description: 'Non-blocking notice that compatibility could not be checked; surface it to the user.',
+        },
       },
       additionalProperties: false,
     },

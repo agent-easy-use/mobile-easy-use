@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MCP_VERSION } from './package-info.js';
 
 export const SDK_BUNDLE_PATHS = Object.freeze({
   android: fileURLToPath(new URL('../sdk/dist/android.js', import.meta.url)),
@@ -9,17 +10,20 @@ export const SDK_BUNDLE_PATHS = Object.freeze({
 export const SDK_BUNDLE_PATH = SDK_BUNDLE_PATHS.android;
 export const PRESETS_MODULE_PATH = '/docs/mobile-easy-use/presets.js';
 
-export function loadSdkSource(platform = 'android') {
+export async function loadSdkSource(platform = 'android') {
   const bundlePath = SDK_BUNDLE_PATHS[platform];
   if (!bundlePath) {
     throw new Error(`Unsupported platform: ${platform}; expected android or ios`);
   }
-  return readFile(bundlePath, 'utf8').catch((error) => {
+  try {
+    const source = await readFile(bundlePath, 'utf8');
+    return `${source}\nglobalThis.__mobileEasyUseSdkVersion = ${JSON.stringify(MCP_VERSION)};\n`;
+  } catch (error) {
     throw new Error(
       `${platform} SDK bundle is unavailable; run \`npm run build:${platform}\`: ${error.message}`,
       { cause: error },
     );
-  });
+  }
 }
 
 export function loadPresetsSource(projectRoot = process.cwd()) {

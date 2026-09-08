@@ -45,6 +45,8 @@ connect({
 
 The connection instance key is `deviceId + appId`. A healthy matching instance is reused even when a new endpoint or device-side port is supplied.
 
+After a successful `connect`, retain `compatibilityWarning` and a non-null `compatibility.upgradeRecommendation`. Continue the requested operation and report these non-blocking advisories alongside its result.
+
 If this first `connect` succeeds, proceed directly to execution. If it fails because the runtime cannot be connected:
 
 - If the runtime reports that its `appId` differs from the requested `appId`, stop and return the original port-occupied error. Another App owns `runtimePort`; do not inspect, start, stop, or restart either App.

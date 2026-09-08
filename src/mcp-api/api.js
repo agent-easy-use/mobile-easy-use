@@ -8,6 +8,7 @@ import { connect } from './connect.js';
 import { handleControllerMessage } from './controller.js';
 import { disconnect } from './disconnect.js';
 import { evalScript } from './eval-script.js';
+import { loadCompatibilityCatalog } from '../compatibility.js';
 
 export class GadgetConnection {
   constructor(deviceManager, {
@@ -20,6 +21,7 @@ export class GadgetConnection {
     loadIOSAppRuntime = loadIOSRuntime,
     prepareIOSRunner: prepareRunner = prepareIOSRunner,
     startIOSRunner = null,
+    loadCompatibility = loadCompatibilityCatalog,
   } = {}) {
     this.deviceManager = deviceManager;
     this.createConnectionId = createConnectionId;
@@ -31,6 +33,7 @@ export class GadgetConnection {
     this.loadIOSAppRuntime = loadIOSAppRuntime;
     this.prepareIOSRunner = prepareRunner;
     this.startIOSRunner = startIOSRunner;
+    this.loadCompatibility = loadCompatibility;
     this.state = 'disconnected';
     this.currentConnection = null;
   }

@@ -4,8 +4,22 @@ import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { GadgetConnection } from '../src/mcp-api/api.js';
+import { GadgetConnection as BaseGadgetConnection } from '../src/mcp-api/api.js';
 import { IOSSigningError } from '../src/mcp-api/ios-signing.js';
+import { CompatibilityError } from '../src/compatibility.js';
+
+const testCatalog = Object.freeze({
+  schemaVersion: 1,
+  latestReleaseVersion: '0.1.0',
+  releases: { '0.1.0': { minimumMcpVersion: '0.1.0', maximumMcpVersion: '0.1.0' } },
+});
+
+function GadgetConnection(deviceManager, options = {}) {
+  return new BaseGadgetConnection(deviceManager, {
+    loadCompatibility: async () => testCatalog,
+    ...options,
+  });
+}
 
 function sha256(source) {
   return createHash('sha256').update(source).digest('hex');
@@ -101,6 +115,8 @@ class FakeDeviceManager {
       platform: 'android',
       available: true,
       appId: 'com.example.app',
+      sdkVersion: '0.1.0',
+      releaseVersion: '0.1.0',
     };
     this.runtimeStatusCalls = 0;
     this.sessionDetached = false;
@@ -209,6 +225,16 @@ test('connect uses the complete target and Host endpoint', async () => {
     ip: '127.0.0.1',
     port: 19484,
     fridaTarget: 'Gadget',
+    runtime: {
+      platform: 'android', available: true, appId: 'com.example.app',
+      sdkVersion: '0.1.0', releaseVersion: '0.1.0',
+    },
+    compatibility: {
+      releaseVersion: '0.1.0', mcpVersion: '0.1.0',
+      minimumMcpVersion: '0.1.0', maximumMcpVersion: '0.1.0',
+      mcpCommand: 'npx -y @agent-easy-use/mobile-easy-use@0.1.0',
+      compatible: true, upgradeRecommendation: null,
+    },
   });
 });
 
@@ -237,6 +263,24 @@ test('connect skips presets when the bundle does not exist', async () => {
   assert.deepEqual(manager.presetBundles, []);
 });
 
+test('connect continues when the compatibility catalog is unavailable', async () => {
+  const manager = new FakeDeviceManager();
+  const connection = new GadgetConnection(manager, {
+    loadCompatibility: async () => {
+      throw new CompatibilityError(
+        'COMPATIBILITY_CATALOG_UNAVAILABLE',
+        'Unable to fetch the MobileEasyUse compatibility catalog; retry connect.',
+      );
+    },
+  });
+
+  const result = await connection.connect(targetInput());
+
+  assert.equal(result.connected, true);
+  assert.equal(result.compatibility, null);
+  assert.match(result.compatibilityWarning, /Compatibility check skipped/);
+});
+
 test('failed preset loading resets the connection', async () => {
   const manager = new FakeDeviceManager();
   manager.presetLoadError = new Error('invalid preset ES module');
@@ -257,13 +301,20 @@ test('failed preset loading resets the connection', async () => {
 
 test('connect reuses the same healthy target even when a new endpoint is supplied', async () => {
   const manager = new FakeDeviceManager();
-  const connection = new GadgetConnection(manager);
+  let compatibilityLoads = 0;
+  const connection = new GadgetConnection(manager, {
+    loadCompatibility: async () => {
+      compatibilityLoads += 1;
+      return testCatalog;
+    },
+  });
   const first = await connection.connect(targetInput({ ip: '127.0.0.1', port: 18484 }));
   const connectionId = connection.getConnectionId();
 
   const reused = await connection.connect(targetInput({ ip: '127.0.0.1', port: 19484 }));
 
   assert.deepEqual(reused, first);
+  assert.equal(compatibilityLoads, 1);
   assert.equal(connection.getConnectionId(), connectionId);
   assert.deepEqual(manager.addresses, ['127.0.0.1:18484']);
   assert.equal(manager.createdScripts.length, 1);
@@ -277,6 +328,8 @@ test('iOS connect loads before a real connection and skips loading on reuse', as
     platform: 'ios',
     available: true,
     appId: 'com.example.app',
+    sdkVersion: '0.1.0',
+    releaseVersion: '0.1.0',
   };
   const events = [];
   const addRemoteDevice = manager.addRemoteDevice.bind(manager);
@@ -302,9 +355,9 @@ test('iOS connect loads before a real connection and skips loading on reuse', as
 
   assert.deepEqual(reused, first);
   assert.deepEqual(events, [
-    'prepare',
     'load:device-1:com.example.app',
     'connect',
+    'prepare',
     'runner',
   ]);
   assert.equal(manager.runtimeStatusCalls, 2);
@@ -330,8 +383,12 @@ test('iOS Loader failure aborts before creating a Frida connection', async () =>
   assert.deepEqual(manager.targets, []);
 });
 
-test('missing iOS signing configuration fails before the Loader', async () => {
+test('missing iOS signing configuration fails after runtime compatibility validation', async () => {
   const manager = new FakeDeviceManager();
+  manager.runtimeStatus = {
+    platform: 'ios', available: true, appId: 'com.example.app',
+    sdkVersion: '0.1.0', releaseVersion: '0.1.0',
+  };
   let loaded = false;
   const error = new IOSSigningError('IOS_SIGNING_SETUP_REQUIRED', 'Run to-ios-integrate');
   const connection = new GadgetConnection(manager, {
@@ -339,14 +396,17 @@ test('missing iOS signing configuration fails before the Loader', async () => {
     loadIOSAppRuntime: async () => { loaded = true; },
   });
   await assert.rejects(connection.connect(targetInput({ platform: 'ios' })), actual => actual === error);
-  assert.equal(loaded, false);
-  assert.deepEqual(manager.addresses, []);
+  assert.equal(loaded, true);
+  assert.deepEqual(manager.addresses, ['127.0.0.1:18484']);
   assert.equal(connection.state, 'disconnected');
 });
 
 test('iOS connect reuses prepared signing without persisting configuration', async () => {
   const manager = new FakeDeviceManager();
-  manager.runtimeStatus = { platform: 'ios', available: true, appId: 'com.example.app' };
+  manager.runtimeStatus = {
+    platform: 'ios', available: true, appId: 'com.example.app',
+    sdkVersion: '0.1.0', releaseVersion: '0.1.0',
+  };
   const events = [];
   let fail = true;
   const connection = new GadgetConnection(manager, {

@@ -17,6 +17,11 @@ export function connectionStatus(owner) {
     ip: connection.ip,
     port: connection.port,
     fridaTarget: GADGET_PROCESS_NAME,
+    runtime: connection.runtimeStatus,
+    compatibility: connection.compatibility,
+    ...(connection.compatibilityWarning === null ? {} : {
+      compatibilityWarning: connection.compatibilityWarning,
+    }),
   };
 }
 

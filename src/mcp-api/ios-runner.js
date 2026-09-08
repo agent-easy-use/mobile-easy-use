@@ -1,8 +1,8 @@
 import { execFile as execFileCallback, spawn as spawnProcess } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { readIOSSigning, signingFailureFromOutput } from './ios-signing.js';
@@ -57,6 +57,7 @@ export class IOSRunner {
     spawn = spawnProcess,
     runnerCommand = RUNNER_COMMAND,
     preparation = connection.runnerPreparation,
+    runnerRoot = resolveRunnerRoot(connection.runtimeStatus?.releaseVersion),
     loadDriver = loadIOSXCTestDriverSource,
     allocatePort = reserveLocalPort,
     releasePort = releaseLocalPort,
@@ -70,6 +71,7 @@ export class IOSRunner {
     this.spawn = spawn;
     this.runnerCommand = runnerCommand;
     this.preparation = preparation;
+    this.runnerRoot = runnerRoot;
     this.loadDriver = loadDriver;
     this.allocatePort = allocatePort;
     this.releasePort = releasePort;
@@ -107,8 +109,8 @@ export class IOSRunner {
         : null;
       const runnerArgs = physical
         ? ['--device', destinationId, '--team', signing.teamId, '--bundle-id', signing.bundleId,
-          '--port', String(runnerPort)]
-        : ['--simulator', destinationId, '--port', String(runnerPort)];
+          '--port', String(runnerPort), '--runner-root', this.runnerRoot]
+        : ['--simulator', destinationId, '--port', String(runnerPort), '--runner-root', this.runnerRoot];
       this.process = startChild(this.spawn, this.runnerCommand, runnerArgs);
 
       await Promise.all([
@@ -237,6 +239,17 @@ export class IOSRunner {
       }
     }
   }
+}
+
+function resolveRunnerRoot(releaseVersion) {
+  if (typeof releaseVersion !== 'string' || releaseVersion.length === 0) {
+    throw new Error('The App runtime did not report a Release version for iOS Runner discovery.');
+  }
+  if (process.env.MOBILE_EASY_USE_IOS_RUNNER_ROOT) {
+    return resolve(process.env.MOBILE_EASY_USE_IOS_RUNNER_ROOT);
+  }
+  const meuHome = resolve(process.env.MEU_HOME || join(homedir(), '.meu'));
+  return join(meuHome, 'ios', releaseVersion, 'runner');
 }
 
 function reserveDestination(destinationKey) {

@@ -51,6 +51,8 @@ connect({
 
 The connection instance key is `deviceId + appId`. MCP reuses a healthy matching instance even when a new endpoint or device-side port is supplied; this path validates the retained Runtime and does not invoke the Loader.
 
+After a successful `connect`, retain `compatibilityWarning` and a non-null `compatibility.upgradeRecommendation`. Continue the requested operation and report these non-blocking advisories alongside its result.
+
 For a new or replacement iOS connection, MCP resolves the target kind and runs the idempotent LLDB Loader before creating the Frida connection. The Loader preserves an already-running App or launches it when absent. It accepts only `loaded` or `already-loaded`, requires each bridge/runtime image exactly once, detaches LLDB, and then proceeds with Frida attach. An already-loaded App is verified without loading either dylib again.
 
 Return other `connect` failures without retrying. Do not invoke the Loader separately, install Apps, or call `disconnect` after success.

@@ -3,6 +3,8 @@ import { PRESETS_MODULE_PATH } from '../sdk-source.js';
 import { handleControllerMessage } from './controller.js';
 import { IOSRunner } from './ios-runner.js';
 import { IOSSigningError } from './ios-signing.js';
+import { CompatibilityError, evaluateCompatibility } from '../compatibility.js';
+import { MCP_VERSION } from '../package-info.js';
 import {
   closeConnection,
   closeConnectionRunner,
@@ -65,9 +67,7 @@ export async function connect(owner, {
   let sdkScript = null;
   let connection = null;
   try {
-    let runnerPreparation = null;
     if (platform === 'ios') {
-      runnerPreparation = await owner.prepareIOSRunner({ deviceId, appId });
       await owner.loadIOSAppRuntime({ deviceId, appId });
     }
     device = await owner.deviceManager.addRemoteDevice(address);
@@ -87,7 +87,10 @@ export async function connect(owner, {
       sdkScript: null,
       activeCall: null,
       iosRunner: null,
-      runnerPreparation,
+      runnerPreparation: null,
+      runtimeStatus: null,
+      compatibility: null,
+      compatibilityWarning: null,
     };
     const sdkSource = await owner.loadSdk(platform);
     sdkScript = await session.createScript(sdkSource, { name: `mobile-${platform}-sdk` });
@@ -101,12 +104,33 @@ export async function connect(owner, {
       });
     });
     await sdkScript.load();
-    await validateRuntime(sdkScript, { platform, appId, runtimePort });
+    const runtimeStatus = await validateRuntime(sdkScript, { platform, appId, runtimePort });
+    if (runtimeStatus.sdkVersion !== MCP_VERSION) {
+      throw new Error(
+        `Loaded SDK ${String(runtimeStatus.sdkVersion)} does not match MCP ${MCP_VERSION}; reinstall the npm package.`,
+      );
+    }
+    let compatibility = null;
+    let compatibilityWarning = null;
+    let catalog = null;
+    try {
+      catalog = await owner.loadCompatibility();
+    } catch (error) {
+      compatibilityWarning = `Compatibility check skipped: ${error.message}`;
+      process.stderr.write(`[mobile-easy-use] ${compatibilityWarning}\n`);
+    }
+    if (catalog !== null) {
+      compatibility = evaluateCompatibility(catalog, runtimeStatus.releaseVersion, MCP_VERSION);
+    }
+    connection.runtimeStatus = runtimeStatus;
+    connection.compatibility = compatibility;
+    connection.compatibilityWarning = compatibilityWarning;
     const presetsSource = await owner.loadPresets();
     if (presetsSource !== null) {
       await sdkScript.exports.loadPresetBundle(PRESETS_MODULE_PATH, presetsSource);
     }
     if (platform === 'ios') {
+      connection.runnerPreparation = await owner.prepareIOSRunner({ deviceId, appId });
       connection.iosRunner = owner.startIOSRunner === null
         ? await IOSRunner.start(owner, connection, appId)
         : await owner.startIOSRunner(owner, connection, appId);
@@ -138,7 +162,7 @@ export async function connect(owner, {
     if (device !== null) {
       await removeRemoteDevice(owner.deviceManager, address);
     }
-    if (error instanceof IOSSigningError) throw error;
+    if (error instanceof IOSSigningError || error instanceof CompatibilityError) throw error;
     throw new Error(`Failed to connect to MobileEasyUse at ${address}: ${error.message}`, { cause: error });
   }
 }
