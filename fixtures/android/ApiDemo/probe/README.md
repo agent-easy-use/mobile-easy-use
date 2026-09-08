@@ -85,3 +85,5 @@ The state module exports `probeAsyncStateGetters`, `probeStateGetterErrors`, and
 `probeStateFailureIsolation`. Run each separately and verify its `state-runtime-*-v1` manifest.
 See the [runtime coverage matrix](../../../common/README.md#state-snapshots-and-method-matching)
 for exact assertions and platform-specific method-matching probes.
+
+`evidence/chain/probeMethodOverloads` verifies actual overload signatures without capture (`chain-complete-overloads-v1`).

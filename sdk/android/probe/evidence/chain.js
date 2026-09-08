@@ -165,14 +165,14 @@ async function withChainEvidence(action, actionDescription, logTag, methodHooks 
         onEnter(invocation) {
           writeEvidence('chain', {
             threadName: currentThreadName(),
-            type: 'method', actionDescription, className, method: methodName, phase: 'enter',
+            type: 'method', actionDescription, className, method: methodName, argumentTypes: invocation.argumentTypes, phase: 'enter',
             ...(invocation.evidenceCapture === undefined ? {} : { capture: invocation.evidenceCapture }),
           });
         },
         onLeave(invocation) {
           writeEvidence('chain', {
             threadName: currentThreadName(),
-            type: 'method', actionDescription, className, method: methodName, phase: 'leave',
+            type: 'method', actionDescription, className, method: methodName, argumentTypes: invocation.argumentTypes, phase: 'leave',
             ...(invocation.evidenceCapture === undefined ? {} : { capture: invocation.evidenceCapture }),
           });
         },
@@ -183,6 +183,7 @@ async function withChainEvidence(action, actionDescription, logTag, methodHooks 
             actionDescription,
             className,
             method: methodName,
+            argumentTypes: invocation.argumentTypes,
             phase: 'throw',
             error: errorMessage(invocation.error),
             ...(invocation.evidenceCapture === undefined ? {} : { capture: invocation.evidenceCapture }),

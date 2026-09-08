@@ -403,7 +403,8 @@ declare global {
   interface ProbeEvidenceApi {
     /** Capture selected Java methods and exact-TAG liblog messages during action.
      * Await action and remove hooks on completion or failure; return its result or propagate its error.
-     * Records are written to Evidence. Method/log events include threadName (null when unavailable).
+     * Records are written to Evidence. Method events include actual argumentTypes on enter/leave/throw.
+     * Method/log events include threadName (null when unavailable).
      * Supports multiple TAGs per call;
      * @param action Trigger the action and await its required completion before returning.
      * @param actionDescription Non-empty sole aggregation key within the operation; unique per action

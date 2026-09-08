@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 /** Host-side oracle shared by ApiDemo tests, never loaded into either app. */
 export function verifyCompleteCapture(platform, contract, document) {
   const name = contract.replace(/^chain-complete-/, '').replace(/-v1$/, '');
-  const counts = {static: 1, options: 7, config: 1, async: 3, 'filter-errors': 1,
+  const counts = {overloads: 2, static: 1, options: 7, config: 1, async: 3, 'filter-errors': 1,
     concurrent: 2, scalars: platform === 'ios' ? 6 : 5, success: 1, recursive: 3, errors: 1, abi: 2};
   assert.ok(Object.hasOwn(counts, name), `known complete contract: ${contract}`);
   assert.equal(document.actionDescription, contract);
@@ -44,7 +44,11 @@ export function verifyCompleteCapture(platform, contract, document) {
     assert.equal(events.map(e => e.phase).join(','), Array(counts[name]).fill('enter,leave').join(','));
     starts.forEach((e, i) => assert.equal(method(e), method(ends[i])));
   }
-  if (name === 'static') {
+  if (name === 'overloads') {
+    assert.equal(platform, 'android');
+    assert.ok(events.every(e => e.method === 'overloaded' && !Object.hasOwn(e, 'capture')));
+    assert.deepEqual(events.map(e => e.argumentTypes), [['int'], ['int'], ['java.lang.String'], ['java.lang.String']]);
+  } else if (name === 'static') {
     assert.equal(method(starts[0]), 'staticValue');
     if (platform === 'ios') assert.ok(events.every(e => e.selector === '+ staticValue'));
     assert.deepEqual(starts[0].capture.args, {count: 0});

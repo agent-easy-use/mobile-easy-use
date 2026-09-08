@@ -70,6 +70,7 @@ manifest with the platform verifier. `state-runtime-contracts.mjs` checks the ac
 | `chain/probeClassMethodMatching` | iOS | `chain-method-match-class-v1` | Same checks for target/child class receivers; instance excluded; configured className stable |
 | `chain/probeChildInstanceMethodMatching` | iOS | `chain-method-match-child-instance-v1` | Inherited child target accepts child/grandchild instances; excludes parent sharing the IMP |
 | `chain/probeChildClassMethodMatching` | iOS | `chain-method-match-child-class-v1` | Same child-target checks for class methods |
+| `chain/probeMethodOverloads` | Android | `chain-complete-overloads-v1` | Exact argumentTypes identify int/String overloads on enter/leave without capture |
 | `chain/probeCaptureScalars` | Android | `chain-complete-scalars-v1` | Existing native scalar fixture also checks exact int overload selection and excludes the String overload |
 
 The iOS fixture verifies IMP equality through the Objective-C runtime before hooking and maintains

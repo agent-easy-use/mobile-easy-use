@@ -912,9 +912,36 @@ test('Android chain matches only the requested overload and leaves other overloa
     assert.equal(intCall.call(null, 3), 3);
     assert.equal(stringCall.implementation.call(null, 'selected'), 'selected');
   }, 'Exact overload', undefined, [{target, method: 'run', argumentTypes: ['java.lang.String']}]);
-  assert.deepEqual(evidenceRecords(lines).map(record => record.payload.phase), ['enter', 'leave']);
+  assert.deepEqual(evidenceRecords(lines).map(record => [record.payload.phase, record.payload.argumentTypes]),
+    [['enter', ['java.lang.String']], ['leave', ['java.lang.String']]]);
   assert.equal(stringCall.implementation, null);
   assert.equal(intCall.implementation, null);
+});
+
+test('Android chain identifies all overloads on enter, leave and throw without capture', async () => {
+  const fixture = createFixture();
+  const failure = Error('native failure');
+  const stringCall = overload(['java.lang.String'], value => value);
+  const intCall = overload(['int'], () => {throw failure;});
+  const emptyCall = overload([], () => 0);
+  const target = javaClass('com.example.Overloaded', {
+    run: overloadedMethod([stringCall, intCall, emptyCall]),
+  });
+  await loadSdk(fixture);
+  const lines = [];
+  fixture.context.console = {log: line => lines.push(line), warn() {}};
+  await fixture.context.Probe.evidence.withChainEvidence(() => {
+    assert.equal(stringCall.implementation.call(null, 'value'), 'value');
+    assert.throws(() => intCall.implementation.call(null, 1), error => error === failure);
+    assert.equal(emptyCall.implementation.call(null), 0);
+  }, 'All overloads', undefined, [{target, method: 'run', allOverloads: true}]);
+  const records = evidenceRecords(lines).map(record => record.payload);
+  assert.deepEqual(records.map(r => [r.phase, r.argumentTypes]), [
+    ['enter', ['java.lang.String']], ['leave', ['java.lang.String']],
+    ['enter', ['int']], ['throw', ['int']], ['enter', []], ['leave', []],
+  ]);
+  assert.ok(records.every(r => !Object.hasOwn(r, 'capture')));
+  assert.ok([stringCall, intCall, emptyCall].every(call => call.implementation === null));
 });
 
 test('withChainEvidence keeps hooks until a Promise action settles', async () => {

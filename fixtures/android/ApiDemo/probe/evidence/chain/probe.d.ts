@@ -54,3 +54,6 @@ export declare function probeCaptureStackConfig(): Promise<ChainEvidenceProbeRes
 
 /** Nested stacks, filtering and asynchronous cleanup. */
 export declare function probeCaptureStackLifecycle(): Promise<ChainEvidenceProbeResult>;
+
+/** Actual overload signatures on method events without capture. */
+export declare function probeMethodOverloads(): Promise<ChainEvidenceProbeResult>;

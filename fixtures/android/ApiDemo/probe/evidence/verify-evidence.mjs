@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { verifyStateRuntime, verifyMethodMatching } from '../../../../common/state-runtime-contracts.mjs';
 import { verifyChainContext } from '../../../../common/chain-context-contracts.mjs';
 import { verifyCompleteCapture } from '../../../../common/chain-capture-contracts.mjs';
@@ -75,6 +76,8 @@ function verifyCapture(contract, document) {
     resources(first.capture, 15);
   } else if (contract === 'chain-capture-throw-v2') {
     requireEvidence(ends.length === 1 && first.method === 'fail' && first.phase === 'throw', 'throw event');
+    assert.deepEqual(entry.argumentTypes, ['java.lang.String']);
+    assert.deepEqual(first.argumentTypes, ['java.lang.String']);
     requireEvidence(first.error?.includes('CHAIN_CAPTURE_FAILURE:expected'), 'original Java error');
     requireEvidence(entry.capture?.args?.key === 'expected' && !Object.hasOwn(first.capture, 'result'), 'throw args and no result');
     resources(first.capture);

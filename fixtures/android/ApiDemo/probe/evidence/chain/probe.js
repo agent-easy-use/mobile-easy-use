@@ -439,3 +439,14 @@ export async function probeCaptureStackLifecycle() {
     return {passed: nested === 10 && restored === 15 && sameError && captureCalls() === 6, sameError};
   });
 }
+
+/** Distinguish actual overload signatures without requiring capture callbacks. */
+export async function probeMethodOverloads() {
+  return completeScenario('overloads', async run => {
+    const values = await run(() => fixture(state => [
+      String(state.overloaded.overload('int').call(state, 7)),
+      String(state.overloaded.overload('java.lang.String').call(state, 'query')),
+    ]), [captureHook('overloaded', undefined, {allOverloads: true})]);
+    return {passed: values.join('|') === 'int:7|string:query' && captureCalls() === 2, values};
+  });
+}
