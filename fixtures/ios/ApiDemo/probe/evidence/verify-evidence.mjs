@@ -1,3 +1,4 @@
+import { verifyUiState } from '../../../../common/ui-state-contract.mjs';
 import { verifyStateRuntime, verifyMethodMatching } from '../../../../common/state-runtime-contracts.mjs';
 import { verifyChainContext } from '../../../../common/chain-context-contracts.mjs';
 import { verifyCompleteCapture } from '../../../../common/chain-capture-contracts.mjs';
@@ -103,6 +104,7 @@ function verifyChainCapture(document) {
 }
 
 function verifyEvidence(contract, document) {
+  if (contract === 'ui-state-v1') return verifyUiState('ios', document);
   if (contract.startsWith('state-runtime-')) return verifyStateRuntime(contract, document);
   if (contract.startsWith('chain-method-match-')) return verifyMethodMatching(contract, document);
   if (contract.startsWith('chain-context-')) return verifyChainContext('ios', contract, document);

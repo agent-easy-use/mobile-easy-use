@@ -51,6 +51,7 @@ export function verifyCompleteCapture(platform, contract, document) {
   } else if (name === 'static') {
     assert.equal(method(starts[0]), 'staticValue');
     if (platform === 'ios') assert.ok(events.every(e => e.selector === '+ staticValue'));
+    else assert.deepEqual(events.map(e => e.argumentTypes), [[], []]);
     assert.deepEqual(starts[0].capture.args, {count: 0});
     assert.equal(ends[0].capture.result, 'static-original'); timing(ends[0]);
   } else if (name === 'options') {
@@ -94,6 +95,11 @@ export function verifyCompleteCapture(platform, contract, document) {
     ] : [['booleanValue', false, false], ['wideValue', '-9223372036854775808', '-9223372036854775808'],
       ['nullable', null, null], ['consume', null, null], ['overloaded', 7, 'int:7']];
     assert.deepEqual(starts.map((e,i) => [method(e), e.capture.args, ends[i].capture.result]), expected);
+    if (platform === 'android') {
+      const signatures = [['boolean'], ['long'], ['java.lang.String'], ['java.lang.String'], ['int']];
+      assert.deepEqual(starts.map(e => e.argumentTypes), signatures);
+      assert.deepEqual(ends.map(e => e.argumentTypes), signatures);
+    }
   }
   return {contract, methodRecords: events.length, cases: counts[name]};
 }

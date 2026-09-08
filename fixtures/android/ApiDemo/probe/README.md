@@ -87,3 +87,6 @@ See the [runtime coverage matrix](../../../common/README.md#state-snapshots-and-
 for exact assertions and platform-specific method-matching probes.
 
 `evidence/chain/probeMethodOverloads` verifies actual overload signatures without capture (`chain-complete-overloads-v1`).
+
+`evidence/ui/probeUiStateEvidence` reads the requested native label text through a main-thread state getter
+and aggregates it with UI screenshots for the same action (`ui-state-v1`); it does not add SDK UI properties.

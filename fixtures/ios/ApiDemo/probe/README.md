@@ -60,3 +60,6 @@ The state module exports `probeAsyncStateGetters`, `probeStateGetterErrors`, and
 `probeStateFailureIsolation`. Run each separately and verify its `state-runtime-*-v1` manifest.
 See the [runtime coverage matrix](../../../common/README.md#state-snapshots-and-method-matching)
 for exact assertions and platform-specific method-matching probes.
+
+`evidence/ui/probeUiStateEvidence` reads the requested native label text through a main-thread state getter
+and aggregates it with UI screenshots for the same action (`ui-state-v1`); it does not add SDK UI properties.
