@@ -38,7 +38,7 @@
 
 - (NSArray<NSString *> *)scenarioKeys {
     if ([self.category isEqualToString:@"ui"]) return @[@"path", @"visibility", @"window"];
-    if ([self.category isEqualToString:@"input"]) return @[@"click", @"text", @"vertical_scroll", @"horizontal_scroll", @"errors", @"long_press"];
+    if ([self.category isEqualToString:@"input"]) return @[@"click", @"text", @"vertical_scroll", @"horizontal_scroll", @"errors", @"long_press", @"geometry"];
     if ([self.category isEqualToString:@"wait"]) return @[@"immediate", @"delayed_visible", @"delayed_gone", @"attach_detach", @"resize", @"timeout"];
     return @[@"method_log", @"state_evidence", @"ui_evidence", @"chain_evidence"];
 }
@@ -211,7 +211,7 @@
 
 - (void)buildInputScenario {
     if ([self.scenario isEqualToString:@"click"]) {
-        UIButton *button = [self buttonWithTitle:@"Semantic click" identifier:@"api.input.click"];
+        UIButton *button = [self buttonWithTitle:@"Touch click" identifier:@"api.input.click"];
         button.accessibilityLabel = @"click fixture";
         button.accessibilityValue = @"count:0";
         [button addTarget:self action:@selector(clickFixture:) forControlEvents:UIControlEventTouchUpInside];
@@ -224,6 +224,33 @@
         activating.backgroundColor = UIColor.systemGreenColor;
         [self pinView:activating inContainer:self.fixtureContainer top:96 height:52];
         [self recordFixture:activating key:@"activation"];
+    } else if ([self.scenario isEqualToString:@"geometry"]) {
+        UIView *clippingParent = [[UIView alloc] init];
+        clippingParent.clipsToBounds = YES;
+        clippingParent.backgroundColor = UIColor.systemGray5Color;
+        [self pinView:clippingParent inContainer:self.fixtureContainer top:20 height:60];
+        UIButton *clipped = [self buttonWithTitle:@"Partially clipped" identifier:@"api.input.clipped"];
+        [clipped addTarget:self action:@selector(clickFixture:) forControlEvents:UIControlEventTouchUpInside];
+        [self pinView:clipped inContainer:clippingParent top:40 height:48];
+        [self recordFixture:clipped key:@"clipped"];
+
+        UIButton *covered = [self buttonWithTitle:@"Covered target" identifier:@"api.input.covered"];
+        [covered addTarget:self action:@selector(clickFixture:) forControlEvents:UIControlEventTouchUpInside];
+        [self pinView:covered inContainer:self.fixtureContainer top:120 height:48];
+        [self recordFixture:covered key:@"covered"];
+        APIActivatingView *cover = [[APIActivatingView alloc] init];
+        cover.backgroundColor = UIColor.systemRedColor;
+        [self pinView:cover inContainer:self.fixtureContainer top:120 height:48];
+        [self recordFixture:cover key:@"cover"];
+
+        for (NSInteger index = 0; index < 2; index++) {
+            UIButton *duplicate = [self buttonWithTitle:[NSString stringWithFormat:@"Duplicate %ld", (long)index]
+                                                           identifier:@"api.input.duplicate"];
+            duplicate.accessibilityValue = @"count:0";
+            [duplicate addTarget:self action:@selector(clickFixture:) forControlEvents:UIControlEventTouchUpInside];
+            [self pinView:duplicate inContainer:self.fixtureContainer top:210 + index * 70 height:48];
+            [self recordFixture:duplicate key:[NSString stringWithFormat:@"duplicate%ld", (long)index]];
+        }
     } else if ([self.scenario isEqualToString:@"text"]) {
         UITextField *field = [[UITextField alloc] init];
         field.borderStyle = UITextBorderStyleRoundedRect;
@@ -388,7 +415,14 @@
             @"width": @(view.bounds.size.width),
             @"height": @(view.bounds.size.height),
             @"className": NSStringFromClass(view.class),
+            @"value": view.accessibilityValue ?: @"",
         };
+        if ([view isKindOfClass:APIActivatingView.class]) {
+            NSMutableDictionary *values = [fixtureStates[key] mutableCopy];
+            values[@"touchCount"] = @(((APIActivatingView *)view).touchCount);
+            values[@"accessibilityActivationCount"] = @(((APIActivatingView *)view).accessibilityActivationCount);
+            fixtureStates[key] = values;
+        }
     }];
     return @{
         @"generation": @(state.generation),

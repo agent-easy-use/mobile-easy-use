@@ -125,7 +125,9 @@ test('connection-owned iOS Runner starts, forwards, and closes on a simulator', 
   connection.iosRunner = runner;
 
   assert.deepEqual(await runner.perform({
-    action: 'click', target: { type: 'identifier', value: 'login' },
+    action: 'click', point: { x: 120, y: 360 },
+    bounds: { x: 0, y: 0, width: 414, height: 896 }, orientation: 1,
+    expiresAt: Date.now() + 29000,
   }), { ok: true, action: 'click', mode: 'semantic' });
 
   assert.deepEqual(spawnCalls, [{

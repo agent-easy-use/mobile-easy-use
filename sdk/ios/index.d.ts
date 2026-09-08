@@ -46,8 +46,8 @@ declare global {
     | `identifier::${string}`
     | `label::${string}`;
 
-  /** Non-empty path. ui.find/wait/screenshot/evidence use the native UIView hierarchy;
-   * input uses the independent XCTest accessibility tree, with different matching/ambiguity rules.
+  /** Non-empty path. ui.find/wait/screenshot/evidence/input share the native UIView query.
+   * Each step selects the first match in the preceding subtree, including its root; no backtracking.
    */
   type IOSUiPath = readonly [IOSUiPathStep, ...IOSUiPathStep[]];
 
@@ -86,17 +86,23 @@ declare global {
 
   /** Direction of finger movement; content normally moves in the opposite direction. */
   type IOSInputDirection = 'up' | 'down' | 'left' | 'right';
-  /** Input path and coordinate targets are resolved by the independent XCTest Driver. */
+  /** Validated in the target App, then dispatched as screen points to the XCTest Runner. */
   interface IOSScreenLocation {
-    /** Absolute XCTest screen coordinate in points; finite and non-negative. */
+    /** Absolute main-screen coordinate in the current interface orientation, in points (not pixels).
+     * Must be finite and inside the foreground UIWindowScene's key window visible bounds.
+     */
     x: number;
-    /** Absolute XCTest screen coordinate in points; finite and non-negative. */
+    /** Same coordinate space and bounds requirements as x. */
     y: number;
   }
 
-  /** Non-empty identifier or path: XCTest descendant query, exactly one match at every step,
-   * excluding the current root; missing/ambiguous/non-hittable elements fail. A UIView is converted
-   * on main to its screen center/bounds and dispatched as coordinates. Coordinates bypass querying.
+  /** Identifier/path targets resolve with ui.find in the target App, using first-match UIView
+   * semantics (no ambiguity error). Lookup, clipping and hit-testing run in one App main-queue turn.
+   * A missing UIView fails; a hidden, detached, non-interactive or covered center also fails.
+   * Only the clipped visible screen center/bounds and gesture endpoints reach the Runner;
+   * no XCTest element query is used. Requires a foreground UIWindowScene on the main screen.
+   * Virtual accessibility elements without a UIView are not addressable by identifier/path;
+   * use known coordinates.
    * Only UIView instances are accepted from ObjCBridge.Object; arbitrary ObjC objects are invalid.
    */
   type IOSInputTarget = string | IOSUiPath | ObjCBridge.Object | IOSScreenLocation;
@@ -144,8 +150,9 @@ declare global {
     mode: 'semantic';
     error: {
       /** Open set from SDK/Host/Driver, e.g. INVALID_ARGUMENT, INVALID_TARGET, INVALID_COORDINATES,
-       * ELEMENT_NOT_FOUND, ELEMENT_AMBIGUOUS, ELEMENT_NOT_HITTABLE, VIEW_NOT_VISIBLE,
-       * TARGET_NOT_FOREGROUND, BACKEND_UNAVAILABLE, or DRIVER_ERROR.
+       * ELEMENT_NOT_FOUND, ELEMENT_NOT_HITTABLE, VIEW_NOT_VISIBLE,
+       * TARGET_NOT_FOREGROUND, BACKEND_UNAVAILABLE, UNSUPPORTED_SYNTHESIS, INPUT_TIMEOUT,
+       * SYNTHESIS_FAILED, SYNTHESIS_UNCERTAIN, or DRIVER_ERROR.
        */
       code: string;
       message: string;
@@ -161,23 +168,29 @@ declare global {
   /** Requires a connected Host and independent XCTest Driver with the target App in foreground.
    * Resolved responses (including ok:false) wait an additional 1000 ms; thrown transport/setup
    * errors reject without that delay. Success reports action completion, not business readiness.
-   * Driver/controller request timeout is 30000 ms; await a UI/business condition when needed.
+   * The 30000 ms operation budget includes App target resolution and Host/Runner requests;
+   * the internal event deadline reserves 1000 ms for the response. Await a UI/business condition
+   * when needed. Resolved coordinates are not tracked if the view moves before dispatch.
+   * iOS 18/26: actions use native synthesized touch/text events. On SYNTHESIS_UNCERTAIN,
+   * completion is unknown: do not retry automatically; restart the Runner and inspect the UI.
    */
   interface IOSInputApi {
-    /** Perform a real XCTest tap using an element or screen coordinate.
+    /** Resolve the target in the App and synthesize a real touch at its screen point.
      * @example const result = await IOS.input.click('search.submit');
      */
     click(target: IOSInputTarget): Promise<IOSClickResult>;
-    /** Tap to focus, then type a non-empty string through XCTest; existing contents are not cleared.
+    /** Tap to focus, then synthesize a non-empty text input; existing contents are not cleared.
+     * Tap completion does not verify keyboard focus or the resulting text.
      * @example const result = await IOS.input.input('search.query', 'hello');
      */
     input(target: IOSInputTarget, text: string): Promise<IOSTargetInputResult>;
-    /** Drag in the finger direction, clamped to target bounds (App bounds for a raw coordinate).
+    /** Compute endpoints in the App and drag in the finger direction, clamped to visible target
+     * bounds (App bounds for a raw coordinate). Completion does not wait for scrolling inertia.
      * @param distance Positive finite distance in points; defaults to 300, may be clamped.
      * @example const result = await IOS.input.scroll('search.results', 'up', 300);
      */
     scroll(target: IOSInputTarget, direction: IOSInputDirection, distance?: number): Promise<IOSScrollResult>;
-    /** Perform a real XCTest long press.
+    /** Resolve the target in the App and synthesize a real touch held for the requested duration.
      * @param durationMs Positive finite duration in milliseconds; defaults to 600.
      * @example const result = await IOS.input.longPress({ x: 120, y: 360 }, 800);
      */

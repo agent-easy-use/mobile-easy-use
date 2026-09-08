@@ -13,12 +13,14 @@
 }
 
 - (BOOL)accessibilityActivate {
+    _accessibilityActivationCount += 1;
     [self recordActivation];
     return YES;
 }
 
 - (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
     [super touchesEnded:touches withEvent:event];
+    _touchCount += 1;
     [self recordActivation];
 }
 
