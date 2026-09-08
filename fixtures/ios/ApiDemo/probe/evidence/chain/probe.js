@@ -56,7 +56,6 @@ const resetCaptureFixture = () => captureState().reset();
 const captureCalls = () => Number(captureState().calls());
 const capturePlain = value => String(captureState().plain_(value));
 const captureString = value => value.isNull() ? null : String(new ObjC.Object(value));
-const captureWrapper = captureState;
 const captureSelectors = {plain: '- plain:', recursive: '- recursive:', worker: '- worker:', work: '- work:bytes:delay:'};
 const captureHook = (method, capture, extra = {}) => ({target: CAPTURE_CLASS, selector: captureSelectors[method] ?? '- ' + method + ':', capture, ...extra});
 const startCaptureWorkers = () => captureState().startWorkers();
@@ -139,18 +138,6 @@ export async function probeCaptureOptions() {
     for (const capture of options) values.push(await run(() => capturePlain('option'), [captureHook('plain', capture)]));
     snapshot.nested[0] = true;
     return {passed: values.every(v => v === 'plain:option') && captureCalls() === 7, values};
-  });
-}
-
-/** Reject invalid JSON values independently at enter and leave, preserving business behavior. */
-export async function probeCaptureInvalidValues() {
-  return completeScenario('invalid-values', async run => {
-    const cycle = {}; cycle.self = cycle;
-    const values = [undefined, NaN, Infinity, cycle, Promise.resolve(1), () => 1, captureWrapper()];
-    const results = [];
-    for (const value of values) results.push(await run(() => capturePlain('invalid'),
-      [captureHook('plain', {args: () => value, result: () => value, timing: true})]));
-    return {passed: results.every(v => v === 'plain:invalid') && captureCalls() === values.length, cases: values.length};
   });
 }
 
@@ -307,3 +294,49 @@ export async function probeCaptureStackLifecycle() {
     return {passed: nested === 10 && restored === 15 && sameError && captureCalls() === 6, sameError};
   });
 }
+
+async function methodMatchScenario(kind, childTarget = false) {
+  return navigate(async () => {
+    const contract = `chain-method-match-${childTarget ? 'child-' : ''}${kind}-v1`;
+    const Base = ObjC.classes.APIMethodMatchFixture;
+    if (!Boolean(Base.sharedImplementationVerified())) throw Error('Native shared IMP fixture is invalid');
+    const Target = childTarget ? ObjC.classes.APIMethodMatchChild : Base;
+    const Descendant = childTarget ? ObjC.classes.APIMethodMatchGrandchild : ObjC.classes.APIMethodMatchChild;
+    Base.resetCalls();
+    const held = [];
+    const make = cls => { const value = cls.alloc().init(); held.push(value); return value; };
+    try {
+      const base = kind === 'instance' ? make(Target) : Target;
+      const child = kind === 'instance' ? make(Descendant) : Descendant;
+      const parent = kind === 'instance' ? make(Base) : Base;
+      const sibling = kind === 'instance' ? make(ObjC.classes.APIMethodMatchSibling) : ObjC.classes.APIMethodMatchSibling;
+      const override = kind === 'instance' ? make(ObjC.classes.APIMethodMatchOverride) : ObjC.classes.APIMethodMatchOverride;
+      const wrongKind = kind === 'instance' ? Base : make(Base);
+      let filters = 0;
+      const values = await Probe.evidence.withChainEvidence(() => [
+        Number(base.match_(1)), Number(child.match_(2)), Number(base.alias_(3)), Number(child.alias_(4)),
+        Number(sibling.match_(5)), Number(sibling.alias_(6)), Number(override.match_(7)), Number(wrongKind.match_(8)),
+        ...(childTarget ? [Number(parent.match_(10))] : []),
+      ], contract, undefined, [{target: childTarget ? 'APIMethodMatchChild' : 'APIMethodMatchFixture', selector: `${kind === 'instance' ? '-' : '+'} match:`,
+        filter: () => { filters++; return true; },
+        capture: {args: ({args}) => Number(args[0]), result: ({result}) => Number(result)},
+      }]);
+      const calls = Number(Base.calls());
+      // An unhooked invocation after cleanup must execute normally without producing another event.
+      const cleanup = Number(base.match_(9));
+      return {passed: JSON.stringify(values) === JSON.stringify([11, 12, 13, 14, 15, 16, 107, 18, ...(childTarget ? [20] : [])])
+        && calls === (childTarget ? 9 : 8) && filters === 2 && cleanup === 19 && Number(Base.calls()) === calls + 1,
+        api: 'Probe.evidence.withChainEvidence', evidenceContract: contract,
+        result: {values, cleanup}, oracle: {calls, filters, sharedIMP: true}};
+    } finally { held.forEach(value => value.release()); }
+  });
+}
+
+/** Shared native IMP: exact selector, target/subclass instances, sibling and class exclusion. */
+export async function probeInstanceMethodMatching() { return methodMatchScenario('instance'); }
+/** Shared native IMP: exact selector, target/subclass classes, sibling and instance exclusion. */
+export async function probeClassMethodMatching() { return methodMatchScenario('class'); }
+
+/** Inherited child target includes descendants and excludes its parent sharing the IMP. */
+export async function probeChildInstanceMethodMatching() { return methodMatchScenario('instance', true); }
+export async function probeChildClassMethodMatching() { return methodMatchScenario('class', true); }

@@ -691,8 +691,9 @@ test('withStateEvidence resolves action results and rethrows action failures asy
   assert.equal(typeof resultPromise.then, 'function');
   assert.equal(await resultPromise, 'done');
   const records = evidenceRecords(lines).filter((record) => record.category === 'state');
-  assert.deepEqual(records.map((record) => record.payload.checkpoint), ['before', 'after']);
-  assert.deepEqual(records.map((record) => record.payload.value), [0, 1]);
+  assert.deepEqual(records.map((record) => record.payload.checkpoint), ['before', 'before', 'after', 'after']);
+  assert.deepEqual(records.filter(record => Object.hasOwn(record.payload, 'value')).map(record => record.payload.value), [0, 1]);
+  assert.deepEqual(records.filter(record => Object.hasOwn(record.payload, 'error')).map(record => record.payload.error), ['unreadable', 'unreadable']);
   assert.ok(records.every((record) => record.payload.actionDescription === 'Increment count'));
 
   const appError = new Error('action failed');
@@ -894,6 +895,26 @@ test('withChainEvidence filters fixed Log tags and business methods, then uninst
   );
   assert.equal(fixture.logOverload.implementation, null);
   assert.equal(fixture.nativeLogListeners.length, 0);
+});
+
+test('Android chain matches only the requested overload and leaves other overloads untouched', async () => {
+  const fixture = createFixture();
+  const stringCall = overload(['java.lang.String'], value => value);
+  const intCall = overload(['int'], value => value);
+  const target = javaClass('com.example.Overloaded', {
+    run: overloadedMethod([stringCall, intCall]),
+  });
+  await loadSdk(fixture);
+  const lines = [];
+  fixture.context.console = {log: line => lines.push(line), warn() {}};
+  await fixture.context.Probe.evidence.withChainEvidence(() => {
+    assert.equal(intCall.implementation, null);
+    assert.equal(intCall.call(null, 3), 3);
+    assert.equal(stringCall.implementation.call(null, 'selected'), 'selected');
+  }, 'Exact overload', undefined, [{target, method: 'run', argumentTypes: ['java.lang.String']}]);
+  assert.deepEqual(evidenceRecords(lines).map(record => record.payload.phase), ['enter', 'leave']);
+  assert.equal(stringCall.implementation, null);
+  assert.equal(intCall.implementation, null);
 });
 
 test('withChainEvidence keeps hooks until a Promise action settles', async () => {
@@ -1146,7 +1167,7 @@ test('evidence preserves ordinary payloads', async () => {
 
   const lines = [];
   fixture.context.console = { log: (line) => lines.push(line), warn: () => {} };
-  fixture.context.Probe.evidence.withStateEvidence(
+  await fixture.context.Probe.evidence.withStateEvidence(
     () => {},
     'Record payload',
     { payload: () => payload },

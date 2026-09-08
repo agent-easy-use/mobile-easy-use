@@ -1,6 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { isDeepStrictEqual } from 'node:util';
 
 const EVIDENCE_PREFIX = '@@MOBILE_EVIDENCE@@';
 
@@ -75,9 +74,7 @@ function collectCheckpoint(target, payload, keyName) {
   if (entry === undefined) {
     entry = {
       ...(keyName === 'path' ? { path: payload.path } : { className: null }),
-      before: null,
-      after: null,
-      ...(keyName === 'uiKey' ? { changed: false } : {}),
+      ...(keyName === 'uiKey' ? { before: null, after: null } : {}),
     };
     Object.defineProperty(target, key, {
       value: entry,
@@ -89,17 +86,15 @@ function collectCheckpoint(target, payload, keyName) {
   if (keyName === 'uiKey' && payload.className != null) {
     entry.className = payload.className;
   }
-  entry[payload.checkpoint] = payload.value;
-  if (keyName === 'uiKey') {
-    entry.changed = !isDeepStrictEqual(
-      valueWithoutScreenshots(entry.before),
-      valueWithoutScreenshots(entry.after),
-    );
+  if (keyName === 'path' && typeof payload.error === 'string') {
+    delete entry[payload.checkpoint];
+    (entry.errors ??= {})[payload.checkpoint] = payload.error;
+    return;
   }
-}
-
-function valueWithoutScreenshots(value) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return value;
-  const { screenshots: _screenshots, ...rest } = value;
-  return rest;
+  if (!Object.hasOwn(payload, 'value')) return;
+  entry[payload.checkpoint] = payload.value;
+  if (keyName === 'path' && entry.errors) {
+    delete entry.errors[payload.checkpoint];
+    if (Object.keys(entry.errors).length === 0) delete entry.errors;
+  }
 }

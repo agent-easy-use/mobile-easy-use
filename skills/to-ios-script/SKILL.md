@@ -99,7 +99,7 @@ Treat an action as the smallest evidence boundary:
 Read only the evidence references needed by the probe:
 
 - Objective-C method execution or TAG-prefixed `NSLog`: [references/critical-chain-evidence.md](references/critical-chain-evidence.md);
-- synchronous state snapshots before and after an action: [references/critical-state-evidence.md](references/critical-state-evidence.md);
+- state snapshots before and after an action: [references/critical-state-evidence.md](references/critical-state-evidence.md);
 - UIKit snapshots before and after an action: [references/critical-ui-evidence.md](references/critical-ui-evidence.md).
 
 Generate evidence with the matching `Probe.evidence.withChainEvidence()`, `Probe.evidence.withStateEvidence()`, or `Probe.evidence.withUiEvidence()` wrapper. These APIs clean up their temporary instrumentation after the wrapped action returns, throws, or its Promise settles, so the wrapper leaves no active Hook or cleanup work behind. This guarantee applies to evidence instrumentation, not to effects produced by the wrapped business action.

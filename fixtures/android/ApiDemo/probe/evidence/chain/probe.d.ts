@@ -28,9 +28,6 @@ export declare function probeCaptureScalars(): Promise<ChainEvidenceProbeResult>
 /** Each independent option, empty/disabled capture, and immutable JSON snapshots. */
 export declare function probeCaptureOptions(): Promise<ChainEvidenceProbeResult>;
 
-/** Reject invalid JSON values independently at enter and leave, preserving business behavior. */
-export declare function probeCaptureInvalidValues(): Promise<ChainEvidenceProbeResult>;
-
 /** Invalid configuration must reject before action execution and release earlier hooks. */
 export declare function probeCaptureConfigMatrix(): Promise<ChainEvidenceProbeResult>;
 

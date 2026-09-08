@@ -51,23 +51,6 @@ export function decodeValue(type, value) {
   return (['long', 'int64'].includes(type) ? BigInt.asIntN(64, integer) : BigInt.asUintN(64, integer)).toString();
 }
 
-function jsonSnapshot(value) {
-  const seen = new Set();
-  function check(item) {
-    if (item === null || typeof item === 'string' || typeof item === 'boolean') return;
-    if (typeof item === 'number' && Number.isFinite(item)) return;
-    if (typeof item !== 'object' || seen.has(item)) throw new Error('capture must return finite, acyclic plain JSON data');
-    const prototype = Object.getPrototypeOf(item);
-    if (!Array.isArray(item) && prototype !== Object.prototype && prototype !== null) {
-      throw new Error('capture must return plain JSON data, not runtime wrappers');
-    }
-    seen.add(item);
-    for (const child of Object.values(item)) check(child);
-    seen.delete(item);
-  }
-  check(value);
-  return JSON.parse(JSON.stringify(value));
-}
 
 export function createCapture(config) {
   if (config === undefined) return null;
@@ -127,7 +110,7 @@ export function createCapture(config) {
     begin(invocation, emitEnter, context) {
       const state = { output: {}, start: undefined };
       if (args) {
-        const value = attempt(state, 'args', () => jsonSnapshot(args(invocation())));
+        const value = attempt(state, 'args', () => args(invocation()));
         if (value !== undefined) state.output.args = value;
       }
       if (stackDepth) {
@@ -159,7 +142,7 @@ export function createCapture(config) {
     },
     finish(state, invocation, succeeded) {
       if (result && succeeded) {
-        const value = attempt(state, 'result', () => jsonSnapshot(result(invocation())));
+        const value = attempt(state, 'result', () => result(invocation()));
         if (value !== undefined) state.output.result = value;
       }
       return state.output;

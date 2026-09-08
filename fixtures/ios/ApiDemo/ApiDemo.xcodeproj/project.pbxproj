@@ -14,6 +14,7 @@
 		4466E250BABE0125FB32B81C /* APIMainViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = F1785C6E403A03A0EAC8C1D1 /* APIMainViewController.m */; };
 		4E281982C4CF68FC072BCE99 /* APICapabilityViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 2324E261E690B94A842F5057 /* APICapabilityViewController.m */; };
 		4E3D313943847C429165AD5A /* APIRejectingInputView.m in Sources */ = {isa = PBXBuildFile; fileRef = E153E440F6E2690B89EFB2AF /* APIRejectingInputView.m */; };
+		994E074047C8C0AD3F262F18 /* APIMethodMatchFixture.m in Sources */ = {isa = PBXBuildFile; fileRef = 607F2070A070B138FFD015CD /* APIMethodMatchFixture.m */; };
 		A413ED5207D45D0DD7E58901 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E3F15E8167F478CEBF3BF85 /* Foundation.framework */; };
 		B359ED74E34C1294C62C6AA9 /* APIAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 90E5FE584AA6F03B5EC38ADE /* APIAppDelegate.m */; };
 		BF27CF0A3C1B82F8C795D68C /* APIController.m in Sources */ = {isa = PBXBuildFile; fileRef = 8BF3DA3F6529AEFCA29404A6 /* APIController.m */; };
@@ -30,11 +31,13 @@
 		2324E261E690B94A842F5057 /* APICapabilityViewController.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = APICapabilityViewController.m; sourceTree = "<group>"; };
 		256C35BF8435FB0A01F38C0A /* APIMainViewController.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = APIMainViewController.h; sourceTree = "<group>"; };
 		272399513C554BC243AE78EC /* libPods-ApiDemo.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-ApiDemo.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		3BD80B8B5E85AB8A25F9D1FE /* APIMethodMatchFixture.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = APIMethodMatchFixture.h; sourceTree = "<group>"; };
 		41630973B2CDFC4EFA189922 /* APIRejectingInputView.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = APIRejectingInputView.h; sourceTree = "<group>"; };
 		4523303CF9F797C0BF594ED0 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = "<group>"; };
 		4D63E2C56B23AB5A6CA30AD3 /* APICapabilityViewController.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = APICapabilityViewController.h; sourceTree = "<group>"; };
 		56A257BD9F0CEA5EC313C8DE /* Pods-ApiDemo.probedebug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ApiDemo.probedebug.xcconfig"; path = "Target Support Files/Pods-ApiDemo/Pods-ApiDemo.probedebug.xcconfig"; sourceTree = "<group>"; };
 		5E2CB7DAA7D5DF3AF95E9E20 /* APISDKFixtureState.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = APISDKFixtureState.h; sourceTree = "<group>"; };
+		607F2070A070B138FFD015CD /* APIMethodMatchFixture.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = APIMethodMatchFixture.m; sourceTree = "<group>"; };
 		725C554F0D3AD6289F8489A1 /* APIActivatingView.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = APIActivatingView.m; sourceTree = "<group>"; };
 		8BF3DA3F6529AEFCA29404A6 /* APIController.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = APIController.m; sourceTree = "<group>"; };
 		8E7ADCD4385F78E445DE7EED /* ApiDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApiDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -130,6 +133,8 @@
 			children = (
 				5E2CB7DAA7D5DF3AF95E9E20 /* APISDKFixtureState.h */,
 				1B74CF5A19C940A0DA24CB7D /* APISDKFixtureState.m */,
+				3BD80B8B5E85AB8A25F9D1FE /* APIMethodMatchFixture.h */,
+				607F2070A070B138FFD015CD /* APIMethodMatchFixture.m */,
 			);
 			path = State;
 			sourceTree = "<group>";
@@ -285,6 +290,7 @@
 				4466E250BABE0125FB32B81C /* APIMainViewController.m in Sources */,
 				4E3D313943847C429165AD5A /* APIRejectingInputView.m in Sources */,
 				E47E948A6E073623BF606B6D /* main.m in Sources */,
+				994E074047C8C0AD3F262F18 /* APIMethodMatchFixture.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

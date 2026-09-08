@@ -361,9 +361,9 @@ declare global {
      * @example stack: true // or stack: {maxFrames: 3}
      */
     stack?: boolean | { maxFrames?: number };
-    /** Synchronous, read-only extraction at entry; return finite, acyclic plain JSON only. */
+    /** Synchronous, read-only extraction at entry; returns data serialized as JSON. */
     args?: (invocation: ProbeHookInvocation) => ProbeJsonValue;
-    /** Synchronous, read-only extraction on normal return only; never on throw. Same JSON restrictions as args. */
+    /** Synchronous, read-only extraction on normal return only; never on throw. */
     result?: (invocation: ProbeHookInvocation & { result: unknown }) => ProbeJsonValue;
     /** Default off. Emits elapsedMs in fractional milliseconds, measured with a monotonic clock.
      * Includes children/waits; not CPU time or async completion time.
@@ -398,7 +398,7 @@ declare global {
     capture?: ProbeChainCapture;
   }
 
-  type ProbeStateGetters = Readonly<Record<string, () => ProbeJsonValue>>;
+  type ProbeStateGetters = Readonly<Record<string, () => ProbeJsonValue | Promise<ProbeJsonValue>>>;
 
   interface ProbeEvidenceApi {
     /** Capture selected Java methods and exact-TAG liblog messages during action.
@@ -419,7 +419,12 @@ declare global {
       methodHooks?: readonly ProbeChainMethodHook[],
     ): Promise<Awaited<TResult>>;
 
-    /** Capture each state getter before `action` and again in `finally`.
+    /** Await state getters sequentially before action and again in finally.
+     * Getter results are serialized as JSON; dispatch to the required thread
+     * inside the getter. Bound external waits; getters that never settle block the checkpoint.
+     * Evidence entries contain path and successful before/after values (including null).
+     * Getter failures omit the checkpoint value and set errors.before/after; action results/errors are preserved.
+     * Multiple getters are not an atomic snapshot; read related fields together in one getter.
      * @param action Trigger the action and await its required completion before returning.
      * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
      * execution, shared only by wrappers observing that same execution.

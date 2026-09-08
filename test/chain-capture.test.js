@@ -71,8 +71,20 @@ async function fixture(platform, { memoryFailure = false, clockFailure = false, 
     },
   };
   const method = { implementation: {}, argumentTypes: ['pointer', 'pointer', 'int'], returnType: 'int' };
-  const ObjC = { available: true, classes: { NSThread: {currentThread: () => ({name: () => { if (threadFailure) throw Error('name unavailable'); return 'capture-worker'; }})}, Target: { $className: 'Target', '- run:': method } },
-    Object: function (value) { return value; } };
+  const ObjC = { available: true, classes: { NSThread: {currentThread: () => ({name: () => { if (threadFailure) throw Error('name unavailable'); return 'capture-worker'; }})}, Target: { $className: 'Target', '- run:': method, '+ run:': method } },
+    selectorAsString: value => value, Object: function (value) { return value; } };
+  const targetClass = ObjC.classes.Target;
+  targetClass.$kind = 'class';
+  targetClass.$superClass = null;
+  targetClass.equals = other => other === targetClass;
+  function receiver(kind, name) {
+    const cls = name === 'Target' ? targetClass : {
+      $kind: 'class', $className: name,
+      $superClass: name === 'Child' ? targetClass : null,
+      equals(other) { return other === this; },
+    };
+    return kind === 'class' ? cls : {$kind: 'instance', $className: name, $class: cls};
+  }
   const context = vm.createContext({
     console: { log: line => records.push(JSON.parse(line.replace('@@MOBILE_EVIDENCE@@', '')).payload), warn() {} },
     send() {},
@@ -105,15 +117,15 @@ async function fixture(platform, { memoryFailure = false, clockFailure = false, 
     return load(new URL(specifier, parent.identifier));
   });
   await entry.evaluate();
-  return { records, sequence, stackCalls, context, overload, method, listeners, failure,
+  return { records, sequence, stackCalls, context, overload, method, listeners, failure, receiver,
     calls: () => calls, setTaskCount: n => { taskCount = n; }, setTaskStatus: n => { taskStatus = n; },
     advance() { time += 10n; used += 5; },
-    enter(value) { const state = {context: 'intercepted-context'}; listeners[0].callbacks.onEnter.call(state, [{ $className: 'Target' }, pointer(0), pointer(value)]); return state; },
+    enter(value, {receiver: receiverValue = receiver('instance', 'Target'), selector = 'run:'} = {}) { const state = {context: 'intercepted-context'}; listeners[0].callbacks.onEnter.call(state, [receiverValue, selector, pointer(value)]); return state; },
     leave(state, result) { listeners[0].callbacks.onLeave.call(state, pointer(result)); },
     config(source) { return vm.runInContext(`(${source})`, context); },
-    run(action, capture, filter) {
+    run(action, capture, filter, selector = '- run:') {
       return entry.namespace.withChainEvidence(action, 'capture', undefined, [{
-        target: 'Target', ...(platform === 'android' ? { method: 'run' } : { selector: '- run:' }), capture, filter,
+        target: 'Target', ...(platform === 'android' ? { method: 'run' } : { selector }), capture, filter,
       }]);
     },
   };
@@ -148,7 +160,7 @@ for (const platform of ['android', 'ios']) {
   test(`${platform}: capture failures are evidence, not business failures`, async () => {
     const f = await fixture(platform, { memoryFailure: true });
     const metric = platform === 'android' ? 'javaHeapUsedBytes' : 'physicalFootprintBytes';
-    const capture = f.config(`{ args: () => Promise.resolve(1), result: () => { throw Error('extract failed'); }, timing: true, memory: {metrics: ['${metric}']} }`);
+    const capture = f.config(`{ args: () => { throw Error('args failed'); }, result: () => { throw Error('extract failed'); }, timing: true, memory: {metrics: ['${metric}']} }`);
     const result = await f.run(() => {
       if (platform === 'android') return f.overload.implementation.call(null, 0);
       const state = f.enter(0); f.advance(); f.leave(state, 1); return 1;
@@ -345,4 +357,41 @@ test('Android: initialize the stack backend before hooks run and reuse it across
   }, {stack: true});
   await f.run(() => f.overload.implementation.call(null, 0), {stack: true});
   assert.deepEqual(f.stackCalls, [1, 5, 5], 'one initialization and one capture per invocation');
+});
+
+
+test('iOS shared IMP matches actual selector and instance receiver before filter or capture', async () => {
+  const f = await fixture('ios');
+  let filtered = 0;
+  await f.run(() => {
+    for (const options of [
+      {selector: 'other:'},
+      {receiver: f.receiver('instance', 'Sibling')},
+      {receiver: f.receiver('class', 'Target')},
+    ]) f.leave(f.enter(1, options), 2);
+    f.leave(f.enter(1, {receiver: f.receiver('instance', 'Child')}), 2);
+  }, f.config('{args: ({args}) => args[0], timing: true}'), () => {filtered++; return true;});
+  assert.equal(filtered, 1);
+  assert.deepEqual(f.records.map(r => [r.className, r.selector, r.phase]), [
+    ['Target', '- run:', 'enter'], ['Target', '- run:', 'leave'],
+  ]);
+  assert.equal(f.listeners[0].detached, true);
+});
+
+test('iOS shared class IMP accepts target/subclass receivers and rejects siblings and instances', async () => {
+  const f = await fixture('ios');
+  let filtered = 0;
+  await f.run(() => {
+    for (const name of ['Target', 'Child']) {
+      const receiver = f.receiver('class', name);
+      f.leave(f.enter(1, {receiver}), 2);
+    }
+    for (const options of [
+      {receiver: f.receiver('class', 'Sibling')},
+      {receiver: f.receiver('instance', 'Target')},
+      {selector: 'other:', receiver: f.receiver('class', 'Target')},
+    ]) f.leave(f.enter(1, options), 2);
+  }, undefined, () => {filtered++; return true;}, '+ run:');
+  assert.equal(filtered, 2);
+  assert.deepEqual(f.records.map(r => [r.className, r.selector]), Array(4).fill(['Target', '+ run:']));
 });

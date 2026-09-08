@@ -78,3 +78,10 @@ The chain module also exports `probeThreadNames`, `probeCaptureStackOptions`,
 returned `chain-context-*-v1` Evidence contract with the same host verifier. These cover default
 thread names on method/log events, log-only capture, concurrent named workers, optional entry
 stacks (default depth 5), depth validation, filtering, recursion and hook cleanup.
+
+## State accuracy and asynchronous getters
+
+The state module exports `probeAsyncStateGetters`, `probeStateGetterErrors`, and
+`probeStateFailureIsolation`. Run each separately and verify its `state-runtime-*-v1` manifest.
+See the [runtime coverage matrix](../../../common/README.md#state-snapshots-and-method-matching)
+for exact assertions and platform-specific method-matching probes.

@@ -1,3 +1,4 @@
+import { verifyStateRuntime, verifyMethodMatching } from '../../../../common/state-runtime-contracts.mjs';
 import { verifyChainContext } from '../../../../common/chain-context-contracts.mjs';
 import { verifyCompleteCapture } from '../../../../common/chain-capture-contracts.mjs';
 import { readFile } from 'node:fs/promises';
@@ -24,7 +25,7 @@ function verifyUi(document) {
   requireEvidence(fixture?.className === 'android.widget.TextView', 'hiddenFixture className');
   requireEvidence(fixture?.before?.exist === true && fixture.before.visible === false, 'hiddenFixture before state');
   requireEvidence(fixture?.after?.exist === true && fixture.after.visible === true, 'hiddenFixture after state');
-  requireEvidence(fixture?.changed === true, 'hiddenFixture.changed');
+  requireEvidence(!Object.hasOwn(fixture, 'changed'), 'hiddenFixture must omit changed');
   requireEvidence(!Object.hasOwn(document, 'screenshots'), 'top-level screenshots must be absent');
   requireScreenshotPath(fixture.before?.screenshots?.window, 'before window');
   requireEvidence(fixture.before?.screenshots?.element === null, 'hidden before element crop must be null');
@@ -133,6 +134,8 @@ function verifyChainCapture(document) {
 }
 
 function verifyEvidence(contract, document) {
+  if (contract.startsWith('state-runtime-')) return verifyStateRuntime(contract, document);
+  if (contract.startsWith('chain-method-match-')) return verifyMethodMatching(contract, document);
   if (contract.startsWith('chain-context-')) return verifyChainContext('android', contract, document);
   if (contract.startsWith('chain-complete-')) return verifyCompleteCapture('android', contract, document);
   if (contract === 'chain-method-log-capture-v3') return verifyChainCapture(document);

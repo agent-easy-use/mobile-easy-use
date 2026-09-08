@@ -2,7 +2,7 @@
 
 ## Format
 
-The top-level `actionDescription` identifies the action. `state` maps each source-qualified path to `{ path, before, after }`. Values are JSON-compatible snapshots. Compare `before` and `after` using the business meaning of each path.
+The top-level `actionDescription` identifies the action. `state` maps each source-qualified path to `{ path, before?, after?, errors? }`. Returned values are serialized as JSON, including null. Getter failures omit the value and record a message in `errors.before` or `errors.after`. Compare `before` and `after` using the business meaning of each path.
 
 Relevant section example:
 
@@ -21,4 +21,4 @@ Relevant section example:
 
 ## Analysis
 
-Compare both checkpoints and explain the source meaning of each path. Do not infer intermediate transitions. Equal checkpoints do not rule out intermediate changes. A missing checkpoint or getter failure is missing evidence; when `null` may be a valid value, report the ambiguity.
+Compare both checkpoints and explain the source meaning of each path. Do not infer intermediate transitions. Equal checkpoints do not rule out intermediate changes. An absent checkpoint is missing evidence; consult its error when present. A successful null is a business value.

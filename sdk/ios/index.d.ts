@@ -199,9 +199,9 @@ declare global {
      * @example stack: true // or stack: {maxFrames: 3}
      */
     stack?: boolean | { maxFrames?: number };
-    /** Synchronous read-only entry extraction; finite, acyclic plain JSON only, no runtime wrappers. */
+    /** Synchronous read-only entry extraction; returns data serialized as JSON. */
     args?: (invocation: IOSChainArgsInvocation) => IOSJsonValue;
-    /** Synchronous, read-only JSON extraction on normal return only; same JSON restrictions as args.
+    /** Synchronous, read-only JSON extraction on normal return only.
      * Same scalar decoding as args; void is undefined (omit extraction or explicitly return JSON null).
      * Float/double/aggregate returns are unsupported. Receiver/entry args are not retained.
      */
@@ -222,7 +222,9 @@ declare global {
   }
 
   interface IOSMethodHook {
-    /** Objective-C class name or class wrapper. */
+    /** Objective-C class name or class wrapper. Matches that class and subclasses using this IMP;
+     * subclass overrides at other addresses require separate hooks. Events use the configured className.
+     */
     target: string | ObjCBridge.Object;
     /** Exact Objective-C instance or class selector, including its '- ' or '+ ' prefix. */
     selector: `- ${string}` | `+ ${string}`;
@@ -239,7 +241,7 @@ declare global {
     capture?: IOSChainCapture;
   }
 
-  type IOSStateGetters = Readonly<Record<string, () => IOSJsonValue>>;
+  type IOSStateGetters = Readonly<Record<string, () => IOSJsonValue | Promise<IOSJsonValue>>>;
   type IOSUiTargets = Readonly<Record<string, string | IOSUiPath>>;
 
   interface IOSProbeEvidenceApi {
@@ -261,7 +263,12 @@ declare global {
       methodHooks?: readonly IOSMethodHook[],
     ): Promise<Awaited<TResult>>;
 
-    /** Capture synchronous state getters before the action and again in finally.
+    /** Await state getters sequentially before action and again in finally.
+     * Getter results are serialized as JSON; dispatch to the required thread
+     * inside the getter. Bound external waits; getters that never settle block the checkpoint.
+     * Evidence entries contain path and successful before/after values (including null).
+     * Getter failures omit the checkpoint value and set errors.before/after; action results/errors are preserved.
+     * Multiple getters are not an atomic snapshot; read related fields together in one getter.
      * @param action Trigger the action and await its required completion before returning.
      * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
      * execution, shared only by wrappers observing that same execution.
