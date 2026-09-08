@@ -1,24 +1,26 @@
 ---
 name: to-ios-integrate
-description: Integrate MobileEasyUse into an iOS App debug configuration, or prepare and repair physical-device Runner signing. Invoke as $to-ios-integrate.
+description: Integrate MobileEasyUse into an iOS App debug configuration, or prepare and repair physical-device Runner signing.
 ---
 
 # Integrate MobileEasyUse into iOS
 
 ## Acquire the artifacts
 
-Before editing the target project, run `node scripts/ensure-artifacts.mjs`, resolving the script path relative to this `SKILL.md`. The script requires Node.js 20 or newer and downloads on Windows, macOS, and Linux. It resolves the latest GitHub Release, verifies `SHA256SUMS`, and installs both archives under `~/.meu/ios/<version>`:
+Before editing the target project, run `node scripts/ensure-artifacts.mjs`, resolving the script path relative to this `SKILL.md`. The script requires Node.js 20 or newer and downloads on Windows, macOS, and Linux. It fetches the live compatibility catalog, verifies `SHA256SUMS`, and installs both archives under `~/.meu/ios/<version>`:
 
 - `integration` contains the App integration binaries and scripts;
 - `runner` contains the XCTest runner and runtime used by MobileEasyUse.
 
-The script prints one JSON object containing `version`, `integrationPath`, `runnerPath`, and `cacheHit`. Use `MEU_HOME` to override `~/.meu` and `GITHUB_TOKEN` when authenticated GitHub API access is required. Stop and report the script error if acquisition or checksum validation fails.
+If the JSON result contains `actionRequired: "confirm-update"`, report the cached and latest Release versions and ask whether to update. Run the script again with `--update` when accepted or `--use-cached` when declined. Preserve a Release already pinned by the project unless the user accepts an upgrade; select it with `--version <version>`. A normal result contains `releaseVersion`, `integrationPath`, `runnerPath`, `minimumMcpVersion`, `maximumMcpVersion`, and an exact `mcpCommand`.
+
+Use `MEU_HOME` to override `~/.meu` and `GITHUB_TOKEN` when authenticated GitHub API access is required. The selected Release's catalog range defines MCP compatibility. Stop and report acquisition, catalog, or checksum errors.
 
 Artifact acquisition is cross-platform. Xcode project changes, building, signing, and runtime verification require macOS; on Windows or Linux, finish the download, report both cache paths, and explain that the integration phase must continue on macOS.
 
 ## Workflow
 
-1. Acquire the artifacts and retain the JSON result.
+1. Inspect the project for an existing `MEU_VERSION`. Acquire that exact version with `--version` when present; otherwise use the default selection flow above. Retain the JSON result.
 2. Inspect the workspace/project, App target, schemes, build configurations, and Podfile. Use the internal configuration named by the user. If one debug configuration exists, select it. If several exist, ask once for the selection.
 3. Select `Binaries/iphoneos` for a device build or `Binaries/iphonesimulator` for a simulator build.
 4. Produce this layout in the selected App:
@@ -64,26 +66,20 @@ The Run Script phase is the App target integration. It selects the platform bina
 
 ## CocoaPods
 
-The release cache is the default integration source. Use CocoaPods only when the user already has a published Pod source or a compatible local checkout. Choose that integration directory for the selected Pod source:
+CocoaPods adds the embed script phase to the App target. `ensure-artifacts.mjs` supplies the selected Release in the cache, and the phase consumes that Release at build time.
+
+Configure `MEU_HOME` and `MEU_VERSION` on the selected App target as described in the Xcode procedure. Keep both values as portable build settings:
 
 ```ruby
-# Published Pod
-mobile_easy_use_ios = '${PODS_ROOT}/MobileEasyUse/integration/ios'
-
-# or
-# Local checkout example
-mobile_easy_use_ios = '${PODS_PODFILE_DIR_PATH}/relative/path/to/mobile-easy-use/integration/ios'
+mobile_easy_use_ios = '${MEU_HOME}/ios/${MEU_VERSION}/integration'
 ```
 
-Scope the Pod and script phase to the selected configuration:
+Scope the script phase to the selected configuration:
 
 ```ruby
 selected_internal_configuration = 'InternalDebug'
 
 target 'MyApp' do
-  pod 'MobileEasyUse',
-      :configurations => [selected_internal_configuration]
-
   script_phase(
     :name => '[MobileEasyUse] Embed Runtime',
     :script => %Q{"#{mobile_easy_use_ios}/Scripts/embed-mobile-easy-use.sh" --configuration "#{selected_internal_configuration}"},
@@ -103,7 +99,7 @@ target 'MyApp' do
 end
 ```
 
-For a local checkout, add its `:path` to the Pod declaration. Follow the project's version policy for a published Pod. Map a custom configuration to `:debug` in the Podfile `project` declaration when required, then run `pod install`.
+Map a custom configuration to `:debug` in the Podfile `project` declaration when required, then run `pod install`. The generated phase reads `${MEU_HOME}/ios/${MEU_VERSION}/integration` at build time.
 
 ## Runner signing
 
@@ -116,4 +112,4 @@ If no physical device is available, report Runner signing as pending.
 
 ## Finish
 
-Report the artifact version, integration and runner cache paths, App target, selected configuration, integration method, changed files, embed command, and signing result (verified team, pending, or not applicable). For requested App/runtime verification, read [references/validation.md](references/validation.md) completely and follow it.
+Report the Release version, integration and runner cache paths, compatible MCP range, exact version-pinned MCP command, App target, selected configuration, integration method, changed files, embed command, and signing result (verified team, pending, or not applicable). For requested App/runtime verification, read [references/validation.md](references/validation.md) completely and follow it.

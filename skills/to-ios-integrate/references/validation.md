@@ -10,7 +10,7 @@
 3. Inspect the App executable and any App-owned `*.debug.dylib`:
    - `otool -L` shows no MobileEasyUse dependency;
    - `nm` shows no `mobile_easy_use_*`, `MEUInput`, or `MEUUIQuery` symbols;
-   - `otool -L MobileEasyUse.dylib` shows `@loader_path/MobileEasyUseRuntime.dylib`.
+   - `MobileEasyUse.dylib` and `MobileEasyUseRuntime.dylib` are independent images; `otool -L MobileEasyUse.dylib` does not list `@loader_path/MobileEasyUseRuntime.dylib`.
 4. Install and launch the App. Confirm it remains healthy before LLDB attachment.
 5. Invoke `to-ios-run` twice with the target, bundle identifier, and this read-only Inline operation:
 

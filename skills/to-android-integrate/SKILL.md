@@ -1,6 +1,6 @@
 ---
 name: to-android-integrate
-description: Integrate MobileEasyUse into one existing Android App debug variant with automatic startup. Invoke as $to-android-integrate.
+description: Integrate MobileEasyUse into one existing Android App debug variant with automatic startup.
 ---
 
 # Integrate MobileEasyUse into Android
@@ -11,25 +11,27 @@ Complete the integration, report the changes, and ask whether to verify. Verific
 
 Before editing the target project, run `node scripts/ensure-artifacts.mjs`, resolving the script path relative to this `SKILL.md`. The script requires Node.js 20 or newer and works on Windows, macOS, and Linux. It:
 
-- resolves the latest GitHub Release;
+- fetches the live compatibility catalog for the current run;
 - reuses a complete matching artifact in `~/.meu`;
 - otherwise downloads the Android Maven archive, verifies it against `SHA256SUMS`, and extracts it;
-- prints one JSON object containing `version`, `repositoryPath`, `artifactPath`, and `cacheHit`.
+- prints one JSON object containing the selected Release, paths, compatible MCP range, and exact version-pinned MCP command.
 
-Use `MEU_HOME` when the user or environment needs a cache root other than `~/.meu`. Use `GITHUB_TOKEN` when authenticated GitHub API access is required. Stop and report the script error if acquisition or checksum validation fails. Do not substitute a source-tree build.
+If the JSON result contains `actionRequired: "confirm-update"`, report the cached and latest Release versions and ask whether to update. Run again with `--update` when accepted or `--use-cached` when declined. Preserve a Release already pinned in the project unless the user accepts an upgrade; select it with `--version <version>`.
+
+Use `MEU_HOME` when the user or environment needs a cache root other than `~/.meu`. Use `GITHUB_TOKEN` when authenticated GitHub API access is required. The selected Release is the integration source, and its catalog range defines MCP compatibility. Stop and report acquisition, catalog, or checksum errors.
 
 ## Workflow
 
-1. Acquire the artifact and retain the JSON result.
+1. Inspect the project for an existing `com.agenteasyuse:mobile-easy-use` dependency version. Acquire that exact Release with `--version` when present; otherwise use the default selection flow above. Retain the JSON result.
 2. Inspect the Android modules, Gradle files, repositories, build types, and product flavors. Identify the App module and its debuggable variants.
 3. Resolve the target variant:
    - Use a variant already named by the user.
    - If exactly one debug variant is available, use it.
    - If multiple debug variants are available, ask the user exactly once to choose from the discovered names, then continue with that selection.
-4. Add the returned `repositoryPath` as a project-level Maven repository. Keep the path portable by deriving it from `MEU_HOME`, or from the current user's home plus `.meu`, in the target Gradle settings. Do not commit one user's absolute home path.
-5. Use Automatic startup. Scope `com.agenteasyuse:mobile-easy-use:<returned version>` to the selected debuggable variant with `debugImplementation(...)`, or the matching variant-aware configuration such as `internalDebugImplementation(...)`.
+4. Add the returned `repositoryPath` as a project-level Maven repository. Derive the portable path from `MEU_HOME`, or from the current user's home plus `.meu`, in the target Gradle settings. Read [references/gradle.md](references/gradle.md) and use the examples matching the project's Gradle DSL and repository layout.
+5. Use Automatic startup. Scope `com.agenteasyuse:mobile-easy-use:<returned version>` to the selected debuggable variant with `debugImplementation(...)`, or the matching variant-aware configuration such as `internalDebugImplementation(...)`. Pin the returned Release version in the project's existing version-management location.
 6. The AAR manifest provider `com.agenteasyuse.mobileeasyuse.internal.MobileEasyUseInitProvider` calls `MobileEasyUse.initialize()` before `Application.onCreate()`. The variant dependency completes the startup integration.
-7. Report the artifact version and cache path, target module, variant, changed files, dependency configuration, and Automatic startup. Ask whether the user wants to verify the integration.
+7. Report the Release version, compatible MCP range, exact version-pinned MCP command, cache path, target module, variant, changed files, dependency configuration, and Automatic startup. Ask whether the user wants to verify the integration.
 
 ## Manual startup
 

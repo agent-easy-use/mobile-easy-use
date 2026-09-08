@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream } from "node:fs";
-import { access, cp, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, readdir, rename, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -13,6 +13,28 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const repository = "agent-easy-use/mobile-easy-use";
 const meuHome = resolve(process.env.MEU_HOME || join(homedir(), ".meu"));
+const catalogUrl = `https://raw.githubusercontent.com/${repository}/master/distribution/compatibility.json`;
+const versionPattern = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const maxCatalogBytes = 64 * 1024;
+const requestTimeoutMs = 30_000;
+const releaseAssetDownloadTimeoutMs = 10 * 60_000;
+const integrationRequiredPaths = [
+  ["Binaries", "iphoneos", "MobileEasyUse.dylib"],
+  ["Binaries", "iphoneos", "MobileEasyUseRuntime.dylib"],
+  ["Binaries", "iphonesimulator", "MobileEasyUse.dylib"],
+  ["Binaries", "iphonesimulator", "MobileEasyUseRuntime.dylib"],
+  ["Scripts", "embed-mobile-easy-use.sh"],
+  ["MobileEasyUseRuntime.config"],
+];
+const runnerRequiredPaths = [
+  ["MEUStandaloneRunner.xcodeproj", "project.pbxproj"],
+  ["MEUStandaloneRunner.xcodeproj", "xcshareddata", "xcschemes", "MEUStandaloneRunner.xcscheme"],
+  ["MEUStandaloneRunner", "MEUStandaloneRunner.swift"],
+  ["MobileEasyUseRuntime.config"],
+  ["scripts", "embed-runtime.sh"],
+  ["Binaries", "iphoneos", "MobileEasyUseRuntime.dylib"],
+  ["Binaries", "iphonesimulator", "MobileEasyUseRuntime.dylib"],
+];
 
 function requestHeaders(binary = false) {
   const headers = {
@@ -24,10 +46,23 @@ function requestHeaders(binary = false) {
   return headers;
 }
 
-async function fetchChecked(url, binary = false) {
-  const response = await fetch(url, { headers: requestHeaders(binary), redirect: "follow" });
+async function fetchChecked(url, binary = false, timeoutMs = requestTimeoutMs) {
+  const response = await fetch(url, {
+    headers: requestHeaders(binary), redirect: "follow", signal: AbortSignal.timeout(timeoutMs),
+  });
   if (!response.ok) throw new Error(`Download failed (${response.status} ${response.statusText}): ${url}`);
   return response;
+}
+
+async function loadCatalog() {
+  const response = await fetchChecked(catalogUrl);
+  const contentLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(contentLength) && contentLength > maxCatalogBytes) {
+    throw new Error("The compatibility catalog is too large.");
+  }
+  const text = await response.text();
+  if (Buffer.byteLength(text) > maxCatalogBytes) throw new Error("The compatibility catalog is too large.");
+  return validateCatalog(JSON.parse(text));
 }
 
 async function exists(path) {
@@ -48,7 +83,7 @@ async function sha256(path) {
 async function download(url, destination) {
   const temporary = `${destination}.part-${process.pid}`;
   await rm(temporary, { force: true });
-  const response = await fetchChecked(url, true);
+  const response = await fetchChecked(url, true, releaseAssetDownloadTimeoutMs);
   if (!response.body) throw new Error(`The response has no body: ${url}`);
   try {
     await pipeline(Readable.fromWeb(response.body), createWriteStream(temporary));
@@ -86,14 +121,102 @@ async function extractTarGz(archive, destination) {
   }
 }
 
-async function markerMatches(markerPath, expectedSha, requiredPaths) {
-  try {
-    const marker = JSON.parse(await readFile(markerPath, "utf8"));
-    if (marker.sha256 !== expectedSha) return false;
-    return (await Promise.all(requiredPaths.map(exists))).every(Boolean);
-  } catch {
-    return false;
+function parseArguments(argv) {
+  const options = { update: false, useCached: false, version: null };
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === "--update") options.update = true;
+    else if (argument === "--use-cached") options.useCached = true;
+    else if (argument === "--version" && argv[index + 1]) options.version = argv[++index];
+    else throw new Error(`Unknown argument: ${argument}`);
   }
+  if ([options.update, options.useCached, options.version !== null].filter(Boolean).length > 1) {
+    throw new Error("Use only one of --update, --use-cached, or --version.");
+  }
+  return options;
+}
+
+function compareVersions(left, right) {
+  const parse = (value) => {
+    const withoutBuild = value.split("+")[0];
+    const separator = withoutBuild.indexOf("-");
+    const core = separator === -1 ? withoutBuild : withoutBuild.slice(0, separator);
+    const prerelease = separator === -1 ? [] : withoutBuild.slice(separator + 1).split(".");
+    return { core: core.split(".").map(Number), prerelease };
+  };
+  const a = parse(left);
+  const b = parse(right);
+  for (let index = 0; index < 3; index += 1) {
+    if (a.core[index] !== b.core[index]) return a.core[index] - b.core[index];
+  }
+  if (a.prerelease.length === 0 || b.prerelease.length === 0) {
+    return a.prerelease.length === b.prerelease.length ? 0 : (a.prerelease.length === 0 ? 1 : -1);
+  }
+  for (let index = 0; index < Math.max(a.prerelease.length, b.prerelease.length); index += 1) {
+    if (a.prerelease[index] === undefined) return -1;
+    if (b.prerelease[index] === undefined) return 1;
+    if (a.prerelease[index] === b.prerelease[index]) continue;
+    const aNumeric = /^\d+$/.test(a.prerelease[index]);
+    const bNumeric = /^\d+$/.test(b.prerelease[index]);
+    if (aNumeric && bNumeric) return Number(a.prerelease[index]) - Number(b.prerelease[index]);
+    if (aNumeric !== bNumeric) return aNumeric ? -1 : 1;
+    return a.prerelease[index].localeCompare(b.prerelease[index]);
+  }
+  return 0;
+}
+
+function validateCatalog(value) {
+  if (value?.schemaVersion !== 1 || !versionPattern.test(value.latestReleaseVersion)
+      || value.releases === null || typeof value.releases !== "object"
+      || !(value.latestReleaseVersion in value.releases)) {
+    throw new Error("The compatibility catalog has an unsupported schema.");
+  }
+  for (const [version, range] of Object.entries(value.releases)) {
+    if (!versionPattern.test(version) || !versionPattern.test(range?.minimumMcpVersion)
+        || !versionPattern.test(range?.maximumMcpVersion)
+        || compareVersions(range.minimumMcpVersion, range.maximumMcpVersion) > 0) {
+      throw new Error(`The compatibility catalog has an invalid range for ${version}.`);
+    }
+  }
+  return value;
+}
+
+async function cachedVersions(catalog) {
+  const root = join(meuHome, "ios");
+  let entries = [];
+  try { entries = await readdir(root, { withFileTypes: true }); } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  const versions = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !(entry.name in catalog.releases)) continue;
+    if (await cachedArtifact(entry.name) !== null) versions.push(entry.name);
+  }
+  return versions.sort(compareVersions).reverse();
+}
+
+async function cachedArtifact(version) {
+  const base = join(meuHome, "ios", version);
+  const integrationPath = join(base, "integration");
+  const runnerPath = join(base, "runner");
+  const requiredPaths = [
+    ...integrationRequiredPaths.map((parts) => join(integrationPath, ...parts)),
+    ...runnerRequiredPaths.map((parts) => join(runnerPath, ...parts)),
+  ];
+  return (await Promise.all(requiredPaths.map(exists))).every(Boolean)
+    ? { integrationPath, runnerPath }
+    : null;
+}
+
+function resultFor(version, catalog, paths, cacheHit, tag = `v${version}`) {
+  return {
+    platform: "ios", version, releaseVersion: version, tag, meuHome,
+    integrationPath: paths.integrationPath, runnerPath: paths.runnerPath, cacheHit,
+    latestReleaseVersion: catalog.latestReleaseVersion,
+    minimumMcpVersion: catalog.releases[version].minimumMcpVersion,
+    maximumMcpVersion: catalog.releases[version].maximumMcpVersion,
+    mcpCommand: `npx -y @agent-easy-use/mobile-easy-use@${catalog.releases[version].maximumMcpVersion}`,
+  };
 }
 
 async function installAsset({ assets, checksums, tag, version, kind, requiredRelativePaths }) {
@@ -104,10 +227,6 @@ async function installAsset({ assets, checksums, tag, version, kind, requiredRel
 
   const destination = join(meuHome, "ios", version, kind);
   const requiredPaths = requiredRelativePaths.map((path) => join(destination, ...path));
-  const markerPath = join(destination, ".mobile-easy-use.json");
-  const cacheHit = await markerMatches(markerPath, expectedSha, requiredPaths);
-  if (cacheHit) return { path: destination, cacheHit: true };
-
   const downloads = join(meuHome, "downloads");
   const archive = join(downloads, assetName);
   await mkdir(downloads, { recursive: true });
@@ -124,16 +243,44 @@ async function installAsset({ assets, checksums, tag, version, kind, requiredRel
   if (!(await Promise.all(requiredPaths.map(exists))).every(Boolean)) {
     throw new Error(`The extracted iOS ${kind} artifact is incomplete: ${destination}`);
   }
-  await writeFile(markerPath, `${JSON.stringify({ repository, tag, version, asset: assetName, sha256: expectedSha }, null, 2)}\n`);
   return { path: destination, cacheHit: false };
 }
 
 async function main() {
-  const release = await (await fetchChecked(`https://api.github.com/repos/${repository}/releases/latest`)).json();
+  const options = parseArguments(process.argv.slice(2));
+  const catalog = await loadCatalog();
+  const cached = await cachedVersions(catalog);
+  const latest = catalog.latestReleaseVersion;
+  let version = options.version;
+  if (version !== null && !(version in catalog.releases)) {
+    throw new Error(`Release ${version} is not present in the compatibility catalog.`);
+  }
+  if (version === null && options.update) version = latest;
+  if (version === null && options.useCached) {
+    if (cached.length === 0) throw new Error("No cached iOS Release is available.");
+    [version] = cached;
+  }
+  if (version === null && cached.includes(latest)) version = latest;
+  if (version === null && cached.length === 0) version = latest;
+  if (version === null) {
+    const [cachedVersion] = cached;
+    process.stdout.write(`${JSON.stringify({
+      platform: "ios", actionRequired: "confirm-update", cachedVersion,
+      latestReleaseVersion: latest, meuHome,
+    })}\n`);
+    return;
+  }
+
+  const existing = await cachedArtifact(version);
+  if (existing !== null) {
+    process.stdout.write(`${JSON.stringify(resultFor(version, catalog, existing, true))}\n`);
+    return;
+  }
+
+  const release = await (await fetchChecked(`https://api.github.com/repos/${repository}/releases/tags/v${version}`)).json();
   const tag = String(release.tag_name || "");
-  const version = tag.replace(/^v/, "");
-  if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
-    throw new Error(`Unsupported latest release tag: ${tag || "<missing>"}`);
+  if (tag.replace(/^v/, "") !== version) {
+    throw new Error(`Unexpected Release tag: ${tag || "<missing>"}`);
   }
 
   const assets = new Map(release.assets.map((asset) => [asset.name, asset]));
@@ -147,14 +294,7 @@ async function main() {
     tag,
     version,
     kind: "integration",
-    requiredRelativePaths: [
-      ["Binaries", "iphoneos", "MobileEasyUse.dylib"],
-      ["Binaries", "iphoneos", "MobileEasyUseRuntime.dylib"],
-      ["Binaries", "iphonesimulator", "MobileEasyUse.dylib"],
-      ["Binaries", "iphonesimulator", "MobileEasyUseRuntime.dylib"],
-      ["Scripts", "embed-mobile-easy-use.sh"],
-      ["MobileEasyUseRuntime.config"],
-    ],
+    requiredRelativePaths: integrationRequiredPaths,
   });
   const runner = await installAsset({
     assets,
@@ -162,19 +302,12 @@ async function main() {
     tag,
     version,
     kind: "runner",
-    // The signing helper and runtime launcher validate the files they use.
-    requiredRelativePaths: [],
+    requiredRelativePaths: runnerRequiredPaths,
   });
 
-  process.stdout.write(`${JSON.stringify({
-    platform: "ios",
-    version,
-    tag,
-    meuHome,
-    integrationPath: integration.path,
-    runnerPath: runner.path,
-    cacheHit: integration.cacheHit && runner.cacheHit,
-  })}\n`);
+  process.stdout.write(`${JSON.stringify(resultFor(version, catalog, {
+    integrationPath: integration.path, runnerPath: runner.path,
+  }, integration.cacheHit && runner.cacheHit, tag))}\n`);
 }
 
 main().catch((error) => {
