@@ -6,6 +6,8 @@
   "files": [
     "src",
     "sdk/dist",
+    "sdk/android/index.d.ts",
+    "sdk/ios/index.d.ts",
     "templates",
     "README.md",
     "README.zh.md"
