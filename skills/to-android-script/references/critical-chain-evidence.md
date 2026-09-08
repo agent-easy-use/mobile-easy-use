@@ -34,7 +34,10 @@ Method and log events always include `threadName` (null when unavailable);
 
 ```javascript
 return Probe.evidence.withChainEvidence(
-  () => tapEntryButton(),
+  async () => {
+    await tapEntryButton();
+    await waitForFeatureReady();
+  },
   'Open the feature entry',
   new Set(['FeatureFlow', 'FeatureRouter']),
   methodHooks

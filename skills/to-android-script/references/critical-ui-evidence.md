@@ -23,7 +23,10 @@ step. A focused Dialog is supported. Non-focused Windows are outside V1.
 
 ```javascript
 return Probe.evidence.withUiEvidence(
-  () => tapEntryButton(),
+  async () => {
+    await tapEntryButton();
+    await waitForFeatureReady();
+  },
   'Open the feature entry',
   uiTargets
 );

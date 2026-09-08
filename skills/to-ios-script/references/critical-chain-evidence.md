@@ -29,7 +29,10 @@ Method and log events always include `threadName` (null when unavailable);
 
 ```javascript
 return Probe.evidence.withChainEvidence(
-  () => IOS.input.click('submit'),
+  async () => {
+    await IOS.input.click('submit');
+    await waitForSearchCompleted();
+  },
   'Submit the search form',
   new Set(['Search', 'Network']),
   methodHooks,

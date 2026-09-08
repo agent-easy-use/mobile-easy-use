@@ -25,7 +25,10 @@ Getters must be synchronous, read-only, JSON-compatible, and safe on the current
 
 ```javascript
 return Probe.evidence.withStateEvidence(
-  () => IOS.input.input('search_field', value),
+  async () => {
+    await IOS.input.input('search_field', value);
+    await waitForQueryApplied(value);
+  },
   'Enter the search query',
   stateGetters,
 );

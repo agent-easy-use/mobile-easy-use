@@ -93,7 +93,8 @@ Treat an action as the smallest evidence boundary:
 - one generated operation may execute one or multiple actions;
 - use the entire operation as one action when no smaller boundary is needed;
 - define the driver flow first, then wrap the exact action with evidence;
-- give every observed action a concise `actionDescription` that is unique within the operation.
+- include the trigger and required completion wait inside `action`; use a bounded completion condition and propagate failure or timeout;
+- use a concise, non-empty `actionDescription` as the sole aggregation key within the operation: unique per action execution (including repetitions), shared only by wrappers observing that same execution.
 
 Read only the evidence references needed by the probe:
 

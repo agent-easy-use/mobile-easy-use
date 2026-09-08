@@ -33,7 +33,10 @@ Method-local variables cannot be captured by before/after getters. V1 can observ
 
 ```javascript
 return Probe.evidence.withStateEvidence(
-  () => tapEntryButton(),
+  async () => {
+    await tapEntryButton();
+    await waitForFeatureReady();
+  },
   'Open the feature entry',
   stateGetters
 );

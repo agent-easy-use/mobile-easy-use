@@ -20,7 +20,10 @@ Paths support `identifier::` and `label::` steps. Each step searches descendants
 
 ```javascript
 return Probe.evidence.withUiEvidence(
-  () => IOS.input.click('next_button'),
+  async () => {
+    await IOS.input.click('next_button');
+    await waitForResultPageReady();
+  },
   'Open the result page',
   uiTargets,
 );

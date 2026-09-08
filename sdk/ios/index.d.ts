@@ -247,7 +247,9 @@ declare global {
      * Await action and remove hooks on completion or failure; return its result or propagate its error.
      * Records are written to Evidence. Method/log events include threadName (null when unavailable).
      * Supports multiple TAGs per call.
-     * @param actionDescription Non-empty evidence description, unique within this operation.
+     * @param action Trigger the action and await its required completion before returning.
+     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
+     * execution, shared only by wrappers observing that same execution.
      * @param logTag Exact TAG or TAG set; matches `[TAG] ` or `[%@]` with TAG as the first NSString argument.
      * @param methodHooks Methods to observe; omit for log-only capture.
      * @example await Probe.evidence.withChainEvidence(action, 'Submit search', 'Search', methodHooks);
@@ -259,14 +261,22 @@ declare global {
       methodHooks?: readonly IOSMethodHook[],
     ): Promise<Awaited<TResult>>;
 
-    /** Capture synchronous state getters before the action and again in finally. */
+    /** Capture synchronous state getters before the action and again in finally.
+     * @param action Trigger the action and await its required completion before returning.
+     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
+     * execution, shared only by wrappers observing that same execution.
+     */
     withStateEvidence<TResult>(
       action: () => TResult,
       actionDescription: string,
       stateGetters: IOSStateGetters,
     ): Promise<Awaited<TResult>>;
 
-    /** Capture UIKit state plus App-window and visible element screenshots before and after. */
+    /** Capture UIKit state plus App-window and visible element screenshots before and after.
+     * @param action Trigger the action and await its required completion before returning.
+     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
+     * execution, shared only by wrappers observing that same execution.
+     */
     withUiEvidence<TResult>(
       action: () => TResult,
       actionDescription: string,
