@@ -92,7 +92,7 @@ Treat an action as the smallest evidence boundary:
 - one action may contain one call or multiple driver steps that express one intent;
 - one generated operation may execute one or multiple actions;
 - use the entire operation as one action when no smaller boundary is needed;
-- define the driver flow first, then wrap the exact action with evidence;
+- define the action first, then wrap it with evidence;
 - include the trigger and required completion wait inside `action`; use a bounded completion condition and propagate failure or timeout;
 - use a concise, non-empty `actionDescription` as the sole aggregation key within the operation: unique per action execution (including repetitions), shared only by wrappers observing that same execution.
 
@@ -133,7 +133,7 @@ Include only the wrappers needed. Keeping chain innermost excludes the outer sta
 
 Prefer Driver, Override, and Evidence when they accurately express the request. Do not use Direct Frida merely because it is shorter.
 
-Use the native Objective-C bridge exposed as `globalThis.ObjC`, or other Frida Gum APIs, when the encapsulated capabilities are insufficient. Direct Frida may form a standalone probe or compose with Driver, Override, and Evidence.
+Use `globalThis.ObjC` or other Frida Gum APIs for runtime work not covered by encapsulated capabilities, including calling App methods to read state, prepare conditions, or trigger business behavior. Use Driver to verify user interaction paths; direct calls verify behavior from the chosen code entry onward. Direct Frida may run alone or compose with Driver, Override, and Evidence.
 
 Read [references/direct-frida-generation.md](references/direct-frida-generation.md) before generating Direct Frida code.
 
