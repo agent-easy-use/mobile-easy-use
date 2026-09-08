@@ -5,6 +5,17 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 integration_dir="$(dirname "${script_dir}")"
 sources_dir="${integration_dir}/Sources/Internal"
+release_version_file="${integration_dir}/../VERSION"
+
+if [[ ! -f "${release_version_file}" ]]; then
+  echo "error: MobileEasyUse Release version is missing: ${release_version_file}" >&2
+  exit 1
+fi
+release_version="$(tr -d '[:space:]' < "${release_version_file}")"
+if [[ ! "${release_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+  echo "error: invalid MobileEasyUse Release version: ${release_version}" >&2
+  exit 1
+fi
 
 build_platform() {
   local platform_name="$1"
@@ -37,6 +48,8 @@ build_platform() {
       -arch "${architecture}" \
       "${minimum_version_flag}" \
       -I "${sources_dir}" \
+      -DMOBILE_EASY_USE_RELEASE_VERSION=\"${release_version}\" \
+      "${sources_dir}/MEUVersion.c" \
       "${sources_dir}/MEULog.m" \
       "${sources_dir}/MEUScreenshot.m" \
       "${sources_dir}/MEUUIQuery.m" \

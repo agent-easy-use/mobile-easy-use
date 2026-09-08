@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "latestReleaseVersion": "0.1.0",
+  "releases": {
+    "0.1.0": {
+      "minimumMcpVersion": "0.1.0",
+      "maximumMcpVersion": "0.1.0"
+    }
+  }
+}

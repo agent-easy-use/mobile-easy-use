@@ -19,4 +19,9 @@ public final class MobileEasyUse {
     public static synchronized boolean isLoaded() {
         return loaded;
     }
+
+    /** Returns the GitHub Release version embedded in this integration artifact. */
+    public static String version() {
+        return BuildConfig.MOBILE_EASY_USE_RELEASE_VERSION;
+    }
 }

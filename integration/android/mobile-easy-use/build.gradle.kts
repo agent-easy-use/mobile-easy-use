@@ -3,8 +3,10 @@ plugins {
     id("maven-publish")
 }
 
+val releaseVersion = rootProject.file("../VERSION").readText().trim()
+
 group = "com.agenteasyuse"
-version = "0.1.0"
+version = releaseVersion
 
 android {
     namespace = "com.agenteasyuse.mobileeasyuse"
@@ -13,6 +15,11 @@ android {
     defaultConfig {
         minSdk = 24
         consumerProguardFiles("consumer-rules.pro")
+        buildConfigField("String", "MOBILE_EASY_USE_RELEASE_VERSION", "\"$releaseVersion\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     publishing {
