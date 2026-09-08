@@ -5,6 +5,11 @@ import { MobileMcpServer, toolDefinitions } from '../src/mcp-server.js';
 
 const target = { deviceId: 'device-1', appId: 'com.example.app' };
 
+test('connect does not expose signing selection', () => {
+  const schema = toolDefinitions.find(tool => tool.name === 'connect').inputSchema;
+  assert.equal(schema.properties.developmentTeam, undefined);
+});
+
 function connectionFixture(methods = {}) {
   return {
     ...target,

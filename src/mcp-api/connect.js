@@ -2,6 +2,7 @@ import { isIP } from 'node:net';
 import { PRESETS_MODULE_PATH } from '../sdk-source.js';
 import { handleControllerMessage } from './controller.js';
 import { IOSRunner } from './ios-runner.js';
+import { IOSSigningError } from './ios-signing.js';
 import {
   closeConnection,
   closeConnectionRunner,
@@ -64,7 +65,9 @@ export async function connect(owner, {
   let sdkScript = null;
   let connection = null;
   try {
+    let runnerPreparation = null;
     if (platform === 'ios') {
+      runnerPreparation = await owner.prepareIOSRunner({ deviceId, appId });
       await owner.loadIOSAppRuntime({ deviceId, appId });
     }
     device = await owner.deviceManager.addRemoteDevice(address);
@@ -84,6 +87,7 @@ export async function connect(owner, {
       sdkScript: null,
       activeCall: null,
       iosRunner: null,
+      runnerPreparation,
     };
     const sdkSource = await owner.loadSdk(platform);
     sdkScript = await session.createScript(sdkSource, { name: `mobile-${platform}-sdk` });
@@ -134,7 +138,8 @@ export async function connect(owner, {
     if (device !== null) {
       await removeRemoteDevice(owner.deviceManager, address);
     }
-    throw new Error(`Failed to connect to MobileEasyUse at ${address}: ${error.message}`);
+    if (error instanceof IOSSigningError) throw error;
+    throw new Error(`Failed to connect to MobileEasyUse at ${address}: ${error.message}`, { cause: error });
   }
 }
 

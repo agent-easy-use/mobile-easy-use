@@ -34,7 +34,9 @@ For a USB physical device, keep one exact iproxy mapping from a free Host port t
 iproxy -u "<hardware-udid>" 28484:8484
 ```
 
-Choose another free Host port when 28484 is unavailable. Call `connect` exactly once:
+Physical-device signing uses the configuration prepared by `to-ios-integrate`, and attempts to rebuild and sign the Runner when its cached signing is invalid. For signing errors, follow that skill’s signing setup/repair path before retrying `connect`.
+
+Choose another free Host port when 28484 is unavailable. Call `connect` once:
 
 ```js
 connect({
@@ -51,7 +53,7 @@ The connection instance key is `deviceId + appId`. MCP reuses a healthy matching
 
 For a new or replacement iOS connection, MCP resolves the target kind and runs the idempotent LLDB Loader before creating the Frida connection. The Loader preserves an already-running App or launches it when absent. It accepts only `loaded` or `already-loaded`, requires each bridge/runtime image exactly once, detaches LLDB, and then proceeds with Frida attach. An already-loaded App is verified without loading either dylib again.
 
-Return a `connect` failure directly. Do not invoke the Loader separately, retry `connect`, install Apps, or call `disconnect` after success.
+Return other `connect` failures without retrying. Do not invoke the Loader separately, install Apps, or call `disconnect` after success.
 
 ## Execute
 

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { ConnectionInstance, connectionKey } from './mcp-connection.js';
 import { operationErrorResult } from './mcp-api/operation-result.js';
 import { McpJsonlLogger } from './mcp-logger.js';
+import { IOSSigningError } from './mcp-api/ios-signing.js';
 
 const PROTOCOL_VERSION = '2025-11-25';
 const OPERATION_TOOLS = new Set(['call_function', 'eval_script']);
@@ -215,7 +216,9 @@ export function toolCallErrorResponse(message, error) {
   const toolName = message?.params?.name ?? '<missing>';
   const value = OPERATION_TOOLS.has(toolName)
     ? operationErrorResult(error)
-    : { error: error.message };
+    : { error: error.message, ...(error instanceof IOSSigningError ? {
+      code: error.code,
+    } : {}) };
   return resultResponse(message?.id ?? null, toolResult(value, true));
 }
 

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { GadgetConnection } from '../src/mcp-api/api.js';
+import { IOSSigningError } from '../src/mcp-api/ios-signing.js';
 
 function sha256(source) {
   return createHash('sha256').update(source).digest('hex');
@@ -285,6 +286,7 @@ test('iOS connect loads before a real connection and skips loading on reuse', as
   };
   const runner = { closing: false, async close() {} };
   const connection = new GadgetConnection(manager, {
+    prepareIOSRunner: async () => { events.push('prepare'); return { physical: false, signing: null }; },
     loadIOSAppRuntime: async ({ deviceId, appId }) => {
       events.push(`load:${deviceId}:${appId}`);
     },
@@ -300,6 +302,7 @@ test('iOS connect loads before a real connection and skips loading on reuse', as
 
   assert.deepEqual(reused, first);
   assert.deepEqual(events, [
+    'prepare',
     'load:device-1:com.example.app',
     'connect',
     'runner',
@@ -310,6 +313,7 @@ test('iOS connect loads before a real connection and skips loading on reuse', as
 test('iOS Loader failure aborts before creating a Frida connection', async () => {
   const manager = new FakeDeviceManager();
   const connection = new GadgetConnection(manager, {
+    prepareIOSRunner: async () => ({ physical: false, signing: null }),
     loadIOSAppRuntime: async () => {
       throw new Error('LLDB load failed');
     },
@@ -324,6 +328,44 @@ test('iOS Loader failure aborts before creating a Frida connection', async () =>
   assert.equal(connection.currentConnection, null);
   assert.deepEqual(manager.addresses, []);
   assert.deepEqual(manager.targets, []);
+});
+
+test('missing iOS signing configuration fails before the Loader', async () => {
+  const manager = new FakeDeviceManager();
+  let loaded = false;
+  const error = new IOSSigningError('IOS_SIGNING_SETUP_REQUIRED', 'Run to-ios-integrate');
+  const connection = new GadgetConnection(manager, {
+    prepareIOSRunner: async () => { throw error; },
+    loadIOSAppRuntime: async () => { loaded = true; },
+  });
+  await assert.rejects(connection.connect(targetInput({ platform: 'ios' })), actual => actual === error);
+  assert.equal(loaded, false);
+  assert.deepEqual(manager.addresses, []);
+  assert.equal(connection.state, 'disconnected');
+});
+
+test('iOS connect reuses prepared signing without persisting configuration', async () => {
+  const manager = new FakeDeviceManager();
+  manager.runtimeStatus = { platform: 'ios', available: true, appId: 'com.example.app' };
+  const events = [];
+  let fail = true;
+  const connection = new GadgetConnection(manager, {
+    prepareIOSRunner: async () => ({ physical: true, signing: {
+      teamId: 'AAAAAAAAAA', bundleId: 'com.example.runner', remember: async () => events.push('remember'),
+    } }),
+    loadIOSAppRuntime: async () => {},
+    startIOSRunner: async () => { if (fail) throw new Error('signing failed'); events.push('runner'); return { closing: false, async close() {} }; },
+  });
+  const input = targetInput({ platform: 'ios' });
+  await assert.rejects(connection.connect(input), /signing failed/);
+  assert.deepEqual(events, []);
+  fail = false;
+  manager.sessionDetached = false; // Model a fresh attach after the failed connection was cleaned up.
+  await connection.connect(input);
+  assert.deepEqual(events, ['runner']);
+  await connection.connect(input);
+  assert.deepEqual(events, ['runner']);
+  assert.equal(connection.state, 'connected');
 });
 
 test('connect identity is deviceId plus appId and reuses a healthy instance across ports', async () => {

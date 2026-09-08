@@ -131,8 +131,8 @@ After MCP `connect` validates the target App runtime, the connection starts `MEU
 and opens its second Frida Session automatically. It uses
 `MOBILE_EASY_USE_IOS_RUNNER_ROOT` when set; otherwise it requires the matching package version at
 `<MEU_HOME>/ios/<version>/runner`, where `MEU_HOME` defaults to `~/.meu`. There is no
-source-checkout fallback. On a physical device, set
-`MOBILE_EASY_USE_IOS_DEVELOPMENT_TEAM=<team-id>` before starting the Host; it also owns the Runner's
+source-checkout fallback. For physical devices, complete the signing setup in `to-ios-integrate`
+first; account or permission failures use its signing repair path. The Host also owns the Runner's
 dynamically reserved Host-port forwarding to device port `8485`. Do not start or forward the Runner
 manually.
 

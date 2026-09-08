@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { loadIOSRuntime } from '../ios/load/runtime-loader.js';
+import { prepareIOSRunner } from './ios-runner.js';
 import { loadPresetsSource, loadSdkSource } from '../sdk-source.js';
 import { DEFAULT_EVIDENCE_DIRECTORY } from '../output-paths.js';
 import { callFunction } from './call-function.js';
@@ -17,6 +18,7 @@ export class GadgetConnection {
     loadPresets = loadPresetsSource,
     loadSdk = loadSdkSource,
     loadIOSAppRuntime = loadIOSRuntime,
+    prepareIOSRunner: prepareRunner = prepareIOSRunner,
     startIOSRunner = null,
   } = {}) {
     this.deviceManager = deviceManager;
@@ -27,6 +29,7 @@ export class GadgetConnection {
     this.loadPresets = loadPresets;
     this.loadSdk = loadSdk;
     this.loadIOSAppRuntime = loadIOSAppRuntime;
+    this.prepareIOSRunner = prepareRunner;
     this.startIOSRunner = startIOSRunner;
     this.state = 'disconnected';
     this.currentConnection = null;

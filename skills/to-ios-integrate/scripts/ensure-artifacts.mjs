@@ -162,8 +162,7 @@ async function main() {
     tag,
     version,
     kind: "runner",
-    // The Runner layout evolves independently. The npm-owned launcher validates
-    // the exact files needed by the installed package when it starts a Runner.
+    // The signing helper and runtime launcher validate the files they use.
     requiredRelativePaths: [],
   });
 

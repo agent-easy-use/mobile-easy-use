@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { readIOSSigning, signingFailureFromOutput } from './ios-signing.js';
 
 const execFile = promisify(execFileCallback);
 const RUNNER_COMMAND = fileURLToPath(
@@ -21,6 +22,19 @@ const OUTPUT_TAIL_BYTES = 16 * 1024;
 const GADGET_PROCESS_NAME = 'Gadget';
 const activeDestinations = new Set();
 const reservedLocalPorts = new Set();
+
+export async function prepareIOSRunner({ deviceId, appId }, {
+  execute = execFile,
+  readSigning = readIOSSigning,
+} = {}) {
+  const simulator = await findBootedSimulator(execute, deviceId);
+  if (simulator !== null) {
+    return { physical: false, destinationId: simulator.udid, signing: null };
+  }
+  const { hardwareUdid } = await resolvePhysicalDevice(execute, deviceId);
+  const signing = await readSigning({ hardwareUdid });
+  return { physical: true, destinationId: hardwareUdid, signing };
+}
 
 function loadIOSXCTestDriverSource() {
   return readFile(IOS_XCTEST_DRIVER_BUNDLE_PATH, 'utf8').catch((error) => {
@@ -42,7 +56,7 @@ export class IOSRunner {
     execute = execFile,
     spawn = spawnProcess,
     runnerCommand = RUNNER_COMMAND,
-    developmentTeam = process.env.MOBILE_EASY_USE_IOS_DEVELOPMENT_TEAM,
+    preparation = connection.runnerPreparation,
     loadDriver = loadIOSXCTestDriverSource,
     allocatePort = reserveLocalPort,
     releasePort = releaseLocalPort,
@@ -55,7 +69,7 @@ export class IOSRunner {
     this.execute = execute;
     this.spawn = spawn;
     this.runnerCommand = runnerCommand;
-    this.developmentTeam = developmentTeam;
+    this.preparation = preparation;
     this.loadDriver = loadDriver;
     this.allocatePort = allocatePort;
     this.releasePort = releasePort;
@@ -75,18 +89,9 @@ export class IOSRunner {
   }
 
   async startRuntime() {
-    const simulator = await findBootedSimulator(this.execute, this.connection.deviceId);
-    const physical = simulator === null;
-    if (physical && (typeof this.developmentTeam !== 'string' || this.developmentTeam.length === 0)) {
-      throw new Error(
-        'MOBILE_EASY_USE_IOS_DEVELOPMENT_TEAM is required to sign the XCTest Runner for a physical device',
-      );
-    }
-
-    const physicalDevice = physical
-      ? await resolvePhysicalDevice(this.execute, this.connection.deviceId)
-      : null;
-    const destinationId = physical ? physicalDevice.hardwareUdid : simulator.udid;
+    const { physical, destinationId, signing } = this.preparation ?? await prepareIOSRunner({
+      deviceId: this.connection.deviceId, appId: this.appId,
+    }, { execute: this.execute });
     this.destinationKey = `${physical ? 'device' : 'simulator'}:${destinationId}`;
     reserveDestination(this.destinationKey);
     try {
@@ -97,13 +102,13 @@ export class IOSRunner {
       this.address = `127.0.0.1:${this.localPort}`;
       this.proxy = physical
         ? startChild(this.spawn, 'iproxy', [
-          '-u', physicalDevice.hardwareUdid, String(this.localPort), String(runnerPort),
+          '-u', destinationId, String(this.localPort), String(runnerPort),
         ])
         : null;
       const runnerArgs = physical
-        ? ['--device', destinationId, '--team', this.developmentTeam,
+        ? ['--device', destinationId, '--team', signing.teamId, '--bundle-id', signing.bundleId,
           '--port', String(runnerPort)]
-        : ['--simulator', simulator.udid, '--port', String(runnerPort)];
+        : ['--simulator', destinationId, '--port', String(runnerPort)];
       this.process = startChild(this.spawn, this.runnerCommand, runnerArgs);
 
       await Promise.all([
@@ -122,6 +127,11 @@ export class IOSRunner {
         .filter(Boolean)
         .join('\n');
       const suffix = diagnostics.length === 0 ? '' : `\nRunner output:\n${diagnostics}`;
+      const signingError = physical ? signingFailureFromOutput(diagnostics) : null;
+      if (signingError !== null) {
+        signingError.cause = error;
+        throw signingError;
+      }
       throw new Error(`Failed to start iOS XCTest Runner: ${error.message}${suffix}`);
     }
   }

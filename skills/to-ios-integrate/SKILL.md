@@ -1,6 +1,6 @@
 ---
 name: to-ios-integrate
-description: Integrate MobileEasyUse into one existing iOS App debug configuration through basic Xcode operations or CocoaPods. Invoke as $to-ios-integrate.
+description: Integrate MobileEasyUse into an iOS App debug configuration, or prepare and repair physical-device Runner signing. Invoke as $to-ios-integrate.
 ---
 
 # Integrate MobileEasyUse into iOS
@@ -105,6 +105,15 @@ end
 
 For a local checkout, add its `:path` to the Pod declaration. Follow the project's version policy for a published Pod. Map a custom configuration to `:debug` in the Podfile `project` declaration when required, then run `pod install`.
 
+## Runner signing
+
+MobileEasyUse uses a separate XCTest Runner for iOS input actions. On physical devices, the Runner needs development signing and a provisioning profile covering the device so iOS can install and run it.
+
+For physical devices, follow [Setup](references/signing.md#setup) to prepare Runner signing.
+For Runner signing errors reported by the Host, follow [Repair](references/signing.md#repair).
+These steps can run independently of App integration. Simulators do not require this setup.
+If no physical device is available, report Runner signing as pending.
+
 ## Finish
 
-Report the artifact version, integration and runner cache paths, App target, selected configuration, integration method, changed files, and embed command. When verification is requested, read [references/validation.md](references/validation.md) completely and follow it.
+Report the artifact version, integration and runner cache paths, App target, selected configuration, integration method, changed files, embed command, and signing result (verified team, pending, or not applicable). For requested App/runtime verification, read [references/validation.md](references/validation.md) completely and follow it.
