@@ -104,6 +104,31 @@ Read only the evidence references needed by the probe:
 
 Generate evidence with the matching `Probe.evidence.withChainEvidence()`, `Probe.evidence.withStateEvidence()`, or `Probe.evidence.withUiEvidence()` wrapper. These APIs clean up their temporary instrumentation after the wrapped action returns, throws, or its Promise settles, so the wrapper leaves no active Hook or cleanup work behind. This guarantee applies to evidence instrumentation, not to effects produced by the wrapped business action.
 
+When multiple evidence types are needed, nest their wrappers with the same `actionDescription` so the action runs once and its evidence aggregates into one file.
+
+```javascript
+const description = 'Submit search #1';
+
+await Probe.evidence.withUiEvidence(
+  () => Probe.evidence.withStateEvidence(
+    () => Probe.evidence.withChainEvidence(
+      async () => {
+        await doSomething();
+      },
+      description,
+      logTag,
+      methodHooks,
+    ),
+    description,
+    stateGetters,
+  ),
+  description,
+  uiTargets,
+);
+```
+
+Include only the wrappers needed. Keeping chain innermost excludes the outer state/UI snapshot collection from its observation window; checkpoints follow the nesting order rather than occurring simultaneously.
+
 ## 4. Direct Frida
 
 Prefer Driver, Override, and Evidence when they accurately express the request. Do not use Direct Frida merely because it is shorter.
