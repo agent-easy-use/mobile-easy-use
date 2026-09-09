@@ -355,3 +355,57 @@ export async function probeFieldReferenceScopes() {
     return {passed: checks.every(x => x.passed), api: 'Override.run(reference scopes)', result: checks, oracle: {cases: checks.length}};
   });
 }
+
+/** Drive a real click under a method override, aggregate three evidence types, then verify restoration. */
+export async function probeComposedOverride() {
+  return navigate(async () => {
+    const state = ObjC.classes[FIXTURE_CLASS].sharedState();
+    const target = 'api.probe.action';
+    const readLabel = () => IOS.runOnMainThread(() => String(IOS.ui.find(target).titleForState_(0)));
+    const snapshots = [];
+    const checks = [];
+    let actions = 0;
+    for (const mocked of [false, true]) {
+      const description = `override-driver-evidence-${mocked ? 'mock' : 'baseline'}`;
+      const expected = mocked ? 'composed-mock' : 'single:ui-chain';
+      const beforeCalls = callCount(state, 'single:');
+      const beforeLabel = await readLabel();
+      const checkpoints = [];
+      const getters = {outcome: async () => {
+        const value = {label: await readLabel(), originalCalls: callCount(state, 'single:')};
+        checkpoints.push(value);
+        return value;
+      }};
+      const observe = () => Probe.evidence.withUiEvidence(() =>
+        Probe.evidence.withStateEvidence(() => Probe.evidence.withChainEvidence(async () => {
+          actions++;
+          const clicked = await IOS.input.click(target);
+          if (!clicked.ok) throw new Error(`composition click: ${JSON.stringify(clicked)}`);
+          const ready = await IOS.wait.ui([`label::${expected}`], 'visible',
+            {timeoutMs: 2000, intervalMs: 50});
+          if (!ready.ok) throw new Error(`composition wait: ${JSON.stringify(ready)}`);
+          return expected;
+        }, description, undefined, [{target: FIXTURE_CLASS, selector: '- emitPrimaryLog'}]),
+        description, getters), description, {result: target});
+      let result;
+      if (mocked) {
+        // Method return objects must survive asynchronous Driver and screenshot work.
+        const replacement = ObjC.classes.NSString.alloc().initWithString_('composed-mock');
+        try {
+          result = await Override.run([{target: FIXTURE_CLASS, selector: '- single:', withReturn: replacement}], observe);
+        } finally { replacement.release(); }
+      } else result = await observe();
+      const afterCalls = beforeCalls + (mocked ? 0 : 1);
+      checks.push({description, passed: result === expected && checkpoints.length === 2
+        && checkpoints[0].label === beforeLabel && checkpoints[0].originalCalls === beforeCalls
+        && checkpoints[1].label === expected && checkpoints[1].originalCalls === afterCalls});
+      snapshots.push({description, checkpoints});
+    }
+    const beforeRestoreCall = callCount(state, 'single:');
+    const restored = String(state.single_('restored')) === 'single:restored';
+    return {passed: checks.every(x => x.passed) && actions === 2 && restored
+      && callCount(state, 'single:') === beforeRestoreCall + 1,
+      api: 'Override + Driver + Evidence', evidenceContract: 'override-composition-v1',
+      result: checks, oracle: {actions, restored, snapshots}};
+  });
+}

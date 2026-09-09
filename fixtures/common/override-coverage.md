@@ -18,8 +18,13 @@ These probes execute native App methods and inspect native state, rather than me
 | Field isolation | `probeFieldIsolation` | `probeFieldTypes` | Assigning one instance leaves another unchanged; Android null references and repeated static scope; iOS additional integer widths, UInt64 maximum, float, NSNumber and NSDictionary |
 | Object lifetimes | — | `probeFieldObjectLifetime` | Weak field points to the specified mock; native lifetime and cleanup across async action |
 | Reference scopes | — | `probeFieldReferenceScopes` | Surviving/empty references, null replacement and repeated scope cleanup |
+| Composition | `probeComposedOverride` | `probeComposedOverride` | Real input in baseline/override scopes; exact before/after values and original call counts; action runs once per group; three evidence types share each group description; native method restored |
 
-Totals: **10 Android exports, 11 iOS exports**. Each matrix probe contains several assertions.
+Totals: **11 Android exports, 12 iOS exports**. Each matrix probe contains several assertions.
+
+`probeComposedOverride` must produce exactly two evidence files, with distinct baseline/mock action descriptions.
+Run `node fixtures/<platform>/ApiDemo/probe/evidence/verify-evidence.mjs override-composition-v1 <evidence.json>`
+on each file to verify persisted state, UI screenshots and the exact chain events.
 
 The fixture deliberately changes fields in selected actions to verify write-once behavior and unconditional
 restoration. Production probes should use stable configuration fields as described in the SDK declarations.

@@ -1,3 +1,4 @@
+import { verifyOverrideComposition } from '../../../../common/override-composition-contract.mjs';
 import { verifyUiState } from '../../../../common/ui-state-contract.mjs';
 import assert from 'node:assert/strict';
 import { verifyStateRuntime, verifyMethodMatching } from '../../../../common/state-runtime-contracts.mjs';
@@ -138,6 +139,7 @@ function verifyChainCapture(document) {
 }
 
 function verifyEvidence(contract, document) {
+  if (contract === 'override-composition-v1') return verifyOverrideComposition('android', document);
   if (contract === 'ui-state-v1') return verifyUiState('android', document);
   if (contract.startsWith('state-runtime-')) return verifyStateRuntime(contract, document);
   if (contract.startsWith('chain-method-match-')) return verifyMethodMatching(contract, document);

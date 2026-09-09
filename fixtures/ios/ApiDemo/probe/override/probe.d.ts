@@ -23,3 +23,6 @@ export declare function probeMethodFailures(): Promise<OverrideProbeResult>;
 export declare function probeFieldTypes(): Promise<OverrideProbeResult>;
 /** Check object reference restoration, null assignment and repeated scopes. */
 export declare function probeFieldReferenceScopes(): Promise<OverrideProbeResult>;
+
+/** Compare baseline and overridden real input with state, UI and chain evidence; verify restoration. */
+export declare function probeComposedOverride(): Promise<OverrideProbeResult>;

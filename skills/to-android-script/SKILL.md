@@ -5,7 +5,7 @@ description: Generate Android mobile-easy-use runtime code as either a temporary
 
 # To Android Script
 
-Generate the smallest Android runtime code that answers the requested runtime question. Prefer Driver for requested user-visible actions, use Override only when normal App configuration or Driver actions cannot establish a required condition, add Evidence only when needed to answer the question, and use Direct Frida only when the encapsulated capabilities are insufficient. Perform only the requested operations and collect only the required results. Generate code only; do not connect to a device or execute it.
+Generate the smallest Android runtime code that answers the requested runtime question. Prefer Driver for requested user-visible actions, use Override only when normal App configuration or Driver actions cannot establish a required condition, add Evidence only when needed to answer the question, and use Direct Frida only when the encapsulated capabilities are insufficient. Driver, Override, Evidence, and Direct Frida can compose within their API boundaries; use only what the question requires and avoid unnecessary probing. Generate code only; do not connect to a device or execute it.
 
 ## Common contract
 
@@ -103,32 +103,6 @@ Read only the evidence references needed by the probe:
 
 Generate evidence with the matching `Probe.evidence.withChainEvidence()`, `Probe.evidence.withStateEvidence()`, or `Probe.evidence.withUiEvidence()` wrapper. These APIs clean up their temporary instrumentation after the wrapped action returns, throws, or its Promise settles, so the wrapper leaves no active Hook or cleanup work behind. This guarantee applies to the evidence instrumentation, not to effects produced by the wrapped business action.
 
-When multiple evidence types are needed, nest their wrappers with the same `actionDescription` so the action runs once and its evidence aggregates into one file.
-
-```javascript
-const description = 'Submit search #1';
-
-await Probe.evidence.withUiEvidence(
-  () => Probe.evidence.withStateEvidence(
-    () => Probe.evidence.withChainEvidence(
-      async () => {
-        await submitSearch();
-        await waitForSearchCompleted();
-      },
-      description,
-      logTag,
-      methodHooks,
-    ),
-    description,
-    stateGetters,
-  ),
-  description,
-  uiTargets,
-);
-```
-
-Include only the wrappers needed. Keeping chain innermost excludes the outer state/UI snapshot collection from its observation window; checkpoints follow the nesting order rather than occurring simultaneously.
-
 ## 4. Direct Frida
 
 Prefer Driver, Override, and Evidence when they accurately express the request. Do not use Direct Frida merely because it is shorter.
@@ -150,3 +124,33 @@ The SDK provides these globals:
 Follow native Frida semantics; use `Java.registerClass()` to implement Java interfaces. Prefer the encapsulated SDK capabilities when they preserve the requested semantics. Treat repeated, reusable missing capabilities, rather than one direct Frida use, as candidates for a preset or SDK extension.
 
 Before delivery, verify that every referenced symbol comes from source or the SDK and no unrequested evidence or interaction was added. For Inline, verify the result is one complete async IIFE with no imports or exports. For Module, verify that `probe.js` uses named standard ES Module exports and its exports match `probe.d.ts`.
+
+## Composition example
+
+The helpers and definitions below represent source-resolved App code; `submitSearch` and `waitForSearchCompleted` must throw on failed input or wait results.
+
+```javascript
+const description = 'Submit search under JP region #1';
+
+await Override.run(definitions, () =>
+  Probe.evidence.withUiEvidence(
+    () => Probe.evidence.withStateEvidence(
+      () => Probe.evidence.withChainEvidence(
+        async () => {
+          await submitSearch();
+          return await waitForSearchCompleted();
+        },
+        description,
+        logTag,
+        methodHooks,
+      ),
+      description,
+      stateGetters,
+    ),
+    description,
+    uiTargets,
+  ),
+);
+```
+
+Override stays active through both checkpoints and the completion wait. Shared descriptions aggregate evidence from the same action execution; chain stays innermost to exclude snapshot collection. Checkpoints are sequential, not simultaneous. Observe methods other than those replaced by Override; same-method composition is not currently guaranteed.

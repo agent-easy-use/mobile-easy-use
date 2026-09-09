@@ -444,3 +444,57 @@ export async function probeFieldIsolation() {
     return result;
   });
 }
+
+/** Drive a real click under a method override, aggregate three evidence types, then verify restoration. */
+export async function probeComposedOverride() {
+  return withScenarioNavigation({capabilityMenuId: R.id.api_menu_evidence,
+    capabilityRootId: R.id.api_evidence_root, capabilityName: 'Evidence',
+    scenarioKey: 'chain', scenarioLabel: 'Java method and log chain'}, async () => {
+    const state = fixtureState();
+    const target = R.id.api_evidence_chain_value;
+    const readLabel = () => AndroidExp.runOnMainThread(() =>
+      String(Java.cast(AndroidExp.ui.find(target), Java.use('android.widget.TextView')).getText()));
+    const snapshots = [];
+    const checks = [];
+    let actions = 0;
+    for (const mocked of [false, true]) {
+      const description = `override-driver-evidence-${mocked ? 'mock' : 'baseline'}`;
+      const expected = mocked ? 'composed-mock' : 'single:chain';
+      const beforeCalls = callCount(state, 'single');
+      const beforeLabel = await readLabel();
+      const checkpoints = [];
+      const getters = {outcome: async () => {
+        const value = {label: await readLabel(), originalCalls: callCount(state, 'single')};
+        checkpoints.push(value);
+        return value;
+      }};
+      const observe = () => Probe.evidence.withUiEvidence(() =>
+        Probe.evidence.withStateEvidence(() => Probe.evidence.withChainEvidence(async () => {
+          actions++;
+          const clicked = await AndroidExp.input.click(R.id.api_evidence_chain_action);
+          if (!clicked.ok) throw new Error(`composition click: ${JSON.stringify(clicked)}`);
+          const ready = await AndroidExp.wait.ui([`text::${expected}`], 'visible',
+            {timeoutMs: 2000, intervalMs: 50});
+          if (!ready.ok) throw new Error(`composition wait: ${JSON.stringify(ready)}`);
+          return expected;
+        }, description, undefined, [{target: FIXTURE_CLASS, method: 'emitDebugLog', argumentTypes: []}]),
+        description, getters), description, {result: [`id::${target}`]});
+      const result = mocked
+        ? await Override.run([{target: FIXTURE_CLASS, method: 'single', argumentTypes: ['java.lang.String'],
+          withReturn: 'composed-mock'}], observe)
+        : await observe();
+      const afterCalls = beforeCalls + (mocked ? 0 : 1);
+      checks.push({description, passed: result === expected && checkpoints.length === 2
+        && checkpoints[0].label === beforeLabel && checkpoints[0].originalCalls === beforeCalls
+        && checkpoints[1].label === expected && checkpoints[1].originalCalls === afterCalls});
+      snapshots.push({description, checkpoints});
+    }
+    const beforeRestoreCall = callCount(state, 'single');
+    let restored;
+    Java.performNow(() => { restored = String(state.single('restored')) === 'single:restored'; });
+    return {passed: checks.every(x => x.passed) && actions === 2 && restored
+      && callCount(state, 'single') === beforeRestoreCall + 1,
+      api: 'Override + Driver + Evidence', evidenceContract: 'override-composition-v1',
+      result: checks, oracle: {actions, restored, snapshots}};
+  });
+}

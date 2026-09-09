@@ -27,3 +27,6 @@ export declare function probeMethodFailures(): Promise<OverrideProbeResult>;
 export declare function probeMethodSelection(): Promise<OverrideProbeResult>;
 /** Check null values, per-instance assignment and repeated static restoration. */
 export declare function probeFieldIsolation(): Promise<OverrideProbeResult>;
+
+/** Compare baseline and overridden real input with state, UI and chain evidence; verify restoration. */
+export declare function probeComposedOverride(): Promise<OverrideProbeResult>;
