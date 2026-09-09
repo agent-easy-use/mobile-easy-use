@@ -199,3 +199,61 @@
 - (NSRange)rangeValue:(NSRange)value { @synchronized(self) { self.callCount++; } return NSMakeRange(value.location + 1, value.length); }
 - (BOOL)exerciseUnsupported { return [self floating:1.0] == 1.5 && [self rangeValue:NSMakeRange(2,3)].location == 3; }
 @end
+
+@implementation APIOverrideFieldsBase
+@end
+
+@interface APIOverrideFieldsFixture ()
+@property(nonatomic, strong) id originalOwner;
+@property(nonatomic, strong) id mockOwner;
+@property(nonatomic, weak) id originalWitness;
+@property(nonatomic, weak) id mockWitness;
+@property(nonatomic, weak) id policyWitness;
+@property(nonatomic, weak) id regionWitness;
+@property(nonatomic, weak) id itemsWitness;
+@property(nonatomic, weak) id inheritedWitness;
+@end
+
+@implementation APIOverrideFieldsFixture
+- (instancetype)init {
+    if ((self = [super init])) {
+        _enabled = NO; _mode = 2; _wide = 7; _ratio = 0.5;
+        _region = [NSMutableString stringWithString:@"original-region"];
+        _items = @[@"original-item"];
+        _policy = [NSObject new];
+        self.inheritedText = [NSMutableString stringWithString:@"inherited-original"];
+        _originalOwner = [NSObject new];
+        _weakPolicy = _originalOwner;
+        _originalWitness = _originalOwner;
+        _policyWitness = _policy; _regionWitness = _region;
+        _itemsWitness = _items; _inheritedWitness = self.inheritedText;
+    }
+    return self;
+}
+- (id)makeMock { _mockOwner = [NSObject new]; _mockWitness = _mockOwner; return _mockOwner; }
+- (void)dropMockOwner { _mockOwner = nil; }
+- (void)dropOriginalOwner { _originalOwner = nil; }
+- (BOOL)weakHasOriginal { return _originalOwner != nil && _weakPolicy == _originalOwner; }
+- (BOOL)weakHasMock { return _mockWitness != nil && _weakPolicy == _mockWitness; }
+- (BOOL)mockAlive { return _mockWitness != nil; }
+- (BOOL)originalAlive { return _originalWitness != nil; }
+- (BOOL)weakEmpty { return _weakPolicy == nil; }
+- (BOOL)extraScalarsOverridden {
+    return _byteMode == -3 && _unsignedByte == 250 && _shortMode == -300 && _unsignedShort == 60000
+        && _intMode == -70000 && _unsignedInt == 4000000000U && _longMode == -90000
+        && _unsignedLong == 90000 && _unsignedWide == UINT64_C(18446744073709551615) && _floatRatio == 0.75f;
+}
+- (BOOL)extraScalarsRestored {
+    return _byteMode == 0 && _unsignedByte == 0 && _shortMode == 0 && _unsignedShort == 0
+        && _intMode == 0 && _unsignedInt == 0 && _longMode == 0 && _unsignedLong == 0
+        && _unsignedWide == 0 && _floatRatio == 0;
+}
+- (BOOL)scalarsOverridden {
+    return _enabled && _mode == 3 && _wide == INT64_C(9007199254740993) && _ratio == 0.75;
+}
+- (BOOL)scalarsRestored { return !_enabled && _mode == 2 && _wide == 7 && _ratio == 0.5; }
+- (BOOL)objectsRestored {
+    return _policy != nil && _policy == _policyWitness && _region == _regionWitness
+        && _items == _itemsWitness && self.inheritedText == _inheritedWitness && _optional == nil;
+}
+@end

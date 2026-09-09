@@ -120,3 +120,28 @@ export async function probeVisibilityUiEvidence() {
     };
   });
 }
+
+/** Compose UI screenshots with a generated getter for the requested native text property. */
+export async function probeUiStateEvidence() {
+  return withScenarioNavigation(NAVIGATION, async () => {
+    const actionDescription = 'ui-state-v1';
+    const target = [`id::${R.id.api_evidence_ui_hidden}`];
+    const label = () => Java.cast(AndroidExp.ui.find(target), Java.use('android.widget.TextView'));
+    const readText = () => AndroidExp.runOnMainThread(() => String(label().getText()));
+    let actions = 0;
+    const result = await Probe.evidence.withUiEvidence(() => Probe.evidence.withStateEvidence(
+      async () => {
+        actions++;
+        await AndroidExp.runOnMainThread(() => {
+          const view = label();
+          view.setText(Java.use('java.lang.String').$new('UPDATED_LABEL'));
+          view.setVisibility(0);
+        });
+        return 'action-result';
+      }, actionDescription, {'label.text': readText}), actionDescription, {label: target});
+    const text = await readText();
+    return {passed: result === 'action-result' && actions === 1 && text === 'UPDATED_LABEL',
+      api: 'Probe.evidence.withUiEvidence + withStateEvidence', evidenceContract: 'ui-state-v1',
+      result, oracle: {actions, text}};
+  });
+}

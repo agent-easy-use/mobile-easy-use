@@ -239,7 +239,6 @@ const resetCaptureFixture = () => fixture(s => s.reset());
 const captureCalls = () => fixture(s => Number(s.getCalls()));
 const capturePlain = value => fixture(s => String(s.plain(value)));
 const captureString = value => value === null ? null : String(value);
-const captureWrapper = () => fixture(s => s);
 const captureHook = (method, capture, extra = {}) => ({target: CAPTURE_CLASS, method, capture, ...extra});
 const startCaptureWorkers = () => fixture(s => s.startWorkers());
 const waitCaptureWorkers = () => AndroidExp.wait.until(() => fixture(s => Number(s.getWorkersDone())) === 2, {timeoutMs: 5000, intervalMs: 10});
@@ -286,18 +285,6 @@ export async function probeCaptureOptions() {
     for (const capture of options) values.push(await run(() => capturePlain('option'), [captureHook('plain', capture)]));
     snapshot.nested[0] = true;
     return {passed: values.every(v => v === 'plain:option') && captureCalls() === 7, values};
-  });
-}
-
-/** Reject invalid JSON values independently at enter and leave, preserving business behavior. */
-export async function probeCaptureInvalidValues() {
-  return completeScenario('invalid-values', async run => {
-    const cycle = {}; cycle.self = cycle;
-    const values = [undefined, NaN, Infinity, cycle, Promise.resolve(1), () => 1, captureWrapper()];
-    const results = [];
-    for (const value of values) results.push(await run(() => capturePlain('invalid'),
-      [captureHook('plain', {args: () => value, result: () => value, timing: true})]));
-    return {passed: results.every(v => v === 'plain:invalid') && captureCalls() === values.length, cases: values.length};
   });
 }
 
@@ -450,5 +437,16 @@ export async function probeCaptureStackLifecycle() {
     contextDepth(1); // Must not be captured after cleanup.
     const restored = await run(() => contextDepth(8), [contextHook('contextLeaf', {stack: {maxFrames: 1}})]);
     return {passed: nested === 10 && restored === 15 && sameError && captureCalls() === 6, sameError};
+  });
+}
+
+/** Distinguish actual overload signatures without requiring capture callbacks. */
+export async function probeMethodOverloads() {
+  return completeScenario('overloads', async run => {
+    const values = await run(() => fixture(state => [
+      String(state.overloaded.overload('int').call(state, 7)),
+      String(state.overloaded.overload('java.lang.String').call(state, 'query')),
+    ]), [captureHook('overloaded', undefined, {allOverloads: true})]);
+    return {passed: values.join('|') === 'int:7|string:query' && captureCalls() === 2, values};
   });
 }

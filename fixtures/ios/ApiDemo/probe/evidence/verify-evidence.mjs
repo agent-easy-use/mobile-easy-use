@@ -1,3 +1,6 @@
+import { verifyOverrideComposition } from '../../../../common/override-composition-contract.mjs';
+import { verifyUiState } from '../../../../common/ui-state-contract.mjs';
+import { verifyStateRuntime, verifyMethodMatching } from '../../../../common/state-runtime-contracts.mjs';
 import { verifyChainContext } from '../../../../common/chain-context-contracts.mjs';
 import { verifyCompleteCapture } from '../../../../common/chain-capture-contracts.mjs';
 import { readFile } from 'node:fs/promises';
@@ -42,10 +45,10 @@ function verifyUi(document) {
   requireEvidence(fixture?.after?.bounds?.width > 0 && fixture.after?.bounds?.height > 0, 'after bounds');
   requireEvidence(fixture?.after?.properties?.identifier === 'api.probe.ui.hidden', 'identifier property');
   requireEvidence(fixture?.after?.properties?.label === 'PROBE_HIDDEN_LABEL', 'label property');
-  requireEvidence(fixture?.changed === true, 'hiddenFixture.changed must be true');
+  requireEvidence(!Object.hasOwn(fixture, 'changed'), 'hiddenFixture must omit changed');
   const missing = document.ui?.missingFixture;
   requireEvidence(missing?.before?.exist === false && missing?.after?.exist === false, 'missingFixture existence');
-  requireEvidence(missing?.changed === false, 'missingFixture.changed must be false');
+  requireEvidence(!Object.hasOwn(missing, 'changed'), 'missingFixture must omit changed');
   requireEvidence(Object.keys(document.ui ?? {}).length === 2, 'ui must contain exactly two fixtures');
   requireEvidence(!Object.hasOwn(document, 'screenshots'), 'top-level screenshots must be absent');
   requireScreenshotPath(fixture.before?.screenshots?.window, 'before window');
@@ -102,6 +105,10 @@ function verifyChainCapture(document) {
 }
 
 function verifyEvidence(contract, document) {
+  if (contract === 'override-composition-v1') return verifyOverrideComposition('ios', document);
+  if (contract === 'ui-state-v1') return verifyUiState('ios', document);
+  if (contract.startsWith('state-runtime-')) return verifyStateRuntime(contract, document);
+  if (contract.startsWith('chain-method-match-')) return verifyMethodMatching(contract, document);
   if (contract.startsWith('chain-context-')) return verifyChainContext('ios', contract, document);
   if (contract.startsWith('chain-complete-')) return verifyCompleteCapture('ios', contract, document);
   if (contract === 'chain-method-log-capture-v3') return verifyChainCapture(document);

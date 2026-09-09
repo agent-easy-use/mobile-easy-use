@@ -403,7 +403,7 @@
 
 - (void)probeAction:(UIButton *)sender {
     APISDKFixtureState *state = [APISDKFixtureState sharedState];
-    [state single:@"ui-chain"];
+    [sender setTitle:[state single:@"ui-chain"] forState:UIControlStateNormal];
     [state emitPrimaryLog];
 }
 

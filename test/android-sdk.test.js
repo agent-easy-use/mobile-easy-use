@@ -691,8 +691,9 @@ test('withStateEvidence resolves action results and rethrows action failures asy
   assert.equal(typeof resultPromise.then, 'function');
   assert.equal(await resultPromise, 'done');
   const records = evidenceRecords(lines).filter((record) => record.category === 'state');
-  assert.deepEqual(records.map((record) => record.payload.checkpoint), ['before', 'after']);
-  assert.deepEqual(records.map((record) => record.payload.value), [0, 1]);
+  assert.deepEqual(records.map((record) => record.payload.checkpoint), ['before', 'before', 'after', 'after']);
+  assert.deepEqual(records.filter(record => Object.hasOwn(record.payload, 'value')).map(record => record.payload.value), [0, 1]);
+  assert.deepEqual(records.filter(record => Object.hasOwn(record.payload, 'error')).map(record => record.payload.error), ['unreadable', 'unreadable']);
   assert.ok(records.every((record) => record.payload.actionDescription === 'Increment count'));
 
   const appError = new Error('action failed');
@@ -894,6 +895,53 @@ test('withChainEvidence filters fixed Log tags and business methods, then uninst
   );
   assert.equal(fixture.logOverload.implementation, null);
   assert.equal(fixture.nativeLogListeners.length, 0);
+});
+
+test('Android chain matches only the requested overload and leaves other overloads untouched', async () => {
+  const fixture = createFixture();
+  const stringCall = overload(['java.lang.String'], value => value);
+  const intCall = overload(['int'], value => value);
+  const target = javaClass('com.example.Overloaded', {
+    run: overloadedMethod([stringCall, intCall]),
+  });
+  await loadSdk(fixture);
+  const lines = [];
+  fixture.context.console = {log: line => lines.push(line), warn() {}};
+  await fixture.context.Probe.evidence.withChainEvidence(() => {
+    assert.equal(intCall.implementation, null);
+    assert.equal(intCall.call(null, 3), 3);
+    assert.equal(stringCall.implementation.call(null, 'selected'), 'selected');
+  }, 'Exact overload', undefined, [{target, method: 'run', argumentTypes: ['java.lang.String']}]);
+  assert.deepEqual(evidenceRecords(lines).map(record => [record.payload.phase, record.payload.argumentTypes]),
+    [['enter', ['java.lang.String']], ['leave', ['java.lang.String']]]);
+  assert.equal(stringCall.implementation, null);
+  assert.equal(intCall.implementation, null);
+});
+
+test('Android chain identifies all overloads on enter, leave and throw without capture', async () => {
+  const fixture = createFixture();
+  const failure = Error('native failure');
+  const stringCall = overload(['java.lang.String'], value => value);
+  const intCall = overload(['int'], () => {throw failure;});
+  const emptyCall = overload([], () => 0);
+  const target = javaClass('com.example.Overloaded', {
+    run: overloadedMethod([stringCall, intCall, emptyCall]),
+  });
+  await loadSdk(fixture);
+  const lines = [];
+  fixture.context.console = {log: line => lines.push(line), warn() {}};
+  await fixture.context.Probe.evidence.withChainEvidence(() => {
+    assert.equal(stringCall.implementation.call(null, 'value'), 'value');
+    assert.throws(() => intCall.implementation.call(null, 1), error => error === failure);
+    assert.equal(emptyCall.implementation.call(null), 0);
+  }, 'All overloads', undefined, [{target, method: 'run', allOverloads: true}]);
+  const records = evidenceRecords(lines).map(record => record.payload);
+  assert.deepEqual(records.map(r => [r.phase, r.argumentTypes]), [
+    ['enter', ['java.lang.String']], ['leave', ['java.lang.String']],
+    ['enter', ['int']], ['throw', ['int']], ['enter', []], ['leave', []],
+  ]);
+  assert.ok(records.every(r => !Object.hasOwn(r, 'capture')));
+  assert.ok([stringCall, intCall, emptyCall].every(call => call.implementation === null));
 });
 
 test('withChainEvidence keeps hooks until a Promise action settles', async () => {
@@ -1146,7 +1194,7 @@ test('evidence preserves ordinary payloads', async () => {
 
   const lines = [];
   fixture.context.console = { log: (line) => lines.push(line), warn: () => {} };
-  fixture.context.Probe.evidence.withStateEvidence(
+  await fixture.context.Probe.evidence.withStateEvidence(
     () => {},
     'Record payload',
     { payload: () => payload },

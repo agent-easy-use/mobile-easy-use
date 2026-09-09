@@ -426,8 +426,25 @@ declare global {
     withReturn: TValue | ((invocation: AndroidOverrideInvocation) => TValue);
   }
 
+  type AndroidOverrideFieldValue = boolean | number | string | Int64 | Java.Wrapper | unknown[] | null;
+
+  /**
+   * Write once before action and restore the original value afterward; App writes are not blocked.
+   * Use stable configuration or flow-control fields. Avoid fields the App changes during action:
+   * restoration overwrites those changes. Do not overlap operations on the same field.
+   * Field access uses the runtime thread; fields requiring a specific App thread are unsupported.
+   */
+  interface AndroidOverrideFieldDefinition {
+    /** Instance wrapper for instance fields; class name or wrapper for static fields. */
+    target: string | Java.Wrapper;
+    /** Exact Frida field name (use _name for a method-name collision). */
+    field: string;
+    /** Native-compatible fixed value; use Int64 for large longs and Java.array() for native arrays. */
+    withValue: AndroidOverrideFieldValue;
+  }
+
   interface AndroidOverrideApi {
-    /** Install a non-empty definition list, call action, and restore after synchronous return/throw or
+    /** Install a non-empty list of method or field definitions, call action, and restore in reverse order after return/throw or
      * settlement of a native JS Promise. Custom thenables do not extend the scope; use async action.
      * Installation errors roll back and throw before action. Action results/errors are preserved.
      * Overrides are process-wide while active, including unrelated threads; use filter to narrow scope.
@@ -435,7 +452,7 @@ declare global {
      * @example const result = Override.run([{ target: 'com.example.Flags', method: 'isEnabled', withReturn: true }], () => Java.use('com.example.Flags').isEnabled());
      */
     run<TResult>(
-      definitions: readonly AndroidOverrideDefinition[],
+      definitions: readonly (AndroidOverrideDefinition | AndroidOverrideFieldDefinition)[],
       action: () => TResult,
     ): TResult extends Promise<infer TResolved> ? Promise<TResolved> : TResult;
   }
@@ -456,9 +473,9 @@ declare global {
      * @example stack: true // or stack: {maxFrames: 3}
      */
     stack?: boolean | { maxFrames?: number };
-    /** Synchronous, read-only extraction at entry; return finite, acyclic plain JSON only. */
+    /** Synchronous, read-only extraction at entry; returns data serialized as JSON. */
     args?: (invocation: ProbeHookInvocation) => ProbeJsonValue;
-    /** Synchronous, read-only extraction on normal return only; never on throw. Same JSON restrictions as args. */
+    /** Synchronous, read-only extraction on normal return only; never on throw. */
     result?: (invocation: ProbeHookInvocation & { result: unknown }) => ProbeJsonValue;
     /** Default off. Emits elapsedMs in fractional milliseconds, measured with a monotonic clock.
      * Includes children/waits; not CPU time or async completion time.
@@ -494,13 +511,13 @@ declare global {
     capture?: ProbeChainCapture;
   }
 
-  /** Synchronous, read-only getters on the current JS thread, keyed by state path. Return plain JSON. */
-  type ProbeStateGetters = Readonly<Record<string, () => ProbeJsonValue>>;
+  /** Read-only getters keyed by state path; await each result and return plain JSON. */
+  type ProbeStateGetters = Readonly<Record<string, () => ProbeJsonValue | Promise<ProbeJsonValue>>>;
 
   interface ProbeEvidenceApi {
     /** Capture selected Java methods and exact-TAG liblog messages during action.
      * Await action and remove hooks on completion or failure; return its result or propagate its error.
-     * Records are written to Evidence. Method/log events include threadName (null when unavailable).
+     * Records are written to Evidence. Method events include actual argumentTypes on enter/leave/throw. Method/log events include threadName (null when unavailable).
      * Supports multiple TAGs per call; at most one log-capture scope may be active (including nesting).
      * Hooks observe all matching process calls, including unrelated concurrent work; use filter.
      * Already-hooked Java overloads are rejected. Setup errors roll back and reject before action.
@@ -519,10 +536,13 @@ declare global {
       methodHooks?: readonly ProbeChainMethodHook[],
     ): Promise<Awaited<TResult>>;
 
-    /** Capture each state getter before `action` and again in `finally`; await and return action's result
-     * or propagate its error. Values go to Evidence, not the return value. An empty map records nothing.
-     * Getter errors are reported without stopping other getters or action. Getters are never awaited or
-     * dispatched to the main thread; use JSON primitives/arrays/plain objects, not runtime wrappers.
+    /** Await state getters sequentially before action and again in finally.
+     * Getter results are serialized as JSON; dispatch to the required thread
+     * inside the getter. Bound external waits; getters that never settle block the checkpoint.
+     * Evidence entries contain path and successful before/after values (including null).
+     * Getter failures omit the checkpoint value and set errors.before/after; action results/errors are preserved.
+     * Multiple getters are not an atomic snapshot; read related fields together in one getter.
+     * An empty map records nothing. Values go to Evidence, not the return value.
      * @example let count = 0; await Probe.evidence.withStateEvidence(() => ++count, 'Increment', { count: () => count });
      * @param action Trigger the action and await its required completion before returning.
      * @param actionDescription Non-empty sole aggregation key within the operation; unique per action

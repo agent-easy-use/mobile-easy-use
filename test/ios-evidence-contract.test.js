@@ -33,21 +33,22 @@ test('iOS UI Evidence contract rejects the previous false-positive artifact', ()
         className: 'UILabel',
         before: { exist: true, visible: false, bounds: { x: 20, y: 100, width: 322, height: 52 }, properties: { identifier: 'api.probe.ui.hidden', label: 'PROBE_HIDDEN_LABEL' }, screenshots: { window: beforeWindow, element: null } },
         after: { exist: true, visible: true, bounds: { x: 20, y: 100, width: 322, height: 52 }, properties: { identifier: 'api.probe.ui.hidden', label: 'PROBE_HIDDEN_LABEL' }, screenshots: { window: afterWindow, element: afterElement } },
-        changed: true,
       },
       missingFixture: {
         before: { exist: false, visible: false, bounds: null, properties: {}, screenshots: { window: beforeWindow, element: null } },
         after: { exist: false, visible: false, bounds: null, properties: {}, screenshots: { window: afterWindow, element: null } },
-        changed: false,
       },
     },
   };
   assert.equal(verifyEvidence('ui-visibility-v4', valid).contract, 'ui-visibility-v4');
 
+  const obsolete = structuredClone(valid);
+  obsolete.ui.hiddenFixture.changed = true;
+  assert.throws(() => verifyEvidence('ui-visibility-v4', obsolete), /omit changed/);
+
   const falsePositive = structuredClone(valid);
   falsePositive.ui.hiddenFixture.after.visible = false;
   falsePositive.ui.hiddenFixture.after.bounds = null;
-  falsePositive.ui.hiddenFixture.changed = false;
   assert.throws(() => verifyEvidence('ui-visibility-v4', falsePositive), /after state/);
 });
 
@@ -62,11 +63,13 @@ test('Android UI Evidence contract uses checkpoint-local screenshots', () => {
         className: 'android.widget.TextView',
         before: { exist: true, visible: false, screenshots: { window: beforeWindow, element: null } },
         after: { exist: true, visible: true, screenshots: { window: afterWindow, element: screenshot('after', 'element', 'hiddenFixture') } },
-        changed: true,
       },
     },
   };
   assert.equal(verifyAndroidEvidence('ui-visibility-v4', document).contract, 'ui-visibility-v4');
+  const obsolete = structuredClone(document);
+  obsolete.ui.hiddenFixture.changed = true;
+  assert.throws(() => verifyAndroidEvidence('ui-visibility-v4', obsolete), /omit changed/);
   assert.throws(
     () => verifyAndroidEvidence('ui-visibility-v4', { ...document, screenshots: [afterWindow] }),
     /top-level screenshots must be absent/,

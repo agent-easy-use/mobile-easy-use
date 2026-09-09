@@ -53,3 +53,46 @@
 - (NSRange)rangeValue:(NSRange)value;
 - (BOOL)exerciseUnsupported;
 @end
+
+/** Non-UI state for temporary field assignment and object lifetime verification. */
+@interface APIOverrideFieldsBase : NSObject
+@property(nonatomic, strong) NSString *inheritedText;
+@end
+
+@interface APIOverrideFieldsFixture : APIOverrideFieldsBase
+@property(nonatomic) BOOL enabled;
+@property(nonatomic) NSInteger mode;
+@property(nonatomic) int64_t wide;
+@property(nonatomic) double ratio;
+@property(nonatomic) signed char byteMode;
+@property(nonatomic) unsigned char unsignedByte;
+@property(nonatomic) short shortMode;
+@property(nonatomic) unsigned short unsignedShort;
+@property(nonatomic) int intMode;
+@property(nonatomic) unsigned int unsignedInt;
+@property(nonatomic) long longMode;
+@property(nonatomic) unsigned long unsignedLong;
+@property(nonatomic) uint64_t unsignedWide;
+@property(nonatomic) float floatRatio;
+- (BOOL)extraScalarsOverridden;
+- (BOOL)extraScalarsRestored;
+- (BOOL)weakEmpty;
+@property(nonatomic, strong) NSString *region;
+@property(nonatomic, strong) NSArray *items;
+@property(nonatomic, strong) id policy;
+@property(nonatomic, strong) id optional;
+@property(nonatomic, weak) id weakPolicy;
+@property(nonatomic, unsafe_unretained) id unsafePolicy;
+@property(nonatomic) NSRange range;
+@property(nonatomic, copy) void (^callback)(void);
+- (id)makeMock NS_RETURNS_RETAINED;
+- (BOOL)weakHasOriginal;
+- (BOOL)weakHasMock;
+- (void)dropMockOwner;
+- (void)dropOriginalOwner;
+- (BOOL)mockAlive;
+- (BOOL)originalAlive;
+- (BOOL)scalarsOverridden;
+- (BOOL)scalarsRestored;
+- (BOOL)objectsRestored;
+@end

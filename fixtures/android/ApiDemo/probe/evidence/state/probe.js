@@ -114,3 +114,84 @@ export async function probeClickStateEvidence() {
     };
   });
 }
+
+const stateMain = work => AndroidExp.runOnMainThread(work);
+const stateWrapper = () => Java.use(STATE_CLASS).getInstance();
+const stateCount = () => Number(stateWrapper().getClickCount());
+const stateIncrement = () => stateWrapper().incrementClick();
+const stateOnMain = () => Java.use('android.os.Looper').getMainLooper().equals(Java.use('android.os.Looper').myLooper());
+const stateReset = () => stateWrapper().reset('Evidence', 'state');
+const stateNavigate = action => withScenarioNavigation(NAVIGATION, action);
+
+async function stateRuntimeScenario(name, action) {
+  return stateNavigate(async () => {
+    await stateMain(stateReset);
+    const contract = `state-runtime-${name}-v1`;
+    const result = await action(contract);
+    return {...result, api: 'Probe.evidence.withStateEvidence', evidenceContract: contract};
+  });
+}
+
+/** Await real main-thread reads in order around a native state change. */
+export async function probeAsyncStateGetters() {
+  return stateRuntimeScenario('async', async contract => {
+    const order = [];
+    let phase = 'before';
+    const result = await Probe.evidence.withStateEvidence(async () => {
+      order.push('action');
+      await stateMain(() => stateIncrement());
+      phase = 'after';
+      return 'action-result';
+    }, contract, {
+      counter: () => stateMain(() => {
+        order.push(phase + ':counter');
+        if (!stateOnMain()) throw Error('NOT_MAIN_THREAD');
+        return stateCount();
+      }),
+      mainThread: () => stateMain(() => { order.push(phase + ':mainThread'); return stateOnMain(); }),
+      syncNull: () => { order.push(phase + ':syncNull'); return null; },
+      secondCounter: () => stateMain(() => { order.push(phase + ':secondCounter'); return stateCount(); }),
+    });
+    const expected = ['before:counter', 'before:mainThread', 'before:syncNull', 'before:secondCounter',
+      'action', 'after:counter', 'after:mainThread', 'after:syncNull', 'after:secondCounter'];
+    const count = await stateMain(stateCount);
+    return {passed: result === 'action-result' && count === 1 && JSON.stringify(order) === JSON.stringify(expected),
+      result, oracle: {count, order}};
+  });
+}
+
+/** Thrown and rejected getters record errors without interrupting the action. */
+export async function probeStateGetterErrors() {
+  return stateRuntimeScenario('getter-errors', async contract => {
+    const result = await Probe.evidence.withStateEvidence(async () => {
+      await stateMain(stateIncrement); return 'action-result';
+    }, contract, {
+      counter: () => stateMain(stateCount),
+      validNull: () => null,
+      rejection: () => Promise.reject(Error('ASYNC_GETTER_FAILED')),
+      exception: () => { throw Error('SYNC_GETTER_FAILED'); },
+    });
+    const count = await stateMain(stateCount);
+    return {passed: result === 'action-result' && count === 1, result, oracle: {count}};
+  });
+}
+
+/** Before/after failures remain evidence while the original action rejection survives. */
+export async function probeStateFailureIsolation() {
+  return stateRuntimeScenario('failure', async contract => {
+    let actionRan = false;
+    const originalError = Error('EXPECTED_ACTION_FAILURE');
+    let preserved = false;
+    try {
+      await Probe.evidence.withStateEvidence(async () => {
+        await stateMain(stateIncrement); actionRan = true; throw originalError;
+      }, contract, {
+        counter: () => stateMain(stateCount),
+        recover: async () => { if (!actionRan) throw Error('BEFORE_UNAVAILABLE'); return null; },
+        failAfter: async () => { if (actionRan) throw Error('AFTER_UNAVAILABLE'); return 7; },
+      });
+    } catch (error) { preserved = error === originalError; }
+    const count = await stateMain(stateCount);
+    return {passed: actionRan && preserved && count === 1, result: {preserved}, oracle: {count}};
+  });
+}

@@ -1,31 +1,15 @@
-import {
-  reportEvidenceFailure,
-  writeEvidence,
-} from '../../common/reporting.js';
+import { errorMessage, writeEvidence } from '../../common/reporting.js';
 import { runEvidenceAction } from './utils.js';
 
-function captureStateEvidence(actionDescription, stateGetters, checkpoint) {
-  let entries;
-  try {
-    entries = Object.entries(stateGetters ?? {});
-  } catch (error) {
-    reportEvidenceFailure('state', '<getters>', checkpoint, error);
-    return;
-  }
-  for (const [path, getter] of entries) {
-    if (typeof getter !== 'function') {
-      reportEvidenceFailure('state', path, checkpoint, new Error('Getter must be a function'));
-      continue;
-    }
+async function captureStateEvidence(actionDescription, stateGetters, paths, checkpoint) {
+  for (const path of paths) {
     try {
-      writeEvidence('state', {
-        path,
-        actionDescription,
-        checkpoint,
-        value: getter(),
-      });
+      const getter = stateGetters[path];
+      if (typeof getter !== 'function') throw new Error('Getter must be a function');
+      const value = await getter();
+      writeEvidence('state', { path, actionDescription, checkpoint, value });
     } catch (error) {
-      reportEvidenceFailure('state', path, checkpoint, error);
+      writeEvidence('state', { path, actionDescription, checkpoint, error: errorMessage(error) });
     }
   }
 }
@@ -34,10 +18,15 @@ async function withStateEvidence(action, actionDescription, stateGetters) {
   if (typeof action !== 'function') {
     throw new Error('withStateEvidence action must be a function');
   }
-  captureStateEvidence(actionDescription, stateGetters, 'before');
+  if (stateGetters === null || typeof stateGetters !== 'object' || Array.isArray(stateGetters)) {
+    throw new Error('withStateEvidence stateGetters must map paths to getters');
+  }
+  const paths = Object.keys(stateGetters);
+  if (paths.some(path => path.length === 0)) throw new Error('State paths must not be empty');
+  await captureStateEvidence(actionDescription, stateGetters, paths, 'before');
   return runEvidenceAction(
     action,
-    () => captureStateEvidence(actionDescription, stateGetters, 'after'),
+    () => captureStateEvidence(actionDescription, stateGetters, paths, 'after'),
   );
 }
 

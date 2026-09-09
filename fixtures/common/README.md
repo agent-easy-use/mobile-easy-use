@@ -11,7 +11,6 @@ then run the platform's `verify-evidence.mjs` with the returned `evidenceContrac
 | `probeCaptureRecursive` | yes | yes | Three nested entries followed by inner-to-outer completions |
 | `probeCaptureExtractorErrors` | yes | yes | Args/result exceptions preserve business results and resource fields |
 | `probeCaptureOptions` | yes | yes | Absent/empty/disabled capture; each option alone; metric deduplication; immutable JSON snapshot |
-| `probeCaptureInvalidValues` | yes | yes | Undefined, NaN, Infinity, cycles, Promise, function and runtime wrapper rejected at both phases |
 | `probeCaptureConfigMatrix` | yes | yes | Nine invalid configurations reject before action and roll back earlier hooks |
 | `probeCaptureAsyncCleanup` | yes | yes | Async resolve/reject, original error identity, hook removal and reinstallation |
 | `probeCaptureFilterErrors` | yes | yes | False/throwing filters skip capture and preserve original calls |
@@ -56,3 +55,33 @@ native name fallback. These injected failures are not claimed as device failures
 For a cold-start stack regression, run `probeThreadNames` first: its two workers must be the first
 application threads requesting stacks. The SDK initializes the Frida Java stack backend during
 serial hook installation to prevent a race in its first-use CModule initialization.
+
+## State snapshots and method matching
+
+Run each export separately and check `result.passed`, `navigation.returnedToMain`, and its single
+manifest with the platform verifier. `state-runtime-contracts.mjs` checks the actual host artifact.
+
+| Module / export | Platforms | Evidence contract | Assertions |
+| --- | --- | --- | --- |
+| `state/probeAsyncStateGetters` | Android, iOS | `state-runtime-async-v1` | Main-thread native reads, serial getter order, sync null, native counter 0→1, original result |
+| `state/probeStateGetterErrors` | Android, iOS | `state-runtime-getter-errors-v1` | Thrown and rejected getters record per-checkpoint errors; successful null remains distinct |
+| `state/probeStateFailureIsolation` | Android, iOS | `state-runtime-failure-v1` | Failed before / recovered after, valid before / failed after, native action still runs, exact action error preserved |
+| `chain/probeInstanceMethodMatching` | iOS | `chain-method-match-instance-v1` | Shared native IMP; only exact selector on target/child instances enters filter/capture; alias, sibling, class and overridden implementation excluded |
+| `chain/probeClassMethodMatching` | iOS | `chain-method-match-class-v1` | Same checks for target/child class receivers; instance excluded; configured className stable |
+| `chain/probeChildInstanceMethodMatching` | iOS | `chain-method-match-child-instance-v1` | Inherited child target accepts child/grandchild instances; excludes parent sharing the IMP |
+| `chain/probeChildClassMethodMatching` | iOS | `chain-method-match-child-class-v1` | Same child-target checks for class methods |
+| `ui/probeUiStateEvidence` | Android, iOS | `ui-state-v1` | Generated main-thread text getter plus UI screenshots, one action and one aggregated manifest |
+| `chain/probeMethodOverloads` | Android | `chain-complete-overloads-v1` | Exact argumentTypes identify int/String overloads on enter/leave without capture |
+| `chain/probeCaptureScalars` | Android | `chain-complete-scalars-v1` | Exact signatures at both phases, int overload selection, and String overload exclusion |
+
+The iOS fixture verifies IMP equality through the Objective-C runtime before hooking and maintains
+an independent native call counter. All eight business calls execute (nine for child targets), only two are captured, and a
+post-cleanup call produces no event. Getter failures are deliberate probe inputs,
+not claims of real network or system failures. No missing screenshot or transport success substitutes
+for the manifest oracle.
+
+Host state tests additionally use manually settled Promises to verify pending before/after barriers,
+delayed rejection recovery, and the complete set of getter error records on both platforms.
+UI visibility probes verify before/after snapshots and checkpoint screenshots; UI entries must omit `changed`.
+
+See [Override ApiDemo coverage](override-coverage.md) for the dual-platform method and field test matrix.

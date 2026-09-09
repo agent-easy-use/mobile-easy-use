@@ -873,7 +873,6 @@ test('callFunction writes one aggregated evidence file per action', async () => 
         className: 'android.widget.EditText',
         before: { exist: false },
         after: { exist: true },
-        changed: true,
       },
     },
     state: {},
@@ -968,8 +967,8 @@ test('callFunction nests Window and element screenshots in UI checkpoints', asyn
   assert.equal(after.window, join(evidenceDirectory, 'screenshot-2.jpg'));
   assert.equal(after.element, join(evidenceDirectory, 'screenshot-3.jpg'));
   assert.deepEqual(readFileSync(after.element), image);
-  assert.equal(manifest.ui.searchInput.changed, true);
-  assert.equal(manifest.ui.stableLabel.changed, false);
+  assert.equal(Object.hasOwn(manifest.ui.searchInput, 'changed'), false);
+  assert.equal(Object.hasOwn(manifest.ui.stableLabel, 'changed'), false);
   assert.deepEqual(
     manager.createdScripts[0].script.postCalls.map((message) => ({
       type: message.type,

@@ -53,3 +53,20 @@ The chain module also exports `probeThreadNames`, `probeCaptureStackOptions`,
 returned `chain-context-*-v1` Evidence contract with the same host verifier. These cover default
 thread names on method/log events, log-only capture, concurrent named workers, optional entry
 stacks (default depth 5), depth validation, filtering, recursion and hook cleanup.
+
+## State accuracy and asynchronous getters
+
+The state module exports `probeAsyncStateGetters`, `probeStateGetterErrors`, and
+`probeStateFailureIsolation`. Run each separately and verify its `state-runtime-*-v1` manifest.
+See the [runtime coverage matrix](../../../common/README.md#state-snapshots-and-method-matching)
+for exact assertions and platform-specific method-matching probes.
+
+`evidence/ui/probeUiStateEvidence` reads the requested native label text through a main-thread state getter
+and aggregates it with UI screenshots for the same action (`ui-state-v1`); it does not add SDK UI properties.
+
+`override/probeFieldValues` verifies temporary scalar/object assignment and restored native reference identity.
+`override/probeFieldFailures` covers action errors, rejected values, partial installation rollback, and mixed method/field scopes.
+`override/probeFieldObjectLifetime` additionally verifies native object lifetime and cleanup across an asynchronous action.
+
+See the [Override coverage matrix](../../../common/override-coverage.md) for method callbacks,
+selection, failure cleanup, field types, object lifetimes, and per-case native assertions.

@@ -304,8 +304,28 @@ declare global {
     withReturn: TValue | ((invocation: IOSOverrideInvocation) => TValue);
   }
 
+  type IOSOverrideFieldValue = boolean | number | Int64 | UInt64 | ObjCBridge.Object | null;
+
+  /**
+   * Write once before action and restore the original value afterward; App writes are not blocked.
+   * Use stable configuration or flow-control fields. Avoid fields the App changes during action:
+   * restoration overwrites those changes. Do not overlap operations on the same field.
+   * Replacement objects are held through action. Originals preserve strong/weak ownership;
+   * an original weak object released during action is restored as nil. Unknown/unretained ownership is unsupported.
+   * Object ivars require the runtime ownership SPI; unavailable runtimes fail before action.
+   * Field access uses the runtime thread; fields requiring a specific App thread are unsupported.
+   */
+  interface IOSOverrideFieldDefinition {
+    /** Objective-C instance; boolean, numeric and managed object ivars. No properties, blocks or pure Swift fields. */
+    target: ObjCBridge.Object;
+    /** Exact runtime ivar name. */
+    field: string;
+    /** Native-compatible fixed value. Construct NSString/NSNumber explicitly; no automatic object wrapping. */
+    withValue: IOSOverrideFieldValue;
+  }
+
   interface IOSOverrideApi {
-    /** Install a non-empty definition list, call action, and restore after synchronous return/throw or
+    /** Install a non-empty list of method or field definitions, call action, and restore in reverse order after return/throw or
      * settlement of a native JS Promise. Custom thenables do not extend the scope; use async action.
      * Installation errors roll back and throw before action. Action results/errors are preserved.
      * Overrides are process-wide while active; filter narrows matching calls. Requires methods exposed
@@ -314,7 +334,7 @@ declare global {
      * @example const enabled = Override.run([{ target: 'FeatureFlags', selector: '+ isEnabled', withReturn: true }], () => Boolean(ObjC.classes.FeatureFlags.isEnabled()));
      */
     run<TResult>(
-      definitions: readonly IOSOverrideDefinition[],
+      definitions: readonly (IOSOverrideDefinition | IOSOverrideFieldDefinition)[],
       action: () => TResult,
     ): TResult extends Promise<infer TResolved> ? Promise<TResolved> : TResult;
   }
@@ -343,9 +363,9 @@ declare global {
      * @example stack: true // or stack: {maxFrames: 3}
      */
     stack?: boolean | { maxFrames?: number };
-    /** Synchronous read-only entry extraction; finite, acyclic plain JSON only, no runtime wrappers. */
+    /** Synchronous read-only entry extraction; returns data serialized as JSON. */
     args?: (invocation: IOSChainArgsInvocation) => IOSJsonValue;
-    /** Synchronous, read-only JSON extraction on normal return only; same JSON restrictions as args.
+    /** Synchronous, read-only JSON extraction on normal return only.
      * Same scalar decoding as args; void is undefined (omit extraction or explicitly return JSON null).
      * Float/double/aggregate returns are unsupported. Receiver/entry args are not retained.
      */
@@ -366,7 +386,9 @@ declare global {
   }
 
   interface IOSMethodHook {
-    /** Objective-C class name or class wrapper. */
+    /** Objective-C class name or class wrapper. Matches that class and subclasses using this IMP;
+     * subclass overrides at other addresses require separate hooks. Events use the configured className.
+     */
     target: string | ObjCBridge.Object;
     /** Exact Objective-C instance or class selector, including its '- ' or '+ ' prefix. */
     selector: `- ${string}` | `+ ${string}`;
@@ -383,8 +405,8 @@ declare global {
     capture?: IOSChainCapture;
   }
 
-  /** Synchronous, read-only getters on the current JS thread, keyed by state path. Return plain JSON. */
-  type IOSStateGetters = Readonly<Record<string, () => IOSJsonValue>>;
+  /** Read-only getters keyed by state path; await each result and return plain JSON. */
+  type IOSStateGetters = Readonly<Record<string, () => IOSJsonValue | Promise<IOSJsonValue>>>;
   /** Non-empty map with non-empty keys; identifiers/paths only, no UIView objects. */
   type IOSUiTargets = Readonly<Record<string, string | IOSUiPath>>;
 
@@ -412,10 +434,13 @@ declare global {
       methodHooks?: readonly IOSMethodHook[],
     ): Promise<Awaited<TResult>>;
 
-    /** Capture synchronous state getters before action and again in finally; await and return action's
-     * result or propagate its error. Values go to Evidence, not the return value. An empty map records nothing.
-     * Getter errors are reported without stopping other getters or action. Getters are never awaited or
-     * dispatched to main; use JSON primitives/arrays/plain objects, not ObjC objects or NativePointers.
+    /** Await state getters sequentially before action and again in finally.
+     * Getter results are serialized as JSON; dispatch to the required thread
+     * inside the getter. Bound external waits; getters that never settle block the checkpoint.
+     * Evidence entries contain path and successful before/after values (including null).
+     * Getter failures omit the checkpoint value and set errors.before/after; action results/errors are preserved.
+     * Multiple getters are not an atomic snapshot; read related fields together in one getter.
+     * An empty map records nothing. Values go to Evidence, not the return value.
      * @example let count = 0; await Probe.evidence.withStateEvidence(() => ++count, 'Increment', { count: () => count });
      * @param action Trigger the action and await its required completion before returning.
      * @param actionDescription Non-empty sole aggregation key within the operation; unique per action

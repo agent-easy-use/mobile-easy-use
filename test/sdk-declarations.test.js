@@ -135,7 +135,6 @@ test('iOS generation contract narrows actions and requires native override retur
     IOS.screenshot({ targets: { submit: view! } });
     // @ts-expect-error JS getter paths are unsupported
     IOS.ui.find([root => root]);
-    // @ts-expect-error state getters are synchronous
     Probe.evidence.withStateEvidence(() => 1, 'Read', { value: async () => 1 });
   `);
 });

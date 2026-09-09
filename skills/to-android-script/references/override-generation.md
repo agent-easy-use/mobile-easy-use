@@ -24,6 +24,10 @@ Resolve every class, method, and overload from source. `argumentTypes` is option
 
 `withReturn` is required. It may be a fixed replacement value or a synchronous function of `{ receiver, args, argumentTypes }` that returns the replacement value. A matching invocation skips the original method. A throwing `withReturn` function is isolated by the SDK and falls back to one original call. Do not return a Promise.
 
+## Temporarily assign fields
+
+A field definition is `{ target: instance, field: 'enabled', withValue: true }` and may be mixed with method definitions. Use an instance wrapper for instance fields, or a class name/wrapper for static fields. Use stable configuration or flow-control fields: the value is written once before action and restored afterward, overwriting any intervening App changes. Avoid fields the App changes during action, and do not overlap operations on the same field. Only use fields that permit access from the runtime thread.
+
 ## Scope the scenario
 
 ```javascript

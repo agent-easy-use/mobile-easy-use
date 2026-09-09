@@ -20,9 +20,6 @@ export declare function probeCaptureUnsupportedABI(): Promise<ChainEvidenceProbe
 /** Each independent option, empty/disabled capture, and immutable JSON snapshots. */
 export declare function probeCaptureOptions(): Promise<ChainEvidenceProbeResult>;
 
-/** Reject invalid JSON values independently at enter and leave, preserving business behavior. */
-export declare function probeCaptureInvalidValues(): Promise<ChainEvidenceProbeResult>;
-
 /** Invalid configuration must reject before action execution and release earlier hooks. */
 export declare function probeCaptureConfigMatrix(): Promise<ChainEvidenceProbeResult>;
 
@@ -49,3 +46,12 @@ export declare function probeCaptureStackConfig(): Promise<ChainEvidenceProbeRes
 
 /** Nested stacks, filtering and asynchronous cleanup. */
 export declare function probeCaptureStackLifecycle(): Promise<ChainEvidenceProbeResult>;
+
+/** Exact instance selector/receiver matching on deliberately shared native IMPs. */
+export declare function probeInstanceMethodMatching(): Promise<ChainEvidenceProbeResult>;
+/** Exact class selector/receiver matching on deliberately shared native IMPs. */
+export declare function probeClassMethodMatching(): Promise<ChainEvidenceProbeResult>;
+
+/** Inherited child target includes descendants and excludes its parent sharing the IMP. */
+export declare function probeChildInstanceMethodMatching(): Promise<ChainEvidenceProbeResult>;
+export declare function probeChildClassMethodMatching(): Promise<ChainEvidenceProbeResult>;

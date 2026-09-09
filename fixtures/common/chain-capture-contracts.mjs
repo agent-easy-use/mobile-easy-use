@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 /** Host-side oracle shared by ApiDemo tests, never loaded into either app. */
 export function verifyCompleteCapture(platform, contract, document) {
   const name = contract.replace(/^chain-complete-/, '').replace(/-v1$/, '');
-  const counts = {static: 1, options: 7, 'invalid-values': 7, config: 1, async: 3, 'filter-errors': 1,
+  const counts = {overloads: 2, static: 1, options: 7, config: 1, async: 3, 'filter-errors': 1,
     concurrent: 2, scalars: platform === 'ios' ? 6 : 5, success: 1, recursive: 3, errors: 1, abi: 2};
   assert.ok(Object.hasOwn(counts, name), `known complete contract: ${contract}`);
   assert.equal(document.actionDescription, contract);
@@ -38,15 +38,20 @@ export function verifyCompleteCapture(platform, contract, document) {
       assert.ok(Number.isSafeInteger(v.after) && v.after >= 0); assert.equal(v.delta, v.after - v.before);
     }
   };
-  const expectCaptureErrors = ['invalid-values', 'errors', 'abi'].includes(name);
+  const expectCaptureErrors = ['errors', 'abi'].includes(name);
   if (!expectCaptureErrors) for (const e of events) assert.equal(e.capture?.captureErrors, undefined, 'no unexpected capture errors');
   if (!['recursive', 'concurrent'].includes(name)) {
     assert.equal(events.map(e => e.phase).join(','), Array(counts[name]).fill('enter,leave').join(','));
     starts.forEach((e, i) => assert.equal(method(e), method(ends[i])));
   }
-  if (name === 'static') {
+  if (name === 'overloads') {
+    assert.equal(platform, 'android');
+    assert.ok(events.every(e => e.method === 'overloaded' && !Object.hasOwn(e, 'capture')));
+    assert.deepEqual(events.map(e => e.argumentTypes), [['int'], ['int'], ['java.lang.String'], ['java.lang.String']]);
+  } else if (name === 'static') {
     assert.equal(method(starts[0]), 'staticValue');
     if (platform === 'ios') assert.ok(events.every(e => e.selector === '+ staticValue'));
+    else assert.deepEqual(events.map(e => e.argumentTypes), [[], []]);
     assert.deepEqual(starts[0].capture.args, {count: 0});
     assert.equal(ends[0].capture.result, 'static-original'); timing(ends[0]);
   } else if (name === 'options') {
@@ -56,7 +61,7 @@ export function verifyCompleteCapture(platform, contract, document) {
     assert.equal(starts[4].capture, undefined); assert.deepEqual(ends[4].capture, {result: false});
     assert.equal(starts[5].capture, undefined); timing(ends[5]); assert.deepEqual(Object.keys(ends[5].capture), ['elapsedMs']);
     assert.equal(starts[6].capture, undefined); memory(ends[6], [metrics[0]]); assert.deepEqual(Object.keys(ends[6].capture), ['memory']);
-  } else if (['invalid-values', 'errors', 'abi'].includes(name)) {
+  } else if (['errors', 'abi'].includes(name)) {
     starts.forEach(e => { assert.equal(e.capture.captureErrors.length, 1); assert.ok(!Object.hasOwn(e.capture, 'args')); });
     ends.forEach(e => { assert.equal(e.capture.captureErrors.length, 1); assert.ok(!Object.hasOwn(e.capture, 'result')); timing(e); });
     if (name === 'errors') { memory(ends[0]); assert.match(starts[0].capture.captureErrors[0].message, /ARGS_CAPTURE_ERROR/); assert.match(ends[0].capture.captureErrors[0].message, /RESULT_CAPTURE_ERROR/); }
@@ -90,6 +95,11 @@ export function verifyCompleteCapture(platform, contract, document) {
     ] : [['booleanValue', false, false], ['wideValue', '-9223372036854775808', '-9223372036854775808'],
       ['nullable', null, null], ['consume', null, null], ['overloaded', 7, 'int:7']];
     assert.deepEqual(starts.map((e,i) => [method(e), e.capture.args, ends[i].capture.result]), expected);
+    if (platform === 'android') {
+      const signatures = [['boolean'], ['long'], ['java.lang.String'], ['java.lang.String'], ['int']];
+      assert.deepEqual(starts.map(e => e.argumentTypes), signatures);
+      assert.deepEqual(ends.map(e => e.argumentTypes), signatures);
+    }
   }
   return {contract, methodRecords: events.length, cases: counts[name]};
 }

@@ -23,6 +23,10 @@ Resolve the runtime class and selector from source or runtime inspection. Every 
 
 `withReturn` is required. It may be a fixed Objective-C ABI-compatible replacement value or a synchronous function of the invocation that returns one. A matching invocation skips the original implementation. A throwing `withReturn` function is isolated by the SDK and falls back to one original call. Do not return a Promise.
 
+## Temporarily assign fields
+
+A field definition is `{ target: instance, field: '_enabled', withValue: true }` and may be mixed with method definitions. Use an Objective-C instance and an exact ivar name. Values are native scalars, prepared Objective-C objects (for example NSString), or null; property accessors and pure Swift fields are not supported. Use stable configuration or flow-control fields: the value is written once before action and restored afterward, overwriting any intervening App changes. Avoid fields the App changes during action, and do not overlap operations on the same field. Only use fields that permit access from the runtime thread.
+
 ## Scope the scenario
 
 ```javascript
@@ -35,6 +39,6 @@ return Override.run(definitions, async () => {
 });
 ```
 
-`Override.run` installs all definitions before calling the action, rolls back partial installation failure, keeps them active until a returned Promise settles, and restores original IMPs in reverse order before returning or rethrowing. Return or await every asynchronous operation that depends on the Override.
+`Override.run` installs all definitions before calling the action, rolls back partial installation failure, keeps them active until a returned Promise settles, and restores methods and fields in reverse order before returning or rethrowing. Return or await every asynchronous operation that depends on the Override.
 
 Prefer the narrowest App-owned dependency boundary. Do not override the business decision or UIKit result being tested. Runtime Override cannot affect values already consumed during process startup or cached before installation; report that limitation instead of generating an ineffective replacement.

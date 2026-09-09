@@ -38,3 +38,27 @@ export async function probeVisibilityUiEvidence() {
     return { passed: result.ok === true && visible, api: 'Probe.evidence.withUiEvidence', evidenceContract: 'ui-visibility-v4', result, oracle: { visible } };
   });
 }
+
+/** Compose UI screenshots with a generated getter for the requested native text property. */
+export async function probeUiStateEvidence() {
+  return navigate(async () => {
+    const actionDescription = 'ui-state-v1';
+    const target = 'api.probe.ui.hidden';
+    const readText = () => IOS.runOnMainThread(() => String(IOS.ui.find(target).text()));
+    let actions = 0;
+    const result = await Probe.evidence.withUiEvidence(() => Probe.evidence.withStateEvidence(
+      async () => {
+        actions++;
+        await IOS.runOnMainThread(() => {
+          const view = IOS.ui.find(target);
+          view.setText_('UPDATED_LABEL');
+          view.setHidden_(false);
+        });
+        return 'action-result';
+      }, actionDescription, {'label.text': readText}), actionDescription, {label: target});
+    const text = await readText();
+    return {passed: result === 'action-result' && actions === 1 && text === 'UPDATED_LABEL',
+      api: 'Probe.evidence.withUiEvidence + withStateEvidence', evidenceContract: 'ui-state-v1',
+      result, oracle: {actions, text}};
+  });
+}

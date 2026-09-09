@@ -14,6 +14,7 @@ Relevant section example:
       "type": "method",
       "className": "com.example.SearchService",
       "method": "submitQuery",
+      "argumentTypes": ["java.lang.String"],
       "phase": "enter",
       "capture": { "args": { "query": "shoes" } }
     },
@@ -27,6 +28,7 @@ Relevant section example:
       "type": "method",
       "className": "com.example.SearchService",
       "method": "submitQuery",
+      "argumentTypes": ["java.lang.String"],
       "phase": "leave",
       "capture": {
         "result": { "accepted": true },

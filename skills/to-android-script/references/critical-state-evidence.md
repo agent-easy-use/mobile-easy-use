@@ -4,10 +4,11 @@ Use this evidence to compare requested runtime values immediately before and aft
 
 ## Generate getters
 
-Generate one read-only getter per state. Use a source-qualified variable or state path as the map key. A getter may return a primitive or a small JSON-compatible snapshot.
+Generate one read-only getter per state. Use a source-qualified variable or state path as the map key. A getter may return JSON or a Promise of JSON. Use `AndroidExp.runOnMainThread` inside a getter when its source requires the main thread.
 
 ```javascript
 const stateGetters = {
+  'SearchModel#query': () => AndroidExp.runOnMainThread(() => readCurrentQuery()),
   'com.example.feature.FeatureManager#requestCount': () => {
     const manager = getFeatureManager();
     const count = manager.getRequestCount();
@@ -42,6 +43,8 @@ return Probe.evidence.withStateEvidence(
 );
 ```
 
-The wrapper reads every getter before the action and again after a synchronous return, throw, or returned Promise settles. It does not capture intermediate transitions and preserves the action result or error.
+The wrapper awaits getters sequentially before the action and again after a synchronous return, throw, or returned Promise settles. It does not capture intermediate transitions and preserves the action result or error.
 
 State evidence does not require chain hooks. A getter failure must not change App behavior or replace the action error.
+
+Keep getters read-only and bound external waits. Results are serialized as JSON; read related fields together when consistency matters. Getter failures omit the checkpoint value and record `errors.before` or `errors.after`.

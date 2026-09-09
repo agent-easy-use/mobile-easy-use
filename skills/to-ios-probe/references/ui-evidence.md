@@ -2,7 +2,7 @@
 
 ## Format
 
-The top-level `actionDescription` identifies the action. `ui` maps each `uiKey` to `{ className, before, after, changed }`. Each checkpoint contains `exist`, `visible`, `bounds`, `properties`, and `screenshots.window` and `screenshots.element`. Properties may include `identifier`, `label`, `value`, and `userInteractionEnabled`; bounds use absolute screen coordinates.
+The top-level `actionDescription` identifies the action. `ui` maps each `uiKey` to `{ className, before, after }`. Each checkpoint contains `exist`, `visible`, `bounds`, `properties`, and `screenshots.window` and `screenshots.element`. Properties may include `identifier`, `label`, `value`, and `userInteractionEnabled`; bounds use absolute screen coordinates.
 
 Relevant section example:
 
@@ -25,8 +25,7 @@ Relevant section example:
         "bounds": { "x": 20, "y": 100, "width": 322, "height": 52 },
         "properties": { "identifier": "result_label", "label": "Result" },
         "screenshots": { "window": ".evidence/after.jpg", "element": ".evidence/resultLabel-after.jpg" }
-      },
-      "changed": true
+      }
     }
   }
 }

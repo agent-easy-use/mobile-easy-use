@@ -45,10 +45,20 @@ function installMethodHook(definition, actionDescription) {
       this.mobileEasyUseMatched = true;
       let receiver = null;
       try {
+        if (ObjC.selectorAsString(args[1]) !== methodName.slice(2)) {
+          this.mobileEasyUseMatched = false;
+          return;
+        }
         receiver = new ObjC.Object(args[0]);
-        if (methodName.startsWith('- ')
-          && typeof receiver.isKindOfClass_ === 'function'
-          && !Boolean(receiver.isKindOfClass_(targetClass))) {
+        const instanceMethod = methodName.startsWith('- ');
+        let receiverClass = instanceMethod
+          ? (receiver.$kind === 'instance' ? receiver.$class : null)
+          : (receiver.$kind === 'class' ? receiver : null);
+        while (receiverClass !== null && !receiverClass.equals(targetClass)) {
+          receiverClass = receiverClass.$superClass;
+        }
+        const matchesReceiver = receiverClass !== null;
+        if (!matchesReceiver) {
           this.mobileEasyUseMatched = false;
           return;
         }
@@ -70,7 +80,7 @@ function installMethodHook(definition, actionDescription) {
         threadName: currentThreadName(),
         type: 'method',
         actionDescription,
-        className: receiver?.$className ?? className,
+        className,
         selector: methodName,
         phase: 'enter',
         ...(evidenceCapture === undefined ? {} : { capture: evidenceCapture }),

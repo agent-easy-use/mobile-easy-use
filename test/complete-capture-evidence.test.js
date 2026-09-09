@@ -34,3 +34,24 @@ for (const platform of ['android', 'ios']) {
     }
   });
 }
+
+for (const name of ['static', 'overloads', 'scalars']) {
+  test(`Android ${name} oracle requires actual signatures on both phases`, () => {
+    const cases = name === 'static' ? [['staticValue', [], {count: 0}, 'static-original']]
+      : name === 'overloads' ? [['overloaded', ['int']], ['overloaded', ['java.lang.String']]]
+      : [['booleanValue', ['boolean'], false, false], ['wideValue', ['long'], '-9223372036854775808', '-9223372036854775808'],
+        ['nullable', ['java.lang.String'], null, null], ['consume', ['java.lang.String'], null, null], ['overloaded', ['int'], 7, 'int:7']];
+    const contract = `chain-complete-${name}-v1`;
+    const document = {actionDescription: contract, state: {}, ui: {}, chain: cases.flatMap(([method, argumentTypes, args, result]) =>
+      ['enter', 'leave'].map(phase => ({type: 'method', method, argumentTypes, phase,
+        className: `com.agenteasyuse.mobileeasyuse.apidemo.state.${name === 'static' ? 'SdkFixtureState' : 'ChainCaptureFixture'}`,
+        ...(name === 'overloads' ? {} : {capture: phase === 'enter' ? {args} : {result, ...(name === 'static' ? {elapsedMs: 0} : {})}}),
+      }))) };
+    assert.equal(verifyCompleteCapture('android', contract, document).contract, contract);
+    for (const mutate of [d => {delete d.chain[0].argumentTypes;},
+      d => {delete d.chain.at(-1).argumentTypes;}, d => {d.chain.at(-1).argumentTypes = ['wrong.Type'];}]) {
+      const bad = structuredClone(document); mutate(bad);
+      assert.throws(() => verifyCompleteCapture('android', contract, bad));
+    }
+  });
+}

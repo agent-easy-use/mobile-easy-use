@@ -14,13 +14,13 @@ function document(contract, endings) {
       end.capture.captureErrors=end.capture.captureErrors.filter(error => error.field !== 'args');
     }
     return [
-    {type:'method', className:'com.agenteasyuse.mobileeasyuse.apidemo.state.ChainCaptureFixture', method:end.method, phase:'enter', ...(Object.keys(entryCapture).length ? {capture:entryCapture} : {})},
+    {type:'method', className:'com.agenteasyuse.mobileeasyuse.apidemo.state.ChainCaptureFixture', method:end.method, argumentTypes:end.argumentTypes, phase:'enter', ...(Object.keys(entryCapture).length ? {capture:entryCapture} : {})},
     {type:'method', className:'com.agenteasyuse.mobileeasyuse.apidemo.state.ChainCaptureFixture', phase:'leave', ...end},
   ]; })};
 }
 const cases = [
   ['success', [{method:'work', capture:{args:{key:'success',bytes:262144,delayMs:15}, result:{value:'success:262144'},elapsedMs:15,memory:metrics()}}]],
-  ['throw', [{method:'fail',phase:'throw',error:'CHAIN_CAPTURE_FAILURE:expected',capture:{args:{key:'expected'},elapsedMs:0.0001,memory:metrics()}}]],
+  ['throw', [{method:'fail',argumentTypes:['java.lang.String'],phase:'throw',error:'CHAIN_CAPTURE_FAILURE:expected',capture:{args:{key:'expected'},elapsedMs:0.0001,memory:metrics()}}]],
   ['filter', [{method:'work',capture:{args:{key:'keep'},result:'keep:0'}},{method:'plain'}]],
   ['recursive', [0,1,2].map(depth => ({method:'recursive',capture:{args:{depth},result:depth+1,elapsedMs:depth+1}}))],
   ['errors', [{method:'work',capture:{elapsedMs:0.001,memory:metrics(),captureErrors:[{field:'args',message:'ARGS_CAPTURE_ERROR'},{field:'result',message:'RESULT_CAPTURE_ERROR'}]}}]],
