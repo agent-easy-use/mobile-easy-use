@@ -83,3 +83,5 @@ for the manifest oracle.
 Host state tests additionally use manually settled Promises to verify pending before/after barriers,
 delayed rejection recovery, and the complete set of getter error records on both platforms.
 UI visibility probes verify before/after snapshots and checkpoint screenshots; UI entries must omit `changed`.
+
+See [Override ApiDemo coverage](override-coverage.md) for the dual-platform method and field test matrix.

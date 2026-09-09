@@ -13,3 +13,11 @@ export declare function probeExactOverload(): Promise<OverrideProbeResult>;
 export declare function probeFilteredOverride(): Promise<OverrideProbeResult>;
 /** Keep an override through Promise settlement and verify cleanup afterward. */
 export declare function probeAsyncCleanup(): Promise<OverrideProbeResult>;
+
+/** Assign scalar and object fields, then verify native values and restored reference identity. */
+export declare function probeFieldValues(): Promise<OverrideProbeResult>;
+/** Verify field cleanup on action failure and partial installation rollback. */
+export declare function probeFieldFailures(): Promise<OverrideProbeResult>;
+
+/** Check null values, per-instance assignment and repeated static restoration. */
+export declare function probeFieldIsolation(): Promise<OverrideProbeResult>;

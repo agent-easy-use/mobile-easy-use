@@ -167,10 +167,36 @@ declare global {
     withReturn: TValue | ((invocation: IOSOverrideInvocation) => TValue);
   }
 
+  type IOSOverrideFieldValue = boolean | number | Int64 | UInt64 | ObjCBridge.Object | null;
+
+  /**
+   * Write once before action and restore the original value afterward; App writes are not blocked.
+   * Use stable configuration or flow-control fields. Avoid fields the App changes during action:
+   * restoration overwrites those changes. Do not overlap operations on the same field.
+   * Replacement objects are held through action. Originals preserve strong/weak ownership;
+   * an original weak object released during action is restored as nil. Unknown/unretained ownership is unsupported.
+   * Object ivars require the runtime ownership SPI; unavailable runtimes fail before action.
+   * Field access uses the runtime thread; fields requiring a specific App thread are unsupported.
+   */
+  interface IOSOverrideFieldDefinition {
+    /** Objective-C instance; boolean, numeric and managed object ivars. No properties, blocks or pure Swift fields. */
+    target: ObjCBridge.Object;
+    /** Exact runtime ivar name. */
+    field: string;
+    /** Native-compatible fixed value. Construct NSString/NSNumber explicitly; no automatic object wrapping. */
+    withValue: IOSOverrideFieldValue;
+  }
+
   interface IOSOverrideApi {
-    /** Install method overrides for the action and restore them after its return or Promise settlement. */
+    /**
+     * Install methods or write fields before action; restore in reverse order after return, throw or Promise settlement.
+     * Installation failure rolls back earlier definitions without running action.
+     * @param definitions Method and field definitions, optionally mixed.
+     * @param action Trigger and required completion wait; return or await all dependent asynchronous work.
+     * @returns The action result or Promise, preserving its outcome.
+     */
     run<TResult, TValue extends IOSOverrideReturnValue = IOSOverrideReturnValue>(
-      definitions: readonly IOSOverrideDefinition<TValue>[],
+      definitions: readonly (IOSOverrideDefinition<TValue> | IOSOverrideFieldDefinition)[],
       action: () => TResult,
     ): TResult extends Promise<infer TResolved> ? Promise<TResolved> : TResult;
   }

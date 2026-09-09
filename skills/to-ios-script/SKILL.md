@@ -1,6 +1,6 @@
 ---
 name: to-ios-script
-description: Generate iOS mobile-easy-use runtime code as either a temporary inline async IIFE or a reusable ES module with matching TypeScript declarations. Use for runtime discovery, UIKit inspection, instrumentation, App driving, temporary Objective-C return overrides, scoped evidence, or other bounded Frida work; prefer Inline for small one-off exploration and Module for larger or relatively stable work.
+description: Generate iOS mobile-easy-use runtime code as either a temporary inline async IIFE or a reusable ES module with matching TypeScript declarations. Use for runtime discovery, UIKit inspection, instrumentation, App driving, temporary Objective-C method or field overrides, scoped evidence, or other bounded Frida work; prefer Inline for small one-off exploration and Module for larger or relatively stable work.
 ---
 
 # To iOS Script
@@ -143,7 +143,7 @@ The SDK provides these globals:
 
 1. `ObjC`: native Frida Objective-C bridge for Objective-C Runtime-visible App, framework, and third-party APIs.
 2. `IOS`: reusable main-queue dispatch, UIKit query, input, and wait extensions.
-3. `Override`: action-scoped Objective-C method return substitution.
+3. `Override`: action-scoped Objective-C method return substitution and temporary field assignment.
 4. `Probe.evidence`: action-scoped Objective-C chain, state, and UIKit UI evidence.
 
 Follow native Frida semantics. Do not claim access to pure Swift ABI symbols through `ObjC.classes`. Prefer encapsulated SDK capabilities when they preserve the requested semantics. Treat repeated iOS App-specific patterns as candidates for an explicitly iOS-compatible preset workflow, and repeated cross-App patterns as SDK extension candidates.

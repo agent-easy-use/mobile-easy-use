@@ -1,6 +1,7 @@
 import ObjC from 'frida-objc-bridge';
 import { errorMessage, safeConsole, safeEmit } from '../common/reporting.js';
 import { requireObjCRuntime } from '../common/main-thread.js';
+import { installField } from './fields.js';
 
 function requireMethodName(selector) {
   if (typeof selector !== 'string' || !/^[-+] \S/.test(selector)) {
@@ -26,6 +27,7 @@ function nativeReturnValue(value) {
 
 function installDefinition(definition) {
   requireObjCRuntime();
+  if (definition && Object.hasOwn(definition, 'field')) return installField(definition);
   const target = definition?.target;
   const className = typeof target === 'string' ? target : target?.$className;
   const targetClass = typeof target === 'string' ? ObjC.classes[target] : target;

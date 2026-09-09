@@ -222,3 +222,94 @@ export async function probeAsyncCleanup() {
     };
   });
 }
+
+/** Native fields: scalars, static fields, strings, objects, arrays and asynchronous restoration. */
+export async function probeFieldValues() {
+  return withScenarioNavigation(navigation('async_cleanup'), async () => {
+    const name = 'com.agenteasyuse.mobileeasyuse.apidemo.state.OverrideFieldsFixture';
+    let state, definitions;
+    Java.performNow(() => {
+      state = Java.use(name).$new();
+      const object = Java.use('java.lang.Object').$new();
+      definitions = [{target: name, field: 'staticEnabled', withValue: true},
+        {target: Java.use(name), field: 'staticRegion', withValue: 'JP'},
+        ...Object.entries({enabled: true, variant: 3, limit: 4, mode: 3,
+          wide: int64('9007199254740993'), ratio: 0.75, threshold: 0.5, marker: 'B',
+          region: 'JP', inheritedRegion: 'JP', policy: object, numbers: Java.array('int', [8, 9]),
+          regions: Java.array('java.lang.String', ['JP']), optional: object, _collision: 9,
+        }).map(([field, withValue]) => ({target: state, field, withValue}))];
+    });
+    let inside, appWrite;
+    const result = await Override.run(definitions, async () => {
+      await Promise.resolve();
+      Java.performNow(() => { inside = state.overridden(); state.mutate(); appWrite = state.mode.value === 99; });
+      return 'done';
+    });
+    let restored;
+    Java.performNow(() => { restored = state.restored(); state.$dispose(); });
+    return {passed: inside && appWrite && restored && result === 'done', api: 'Override.run(fields)',
+      result, oracle: {inside, appWrite, restored}};
+  });
+}
+
+/** Field restoration on synchronous/async failures and mixed definition rollback. */
+export async function probeFieldFailures() {
+  return withScenarioNavigation(navigation('async_cleanup'), async () => {
+    let state;
+    Java.performNow(() => { state = Java.use('com.agenteasyuse.mobileeasyuse.apidemo.state.OverrideFieldsFixture').$new(); });
+    const defs = [{target: state, field: 'mode', withValue: 3}, {target: state, field: 'region', withValue: 'JP'}];
+    const failure = new Error('expected-field-action-error');
+    let caught = 0, actionCalls = 0;
+    const checkpoints = [];
+    const checkpoint = () => { let ok; Java.performNow(() => { ok = state.restored(); }); checkpoints.push(ok); };
+    try { Override.run(defs, () => { actionCalls++; throw failure; }); } catch (e) { if (e === failure) caught++; }
+    checkpoint();
+    try { await Override.run(defs, async () => { actionCalls++; throw failure; }); } catch (e) { if (e === failure) caught++; }
+    checkpoint();
+    for (const extra of [{target: state, field: 'missing', withValue: 1},
+      {target: state, field: 'mode'},
+      {target: 'com.agenteasyuse.mobileeasyuse.apidemo.state.OverrideFieldsFixture', field: 'mode', withValue: 1},
+      {target: state, field: 'enabled', withValue: 'not-a-boolean'},
+      {target: state, field: 'mode', withValue: 1, withReturn: 2}]) {
+      try { Override.run([...defs, extra], () => { actionCalls++; }); } catch (_) { caught++; }
+      checkpoint();
+    }
+    let restored, mixed;
+    Java.performNow(() => {
+      mixed = Override.run([{target: state, method: 'collision', withReturn: 99}, ...defs],
+        () => state.collision() === 99 && state.mode.value === 3);
+      restored = state.restored() && state.collision() === 1;
+      state.$dispose();
+    });
+    return {passed: caught === 7 && actionCalls === 2 && restored && mixed && checkpoints.every(Boolean),
+      api: 'Override.run(field failures)', result: {caught, actionCalls}, oracle: {restored, mixed, checkpoints}};
+  });
+}
+
+
+
+
+
+/** Null references and per-instance field scope, including static restoration between scopes. */
+export async function probeFieldIsolation() {
+  return withScenarioNavigation(navigation('async_cleanup'), () => {
+    let result;
+    Java.performNow(() => {
+      const Class = Java.use('com.agenteasyuse.mobileeasyuse.apidemo.state.OverrideFieldsFixture');
+      const target = Class.$new(), other = Class.$new();
+      try {
+        const fields = ['region', 'policy', 'numbers', 'regions'];
+        const checks = [];
+        for (let repeat = 0; repeat < 2; repeat++) {
+          const inside = Override.run([...fields.map(field => ({target, field, withValue: null})),
+            {target, field: 'mode', withValue: 8}, {target: Class, field: 'staticRegion', withValue: null}], () =>
+            fields.every(field => target[field].value === null) && target.mode.value === 8
+            && other.mode.value === 2 && other.region.value === 'original-region' && Class.staticRegion.value === null);
+          checks.push({name: `scope-${repeat}`, passed: inside && target.restored() && other.restored()});
+        }
+        result = {passed: checks.every(x => x.passed), api: 'Override.run(field isolation)', result: checks, oracle: {cases: checks.length}};
+      } finally { target.$dispose(); other.$dispose(); }
+    });
+    return result;
+  });
+}

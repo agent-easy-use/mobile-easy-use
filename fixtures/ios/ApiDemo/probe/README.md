@@ -63,3 +63,10 @@ for exact assertions and platform-specific method-matching probes.
 
 `evidence/ui/probeUiStateEvidence` reads the requested native label text through a main-thread state getter
 and aggregates it with UI screenshots for the same action (`ui-state-v1`); it does not add SDK UI properties.
+
+`override/probeFieldValues` verifies temporary scalar/object assignment and restored native reference identity.
+`override/probeFieldFailures` covers action errors, rejected values, partial installation rollback, and mixed method/field scopes.
+`override/probeFieldObjectLifetime` additionally verifies native object lifetime and cleanup across an asynchronous action.
+
+See the [Override coverage matrix](../../../common/override-coverage.md) for field types,
+object lifetimes, failure cleanup, and per-case native assertions.

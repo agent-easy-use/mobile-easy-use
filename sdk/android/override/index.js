@@ -1,5 +1,6 @@
 import Java from 'frida-java-bridge';
 import { errorMessage, safeConsole, safeEmit } from '../common/reporting.js';
+import { installField } from './fields.js';
 
 function methodName(targetClass, method, overload) {
   const className = targetClass?.$className;
@@ -23,6 +24,10 @@ function installDefinition(definition) {
     const target = definition?.target;
     const method = definition?.method;
     const targetClass = typeof target === 'string' ? Java.use(target) : target;
+    if (definition && Object.hasOwn(definition, 'field')) {
+      uninstall = installField(definition, targetClass);
+      return;
+    }
     const methodWrapper = targetClass?.[method];
     if (!targetClass?.$className || typeof method !== 'string' || method.length === 0
       || !methodWrapper || !Array.isArray(methodWrapper.overloads)) {

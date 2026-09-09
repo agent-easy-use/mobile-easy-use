@@ -337,10 +337,33 @@ declare global {
     withReturn: TValue | ((invocation: AndroidOverrideInvocation) => TValue);
   }
 
+  type AndroidOverrideFieldValue = boolean | number | string | Int64 | Java.Wrapper | unknown[] | null;
+
+  /**
+   * Write once before action and restore the original value afterward; App writes are not blocked.
+   * Use stable configuration or flow-control fields. Avoid fields the App changes during action:
+   * restoration overwrites those changes. Do not overlap operations on the same field.
+   * Field access uses the runtime thread; fields requiring a specific App thread are unsupported.
+   */
+  interface AndroidOverrideFieldDefinition {
+    /** Instance wrapper for instance fields; class name or wrapper for static fields. */
+    target: string | Java.Wrapper;
+    /** Exact Frida field name (use _name for a method-name collision). */
+    field: string;
+    /** Native-compatible fixed value; use Int64 for large longs and Java.array() for native arrays. */
+    withValue: AndroidOverrideFieldValue;
+  }
+
   interface AndroidOverrideApi {
-    /** Install method overrides for the action and restore them after its return or Promise settlement. */
+    /**
+     * Install methods or write fields before action; restore in reverse order after return, throw or Promise settlement.
+     * Installation failure rolls back earlier definitions without running action.
+     * @param definitions Method and field definitions, optionally mixed.
+     * @param action Trigger and required completion wait; return or await all dependent asynchronous work.
+     * @returns The action result or Promise, preserving its outcome.
+     */
     run<TResult, TValue extends AndroidOverrideReturnValue = AndroidOverrideReturnValue>(
-      definitions: readonly AndroidOverrideDefinition<TValue>[],
+      definitions: readonly (AndroidOverrideDefinition<TValue> | AndroidOverrideFieldDefinition)[],
       action: () => TResult,
     ): TResult extends Promise<infer TResolved> ? Promise<TResolved> : TResult;
   }

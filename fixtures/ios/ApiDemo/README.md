@@ -5,7 +5,7 @@ It is not a product-flow sample and does not reuse HelloWorld state or screens.
 
 ## Coverage baseline
 
-The checked-in Module operations currently provide 49 actual-runtime probes:
+The checked-in Module operations currently provide 61 actual-runtime probes:
 
 | Capability | Operations |
 | --- | ---: |
@@ -13,8 +13,8 @@ The checked-in Module operations currently provide 49 actual-runtime probes:
 | `IOS.ui.find` | 4 |
 | `IOS.input` | 10 |
 | `IOS.wait` | 8 |
-| `Override.run` | 4 |
-| State / UI / Chain Evidence | 19 |
+| `Override.run` | 9 |
+| State / UI / Chain Evidence | 26 |
 | Window / Driver-failure screenshots | 2 |
 
 `evalScript`, preset loading, connection concurrency, and detach/reconnect are transport-level

@@ -1,6 +1,6 @@
 ---
 name: to-android-script
-description: Generate Android mobile-easy-use runtime code as either a temporary inline async IIFE or a reusable ES module with matching TypeScript declarations. Use for runtime discovery, inspection, instrumentation, App driving, temporary Java return overrides, scoped evidence, or other bounded Frida work; prefer Inline for small one-off exploration and Module for larger or relatively stable work.
+description: Generate Android mobile-easy-use runtime code as either a temporary inline async IIFE or a reusable ES module with matching TypeScript declarations. Use for runtime discovery, inspection, instrumentation, App driving, temporary Java method or field overrides, scoped evidence, or other bounded Frida work; prefer Inline for small one-off exploration and Module for larger or relatively stable work.
 ---
 
 # To Android Script
@@ -144,7 +144,7 @@ The SDK provides these globals:
 1. `Java`: native Frida Java bridge exposed as `globalThis.Java` for Android Framework, business, and third-party Java/Kotlin classes.
 2. `R`: dynamic Android application resources such as `R.id.search_button`.
 3. `AndroidExp`: reusable Android extensions for main-thread dispatch, window access, input, and waits.
-4. `Override`: action-scoped Java method return substitution.
+4. `Override`: action-scoped Java method return substitution and temporary field assignment.
 5. `Probe.evidence`: action-scoped critical-chain, state, and UI evidence.
 
 Follow native Frida semantics; use `Java.registerClass()` to implement Java interfaces. Prefer the encapsulated SDK capabilities when they preserve the requested semantics. Treat repeated, reusable missing capabilities, rather than one direct Frida use, as candidates for a preset or SDK extension.
