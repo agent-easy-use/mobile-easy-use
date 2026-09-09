@@ -234,6 +234,7 @@
 - (void)dropMockOwner { _mockOwner = nil; }
 - (void)dropOriginalOwner { _originalOwner = nil; }
 - (BOOL)weakHasOriginal { return _originalOwner != nil && _weakPolicy == _originalOwner; }
+- (BOOL)weakHasMock { return _mockWitness != nil && _weakPolicy == _mockWitness; }
 - (BOOL)mockAlive { return _mockWitness != nil; }
 - (BOOL)originalAlive { return _originalWitness != nil; }
 - (BOOL)weakEmpty { return _weakPolicy == nil; }

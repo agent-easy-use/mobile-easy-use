@@ -153,7 +153,9 @@ export async function probeFieldValues() {
     const result = await Override.run(definitions, async () => {
       await Promise.resolve();
       inside = !!state.scalarsOverridden() && String(state.region()) === 'JP'
-        && state.$ivars._policy.handle.equals(mock.handle) && Number(state.items().count()) === 1
+        && state.$ivars._policy.handle.equals(mock.handle) && state.$ivars._optional.handle.equals(mock.handle)
+        && state.items().handle.equals(items.handle) && Number(state.items().count()) === 1
+        && String(state.items().objectAtIndex_(0)) === 'JP'
         && String(state.inheritedText()) === 'JP';
       state.dropMockOwner(); state.setPolicy_(null); state.setOptional_(null); state.setMode_(99);
       appWrite = Number(state.mode()) === 99;
@@ -177,7 +179,7 @@ export async function probeFieldObjectLifetime() {
     await Override.run([{target: state, field: '_weakPolicy', withValue: mock}], async () => {
       state.dropMockOwner(); state.dropOriginalOwner();
       await Promise.resolve();
-      held = !!state.mockAlive(); expired = !state.originalAlive();
+      held = !!state.mockAlive() && !!state.weakHasMock(); expired = !state.originalAlive();
     });
     const cleared = state.weakPolicy() === null && !state.mockAlive();
     return {passed: held && expired && cleared, api: 'Override.run(object lifetime)',
@@ -200,15 +202,23 @@ export async function probeFieldFailures() {
     checkpoint();
     try { await Override.run(defs, async () => { actionCalls++; throw failure; }); } catch (e) { if (e === failure) caught++; }
     checkpoint();
-    for (const extra of [{target: state, field: '_missing', withValue: 1},
-      {target: state, field: '_mode'},
-      {target: ObjC.classes.APIOverrideFieldsFixture, field: '_mode', withValue: 1},
-      {target: state, field: '_unsafePolicy', withValue: mock},
-      {target: state, field: '_range', withValue: 1},
-      {target: state, field: '_callback', withValue: mock},
-      {target: state, field: '_policy', withValue: 'not-an-NSString'},
-      {target: state, field: '_mode', withValue: 1, selector: '- mode'}]) {
-      try { Override.run([...defs, extra], () => { actionCalls++; }); } catch (_) { caught++; }
+    const errors = [];
+    for (const [name, extra, expectedMessage] of [
+      ['missing-field', {target: state, field: '_missing', withValue: 1}, 'Objective-C ivar not found: _missing'],
+      ['missing-value', {target: state, field: '_mode'}, 'field requires an instance, field and withValue'],
+      ['instance-required', {target: ObjC.classes.APIOverrideFieldsFixture, field: '_mode', withValue: 1}, 'field requires an instance'],
+      ['unsafe-object', {target: state, field: '_unsafePolicy', withValue: mock}, 'object ivar ownership is unsupported'],
+      ['struct', {target: state, field: '_range', withValue: 1}, 'ivar type is unsupported'],
+      ['block', {target: state, field: '_callback', withValue: mock}, 'ivar type is unsupported'],
+      ['invalid-object', {target: state, field: '_policy', withValue: 'not-an-NSString'}, 'object ivar requires an Objective-C object or null'],
+      ['mixed-options', {target: state, field: '_mode', withValue: 1, selector: '- mode'}, 'without method options'],
+    ]) {
+      let message = '';
+      try { Override.run([...defs, extra], () => { actionCalls++; }); }
+      catch (error) { message = String(error.message); }
+      const passed = message.includes(expectedMessage);
+      if (passed) caught++;
+      errors.push({name, passed, message});
       checkpoint();
     }
     const mixed = Override.run([{target: 'APIOverrideFieldsFixture', selector: '- mode', withReturn: 99},
@@ -220,12 +230,84 @@ export async function probeFieldFailures() {
     state.dropMockOwner();
     const released = !state.mockAlive();
     return {passed: caught === 10 && actionCalls === 2 && mixed && restored && cleared && released && checkpoints.every(Boolean),
-      api: 'Override.run(field failures)', result: {caught, actionCalls}, oracle: {mixed, restored, cleared, released, checkpoints}};
+      api: 'Override.run(field failures)', result: {caught, actionCalls, errors}, oracle: {mixed, restored, cleared, released, checkpoints}};
   });
 }
 
 
+/** Successful replacement factories and callback fallback, checked against native call counts. */
+export async function probeMethodCallbacks() {
+  return navigate(async () => {
+    const state = ObjC.classes[FIXTURE_CLASS].sharedState();
+    const invoke = value => String(state.single_(value));
+    const replacement = ObjC.classes.NSString.stringWithString_('mock');
+    const cases = [
+      {name: 'null-result', options: {withReturn: ptr(0)}, expected: 'null', calls: 0},
+      {name: 'factory', options: {withReturn(invocation) {
+        if (String(new ObjC.Object(invocation.args[0])) !== 'inside') throw new Error('wrong argument');
+        if (invocation.receiver.$className !== FIXTURE_CLASS) throw new Error('wrong receiver');
+        return replacement;
+      }}, expected: 'mock', calls: 0},
+      {name: 'filter-false', options: {filter: () => false, withReturn: replacement}, expected: 'single:inside', calls: 1},
+      {name: 'filter-nonboolean', options: {filter: () => 1, withReturn: replacement}, expected: 'single:inside', calls: 1},
+      {name: 'filter-throws', options: {filter() {throw new Error('expected filter error');}, withReturn: replacement}, expected: 'single:inside', calls: 1},
+      {name: 'factory-throws', options: {withReturn() {throw new Error('expected factory error');}}, expected: 'single:inside', calls: 1},
+    ];
+    const checks = [];
+    for (const scenario of cases) {
+      const before = callCount(state, 'single:');
+      const inside = Override.run([{target: FIXTURE_CLASS, selector: '- single:', ...scenario.options}], () => invoke('inside'));
+      const calls = callCount(state, 'single:') - before;
+      const outside = invoke('outside');
+      checks.push({name: scenario.name, passed: inside === scenario.expected && calls === scenario.calls
+        && outside === 'single:outside' && callCount(state, 'single:') === before + calls + 1, inside, calls, outside});
+    }
+    return {passed: checks.every(x => x.passed), api: 'Override.run(callbacks)', result: checks, oracle: {cases: checks.length}};
+  });
+}
 
+/** Method restoration after action failures and rejected installation, verified after every case. */
+export async function probeMethodFailures() {
+  return navigate(async () => {
+    const state = ObjC.classes[FIXTURE_CLASS].sharedState();
+    const invoke = value => String(state.single_(value));
+    const definition = {target: FIXTURE_CLASS, selector: '- single:', withReturn: ObjC.classes.NSString.stringWithString_('mock')};
+    const expected = new Error('expected action error');
+    const checks = [];
+    for (const asynchronous of [false, true]) {
+      let caught = false, inside;
+      try {
+        await Override.run([definition], asynchronous
+          ? async () => { inside = invoke('inside'); await Promise.resolve(); throw expected; }
+          : () => { inside = invoke('inside'); throw expected; });
+      } catch (error) { caught = error === expected; }
+      checks.push({name: asynchronous ? 'rejection' : 'throw', passed: caught && inside === 'mock' && invoke('outside') === 'single:outside'});
+    }
+    const invalid = [
+      ['missing-class', {...definition, target: 'MissingOverrideFixture'}, 'Objective-C class not found'],
+      ['missing-method', {...definition, selector: '- missing'}, 'Objective-C method not found'],
+      ['missing-return', {target: FIXTURE_CLASS, selector: '- single:'}, 'withReturn is required'],
+      ['invalid-filter', {...definition, filter: true}, 'filter must be a function'],
+      ['selector-prefix', {...definition, selector: 'single:'}, 'selector must start with'],
+    ];
+    for (const [name, invalidDefinition, expectedMessage] of invalid) {
+      let message = '', called = false;
+      try { Override.run([invalidDefinition], () => { called = true; }); }
+      catch (error) { message = String(error.message); }
+      checks.push({name, message, passed: message.includes(expectedMessage) && !called && invoke('outside') === 'single:outside'});
+    }
+    let rollbackMessage = '', rollbackAction = false;
+    try { Override.run([definition, invalid[1][1]], () => { rollbackAction = true; }); }
+    catch (error) { rollbackMessage = String(error.message); }
+    checks.push({name: 'partial-install-rollback', message: rollbackMessage,
+      passed: rollbackMessage.includes(invalid[1][2]) && !rollbackAction && invoke('outside') === 'single:outside'});
+    let empty = false, badAction = false;
+    try { Override.run([], () => {}); } catch (error) { empty = /non-empty/.test(error.message); }
+    try { Override.run([definition], null); } catch (error) { badAction = /action must be a function/.test(error.message); }
+    checks.push({name: 'run-validation', passed: empty && badAction && invoke('outside') === 'single:outside'});
+    return {passed: checks.every(x => x.passed), api: 'Override.run(method failures)', result: checks, oracle: {cases: checks.length}};
+  });
+}
 
 /** Remaining numeric encodings, NSNumber/NSDictionary and instance isolation. */
 export async function probeFieldTypes() {
@@ -258,7 +340,7 @@ export async function probeFieldReferenceScopes() {
       const mock = state.makeMock(); mock.release();
       const inside = await Override.run([{target: state, field: '_weakPolicy', withValue: mock}], async () => {
         state.dropMockOwner(); await Promise.resolve();
-        return !!state.mockAlive() && !!state.originalAlive() && !state.weakHasOriginal();
+        return !!state.mockAlive() && !!state.originalAlive() && !!state.weakHasMock();
       });
       checks.push({name: `surviving-${repeat}`, passed: inside && !!state.weakHasOriginal() && !state.mockAlive()});
     }
@@ -267,7 +349,7 @@ export async function probeFieldReferenceScopes() {
     state.dropOriginalOwner();
     const mock = state.makeMock(); mock.release();
     const inside = Override.run([{target: state, field: '_weakPolicy', withValue: mock}], () => {
-      state.dropMockOwner(); return !!state.mockAlive() && !state.weakEmpty();
+      state.dropMockOwner(); return !!state.mockAlive() && !!state.weakHasMock();
     });
     checks.push({name: 'initially-null', passed: inside && !!state.weakEmpty() && !state.mockAlive()});
     return {passed: checks.every(x => x.passed), api: 'Override.run(reference scopes)', result: checks, oracle: {cases: checks.length}};

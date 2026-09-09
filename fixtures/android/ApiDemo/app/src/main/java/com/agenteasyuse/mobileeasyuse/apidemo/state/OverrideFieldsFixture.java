@@ -34,11 +34,12 @@ public class OverrideFieldsFixture extends OverrideFieldsBase {
     private final String[] originalRegions = regions;
 
     public int collision() { return collision; }
-    public boolean overridden() {
+    public boolean overridden(Object expectedPolicy, int[] expectedNumbers, String[] expectedRegions) {
         return staticEnabled && staticRegion.equals("JP") && inheritedRegion.equals("JP") && enabled && variant == 3 && limit == 4 && mode == 3
             && wide == 9007199254740993L && ratio == 0.75f && threshold == 0.5 && marker == 'B'
-            && region.equals("JP") && policy != originalPolicy && numbers[0] == 8
-            && regions[0].equals("JP") && optional != null && collision == 9;
+            && region.equals("JP") && policy == expectedPolicy && numbers == expectedNumbers
+            && numbers.length == 2 && numbers[0] == 8 && numbers[1] == 9
+            && regions == expectedRegions && regions.length == 1 && regions[0].equals("JP") && optional == expectedPolicy && collision == 9;
     }
     public boolean restored() {
         return !staticEnabled && staticRegion == originalStaticRegion && inheritedRestored() && !enabled && variant == 1 && limit == 2 && mode == 2

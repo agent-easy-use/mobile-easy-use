@@ -94,5 +94,5 @@ and aggregates it with UI screenshots for the same action (`ui-state-v1`); it do
 `override/probeFieldValues` verifies temporary scalar/object assignment and restored native reference identity.
 `override/probeFieldFailures` covers action errors, rejected values, partial installation rollback, and mixed method/field scopes.
 
-See the [Override coverage matrix](../../../common/override-coverage.md) for field types,
-object lifetimes, failure cleanup, and per-case native assertions.
+See the [Override coverage matrix](../../../common/override-coverage.md) for method callbacks,
+selection, failure cleanup, field types, object lifetimes, and per-case native assertions.

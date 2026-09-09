@@ -10,13 +10,16 @@ These probes execute native App methods and inspect native state, rather than me
 | Method selection | `probeExactOverload` | `probeClassOverride` | Exact Java overload leaves another overload original; Objective-C class method restores |
 | Filter | `probeFilteredOverride` | `probeFilteredOverride` | Matching argument replaced; unmatched argument calls original once |
 | Async scope | `probeAsyncCleanup` | `probeAsyncCleanup` | Replacement remains through Promise completion, then original restored |
-| Field values | `probeFieldValues` | `probeFieldValues` | Native scalar values and reference identity restored; static/inherited fields where supported; strings, arrays, objects, null; App writes remain possible; async return preserved |
-| Field failures | `probeFieldFailures` | `probeFieldFailures` | Action throw/rejection, unsupported definitions and partial rollback; immediate restoration checkpoint after each failure; mixed methods/fields restore |
+| Callback contract | `probeMethodCallbacks` | `probeMethodCallbacks` | Native null return; factory receives receiver/arguments; false, non-boolean and throwing filter fall back; throwing factory falls back exactly once; restoration after every case |
+| Method failures | `probeMethodFailures` | `probeMethodFailures` | Action throw/rejection preserves error; named invalid definitions check the expected error cause; separate partial-install rollback; invalid action/empty definitions rejected; restoration after every case; iOS requires selector prefix |
+| Java overload paths | `probeMethodSelection` | — | All three overloads replaced with actual signatures; ambiguous/invalid/conflicting selection rejected; partial conflict rollback preserves existing replacement; throwing original called once |
+| Field values | `probeFieldValues` | `probeFieldValues` | Exact mock object/array identity and full array contents; native scalar values and reference identity restored; static/inherited fields where supported; strings, arrays, objects, null; App writes remain possible; async return preserved |
+| Field failures | `probeFieldFailures` | `probeFieldFailures` | Action throw/rejection, unsupported definitions and partial rollback; expected error cause and immediate restoration checkpoint after each failure; mixed methods/fields restore |
 | Field isolation | `probeFieldIsolation` | `probeFieldTypes` | Assigning one instance leaves another unchanged; Android null references and repeated static scope; iOS additional integer widths, UInt64 maximum, float, NSNumber and NSDictionary |
-| Object lifetimes | — | `probeFieldObjectLifetime` | Native lifetime and cleanup across async action |
+| Object lifetimes | — | `probeFieldObjectLifetime` | Weak field points to the specified mock; native lifetime and cleanup across async action |
 | Reference scopes | — | `probeFieldReferenceScopes` | Surviving/empty references, null replacement and repeated scope cleanup |
 
-Totals: **7 Android exports, 9 iOS exports**. Each matrix probe contains several assertions.
+Totals: **10 Android exports, 11 iOS exports**. Each matrix probe contains several assertions.
 
 The fixture deliberately changes fields in selected actions to verify write-once behavior and unconditional
 restoration. Production probes should use stable configuration fields as described in the SDK declarations.

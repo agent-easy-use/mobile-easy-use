@@ -15,6 +15,10 @@ export declare function probeFieldFailures(): Promise<OverrideProbeResult>;
 /** Verify native object lifetimes across an asynchronous field scope. */
 export declare function probeFieldObjectLifetime(): Promise<OverrideProbeResult>;
 
+/** Check replacement factories, filters and exactly-once fallback using native call counters. */
+export declare function probeMethodCallbacks(): Promise<OverrideProbeResult>;
+/** Check method cleanup on throw/rejection and partial installation failures. */
+export declare function probeMethodFailures(): Promise<OverrideProbeResult>;
 /** Check integer widths, UInt64, float, Foundation object values and instance isolation. */
 export declare function probeFieldTypes(): Promise<OverrideProbeResult>;
 /** Check object reference restoration, null assignment and repeated scopes. */

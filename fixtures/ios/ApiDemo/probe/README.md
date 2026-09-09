@@ -68,5 +68,5 @@ and aggregates it with UI screenshots for the same action (`ui-state-v1`); it do
 `override/probeFieldFailures` covers action errors, rejected values, partial installation rollback, and mixed method/field scopes.
 `override/probeFieldObjectLifetime` additionally verifies native object lifetime and cleanup across an asynchronous action.
 
-See the [Override coverage matrix](../../../common/override-coverage.md) for field types,
-object lifetimes, failure cleanup, and per-case native assertions.
+See the [Override coverage matrix](../../../common/override-coverage.md) for method callbacks,
+selection, failure cleanup, field types, object lifetimes, and per-case native assertions.

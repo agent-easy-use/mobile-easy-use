@@ -87,6 +87,7 @@
 @property(nonatomic, copy) void (^callback)(void);
 - (id)makeMock NS_RETURNS_RETAINED;
 - (BOOL)weakHasOriginal;
+- (BOOL)weakHasMock;
 - (void)dropMockOwner;
 - (void)dropOriginalOwner;
 - (BOOL)mockAlive;
