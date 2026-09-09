@@ -250,25 +250,29 @@ if ! hardware_udid="$(
   exit 1
 fi
 
-if ! xcrun devicectl device info apps \
+if xcrun devicectl device info apps \
     --quiet \
     --device "${core_device_identifier}" \
     --bundle-id "${bundle_id}" \
     --timeout "${timeout_seconds}" \
     --json-output "${device_apps_json}" \
     --log-output "${device_apps_log}"; then
+  :
+else
   device_apps_status=$?
   echo "Could not resolve '${bundle_id}' on device '${device_name}'." >&2
   [[ -f "${device_apps_log}" ]] && cat "${device_apps_log}" >&2
   exit "${device_apps_status}"
 fi
 
-if ! xcrun devicectl device info processes \
+if xcrun devicectl device info processes \
     --quiet \
     --device "${core_device_identifier}" \
     --timeout "${timeout_seconds}" \
     --json-output "${device_process_snapshot_json}" \
     --log-output "${device_process_snapshot_log}"; then
+  :
+else
   device_process_snapshot_status=$?
   echo "Could not inspect running processes on device '${device_name}'." >&2
   [[ -f "${device_process_snapshot_log}" ]] && cat "${device_process_snapshot_log}" >&2
@@ -304,7 +308,7 @@ if [[ -n "${running_process}" ]]; then
   device_pid="$(printf '%s\n' "${running_process}" | sed -n '1p')"
   device_executable="$(printf '%s\n' "${running_process}" | sed -n '2p')"
 else
-  if ! xcrun devicectl device process launch \
+  if xcrun devicectl device process launch \
       --quiet \
       --device "${core_device_identifier}" \
       --no-activate \
@@ -313,6 +317,8 @@ else
       --json-output "${device_launch_json}" \
       --log-output "${device_launch_log}" \
       "${bundle_id}"; then
+    :
+  else
     device_launch_status=$?
     echo "Failed to launch '${bundle_id}' in a stopped state on device '${device_name}'." >&2
     [[ -f "${device_launch_log}" ]] && cat "${device_launch_log}" >&2
@@ -354,13 +360,15 @@ else
   exit "${device_ddi_status}"
 fi
 
-if ! xcrun devicectl device info processes \
+if xcrun devicectl device info processes \
     --quiet \
     --device "${core_device_identifier}" \
     --timeout "${timeout_seconds}" \
     --filter "processIdentifier == ${device_pid}" \
     --json-output "${device_process_json}" \
     --log-output "${device_process_log}"; then
+  :
+else
   device_process_status=$?
   echo "Could not verify device App process ${device_pid} before attaching LLDB." >&2
   [[ -f "${device_process_log}" ]] && cat "${device_process_log}" >&2
@@ -401,7 +409,7 @@ else
 fi
 
 if [[ "${wait_for_main}" == true ]]; then
-  if ! xcrun devicectl device process launch \
+  if xcrun devicectl device process launch \
       --quiet \
       --device "${core_device_identifier}" \
       --activate \
@@ -409,6 +417,8 @@ if [[ "${wait_for_main}" == true ]]; then
       --json-output "${device_activate_json}" \
       --log-output "${device_activate_log}" \
       "${bundle_id}"; then
+    :
+  else
     device_activate_status=$?
     echo "MobileEasyUse loaded, but '${bundle_id}' could not be activated." >&2
     [[ -f "${device_activate_log}" ]] && cat "${device_activate_log}" >&2
