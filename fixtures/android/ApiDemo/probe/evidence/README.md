@@ -30,7 +30,7 @@ Totals: 19 Android exports and 17 iOS exports. Matrix exports contain several as
 export counts are not assertion counts. For a cold-start run, start a fresh App process before each
 export and record its PID; assertions within that export share the same process.
 
-The shared host oracle `chain-capture-contracts.mjs` is test-only. It validates event ordering,
+The host oracle `chain-capture-contracts.mjs` is test-only. It validates event ordering,
 phase ownership, exact payloads, numeric fractional milliseconds, valid byte readings and exact
 deltas. Memory deltas may be zero or negative: they are process readings, not method allocations.
 

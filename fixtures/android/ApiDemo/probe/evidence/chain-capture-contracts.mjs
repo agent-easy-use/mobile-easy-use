@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 
-/** Host-side oracle shared by ApiDemo tests, never loaded into either app. */
+/** Host-side oracle for this ApiDemo, never loaded into the App. */
 export function verifyCompleteCapture(platform, contract, document) {
   const name = contract.replace(/^chain-complete-/, '').replace(/-v1$/, '');
   const counts = {overloads: 2, static: 1, options: 7, config: 1, async: 3, 'filter-errors': 1,

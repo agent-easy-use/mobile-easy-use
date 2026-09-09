@@ -43,7 +43,7 @@ Module operation returns; a probe cannot truthfully validate its own final MCP a
 Standalone screenshot probes instead validate `result.window` and `result.targets`; these paths point to JPEG
 files written by the Controller without adding a top-level `screenshots` field to Evidence JSON.
 
-See the [chain capture coverage matrix](../../../common/README.md) for the full set of platform exports,
+See the [chain capture coverage matrix](evidence/README.md) for the full set of platform exports,
 manifest assertions, and fault-injection boundaries.
 
 ## Thread names and entry stacks
@@ -58,7 +58,7 @@ stacks (default depth 5), depth validation, filtering, recursion and hook cleanu
 
 The state module exports `probeAsyncStateGetters`, `probeStateGetterErrors`, and
 `probeStateFailureIsolation`. Run each separately and verify its `state-runtime-*-v1` manifest.
-See the [runtime coverage matrix](../../../common/README.md#state-snapshots-and-method-matching)
+See the [runtime coverage matrix](evidence/README.md#state-snapshots-and-method-matching)
 for exact assertions and platform-specific method-matching probes.
 
 `evidence/ui/probeUiStateEvidence` reads the requested native label text through a main-thread state getter
@@ -68,5 +68,5 @@ and aggregates it with UI screenshots for the same action (`ui-state-v1`); it do
 `override/probeFieldFailures` covers action errors, rejected values, partial installation rollback, and mixed method/field scopes.
 `override/probeFieldObjectLifetime` additionally verifies native object lifetime and cleanup across an asynchronous action.
 
-See the [Override coverage matrix](../../../common/override-coverage.md) for method callbacks,
+See the [Override coverage matrix](evidence/override-coverage.md) for method callbacks,
 selection, failure cleanup, field types, object lifetimes, and per-case native assertions.

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {verifyUiState} from '../fixtures/common/ui-state-contract.mjs';
 
 for (const platform of ['android', 'ios']) {
+  const {verifyUiState} = await import(`../fixtures/${platform}/ApiDemo/probe/evidence/ui-state-contract.mjs`);
   test(`${platform}: composed UI/state oracle rejects missing, split or incorrect property evidence`, () => {
     const document = {actionDescription: 'ui-state-v1', chain: [], state: {
       'label.text': {path: 'label.text', before: platform === 'android' ? 'EVIDENCE_HIDDEN' : 'Probe UI hidden', after: 'UPDATED_LABEL'},

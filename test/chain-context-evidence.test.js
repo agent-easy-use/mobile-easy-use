@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {verifyChainContext} from '../fixtures/common/chain-context-contracts.mjs';
 
 for (const platform of ['android', 'ios']) {
+  const {verifyChainContext} = await import(`../fixtures/${platform}/ApiDemo/probe/evidence/chain-context-contracts.mjs`);
   test(`${platform}: stack oracle rejects missing context, wrong depth, wrong phase and errors`, () => {
     const contract = 'chain-context-stack-config-v1';
     const base = {type: 'method', threadName: 'worker',

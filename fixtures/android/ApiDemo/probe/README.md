@@ -68,7 +68,7 @@ method runs. `leave`/`throw` carries `capture.elapsedMs` as a number with fracti
 before/after memory, and exit-side capture errors. Only normal `leave` carries `capture.result`.
 Previously archived v1 device evidence keeps its original format and is not a v2 verification run.
 
-See the [chain capture coverage matrix](../../../common/README.md) for the full set of platform exports,
+See the [chain capture coverage matrix](evidence/README.md) for the full set of platform exports,
 manifest assertions, and fault-injection boundaries.
 
 ## Thread names and entry stacks
@@ -83,7 +83,7 @@ stacks (default depth 5), depth validation, filtering, recursion and hook cleanu
 
 The state module exports `probeAsyncStateGetters`, `probeStateGetterErrors`, and
 `probeStateFailureIsolation`. Run each separately and verify its `state-runtime-*-v1` manifest.
-See the [runtime coverage matrix](../../../common/README.md#state-snapshots-and-method-matching)
+See the [runtime coverage matrix](evidence/README.md#state-snapshots-and-method-matching)
 for exact assertions and platform-specific method-matching probes.
 
 `evidence/chain/probeMethodOverloads` verifies actual overload signatures without capture (`chain-complete-overloads-v1`).
@@ -94,5 +94,5 @@ and aggregates it with UI screenshots for the same action (`ui-state-v1`); it do
 `override/probeFieldValues` verifies temporary scalar/object assignment and restored native reference identity.
 `override/probeFieldFailures` covers action errors, rejected values, partial installation rollback, and mixed method/field scopes.
 
-See the [Override coverage matrix](../../../common/override-coverage.md) for method callbacks,
+See the [Override coverage matrix](evidence/override-coverage.md) for method callbacks,
 selection, failure cleanup, field types, object lifetimes, and per-case native assertions.

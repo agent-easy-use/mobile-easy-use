@@ -1,8 +1,8 @@
-import { verifyOverrideComposition } from '../../../../common/override-composition-contract.mjs';
-import { verifyUiState } from '../../../../common/ui-state-contract.mjs';
-import { verifyStateRuntime, verifyMethodMatching } from '../../../../common/state-runtime-contracts.mjs';
-import { verifyChainContext } from '../../../../common/chain-context-contracts.mjs';
-import { verifyCompleteCapture } from '../../../../common/chain-capture-contracts.mjs';
+import { verifyOverrideComposition } from './override-composition-contract.mjs';
+import { verifyUiState } from './ui-state-contract.mjs';
+import { verifyStateRuntime, verifyMethodMatching } from './state-runtime-contracts.mjs';
+import { verifyChainContext } from './chain-context-contracts.mjs';
+import { verifyCompleteCapture } from './chain-capture-contracts.mjs';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
