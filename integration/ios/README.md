@@ -1,10 +1,10 @@
-# mobile-easy-use iOS CocoaPods integration
+# mobile-easy-use iOS integration
 
 This integration is for internal test builds only. It embeds the MobileEasyUse bridge and runtime
 in the App without linking either image. LLDB loads the bridge and Runtime synchronously through
 `SBTarget.EvaluateExpression`; a simulator first waits until launch-time dyld work has settled.
 
-## Add the Pod
+## Add the CocoaPods script phase
 
 First inspect the App's existing build configurations. Use the user-named configuration, the only
 discovered debug configuration, or the exact configuration selected by the user when several are
@@ -19,17 +19,14 @@ project 'MyApp.xcodeproj',
   'Release' => :release
 
 target 'MyApp' do
-  pod 'MobileEasyUse',
-      :configurations => [selected_internal_configuration]
-
   script_phase(
     :name => '[MobileEasyUse] Embed Runtime',
-    :script => %Q{"${PODS_ROOT}/MobileEasyUse/integration/ios/Scripts/embed-mobile-easy-use.sh" --configuration "#{selected_internal_configuration}"},
+    :script => %Q{"${MEU_HOME}/ios/${MEU_VERSION}/integration/Scripts/embed-mobile-easy-use.sh" --configuration "#{selected_internal_configuration}"},
     :input_files => [
-      '${PODS_ROOT}/MobileEasyUse/integration/ios/Scripts/embed-mobile-easy-use.sh',
-      '${PODS_ROOT}/MobileEasyUse/integration/ios/Binaries/${PLATFORM_NAME}/MobileEasyUse.dylib',
-      '${PODS_ROOT}/MobileEasyUse/integration/ios/Binaries/${PLATFORM_NAME}/MobileEasyUseRuntime.dylib',
-      '${PODS_ROOT}/MobileEasyUse/integration/ios/MobileEasyUseRuntime.config'
+      '${MEU_HOME}/ios/${MEU_VERSION}/integration/Scripts/embed-mobile-easy-use.sh',
+      '${MEU_HOME}/ios/${MEU_VERSION}/integration/Binaries/${PLATFORM_NAME}/MobileEasyUse.dylib',
+      '${MEU_HOME}/ios/${MEU_VERSION}/integration/Binaries/${PLATFORM_NAME}/MobileEasyUseRuntime.dylib',
+      '${MEU_HOME}/ios/${MEU_VERSION}/integration/MobileEasyUseRuntime.config'
     ],
     :output_files => [
       '${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/MobileEasyUse.dylib',
@@ -41,21 +38,11 @@ target 'MyApp' do
 end
 ```
 
-The Pod contains no App-linked source or vendored-library declaration. The `:configurations`
-constraint remains required so the embed hook cannot put either dylib in a production App. Never declare this Pod without an explicit internal configuration.
-
-The Pod follows the project's existing dependency-version strategy. `Podfile.lock` records the
-resolved version. Add an explicit version constraint when the project requires one.
-
-For local development, use the repository path:
-
-```ruby
-pod 'MobileEasyUse',
-    :path => '/path/to/mobile-easy-use',
-    :configurations => [selected_internal_configuration]
-```
-
-Run `pod install` and open the generated workspace.
+Before running `pod install`, set `MEU_HOME` and `MEU_VERSION` on the selected App target. Use
+`$(HOME)/.meu` for the default cache root and the exact Release selected by the integration Skill.
+Do not add a `MobileEasyUse` Pod dependency: CocoaPods only installs this build phase, while the
+phase reads the Release artifacts from the cache at build time. Keep the phase restricted to the
+selected internal configuration.
 
 ## Runtime build hook
 
@@ -140,7 +127,7 @@ manually.
 The MobileEasyUse runtime listens on `0.0.0.0:8484`, uses QuickJS, and resumes without waiting for a client. A physical
 device needs host-to-device port forwarding before connecting from the MCP.
 
-> **Security:** `0.0.0.0` exposes the runtime on every device network interface. Only enable this Pod
+> **Security:** `0.0.0.0` exposes the runtime on every device network interface. Only enable this integration
 > in a trusted, debuggable internal configuration. Never include it in Release, TestFlight, or App
 > Store builds.
 

@@ -5,10 +5,6 @@ project 'ApiDemo.xcodeproj',
   'Release' => :release
 
 target 'ApiDemo' do
-  pod 'MobileEasyUse',
-      :path => '../../..',
-      :configurations => ['ProbeDebug']
-
   script_phase(
     :name => '[MobileEasyUse] Embed Runtime',
     :script => %q{"${PODS_PODFILE_DIR_PATH}/../../../integration/ios/Scripts/embed-mobile-easy-use.sh" --configuration "ProbeDebug"},

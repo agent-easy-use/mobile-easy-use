@@ -23,8 +23,8 @@ operations; they are intentionally not hidden inside a `callFunction` probe.
 
 ## Integration shape
 
-The local `MobileEasyUse` Pod is resource-only and scoped to `ProbeDebug`. Its after-compile script
-phase copies and signs the platform `MobileEasyUse.dylib` bridge, the separate
+The `ProbeDebug` build uses a CocoaPods after-compile script phase to copy and sign
+the platform `MobileEasyUse.dylib` bridge, the separate
 `MobileEasyUseRuntime.dylib`, and `MobileEasyUseRuntime.config`. Neither dylib is linked by the App,
 and no native bridge source is compiled into the App or Pods target. For both a simulator and a
 physical device, MCP `connect` launches or preserves the App and uses LLDB to load the bridge and
@@ -82,7 +82,7 @@ independent operations covering all target forms, directions and native state or
 
 ## Release boundary
 
-The resource-only Pod is enabled only in `ProbeDebug`; MobileEasyUse source is never compiled into
+The embed phase runs only in `ProbeDebug`; MobileEasyUse source is never compiled into
 the App executable. Verify a production build with:
 
 ```bash
