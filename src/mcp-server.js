@@ -301,12 +301,11 @@ export const toolDefinitions = [
         runtime: {
           type: 'object',
           description: 'Runtime identity reported by the SDK loaded in the target App.',
-          required: ['platform', 'available', 'appId', 'sdkVersion', 'releaseVersion'],
+          required: ['platform', 'available', 'appId', 'releaseVersion'],
           properties: {
             platform: { type: 'string', enum: ['android', 'ios'] },
             available: { type: 'boolean' },
             appId: { type: 'string' },
-            sdkVersion: { type: 'string' },
             releaseVersion: { type: 'string' },
           },
           additionalProperties: false,

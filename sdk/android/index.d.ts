@@ -23,8 +23,6 @@ declare global {
     /** Java availability only; does not guarantee UI, input, or bridge readiness. */
     available: boolean;
     appId: string | null;
-    /** MCP-injected SDK version, or null when loaded outside its Bootstrap. */
-    sdkVersion: string | null;
     /** Native MobileEasyUse integration version, or null when Java is unavailable. */
     releaseVersion: string | null;
   }

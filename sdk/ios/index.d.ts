@@ -24,8 +24,6 @@ declare global {
     /** Objective-C availability only; does not guarantee native bridge or XCTest Driver readiness. */
     available: boolean;
     appId: string | null;
-    /** MCP-injected SDK version, or null when loaded outside its Bootstrap. */
-    sdkVersion: string | null;
     /** Native MobileEasyUse version, or null when its symbol/runtime is unavailable. */
     releaseVersion: string | null;
   }

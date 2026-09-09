@@ -47,7 +47,6 @@ globalThis.runtimeStatus = () => {
     platform: 'ios',
     available,
     appId,
-    sdkVersion: globalThis.__mobileEasyUseSdkVersion ?? null,
     releaseVersion,
   };
 };

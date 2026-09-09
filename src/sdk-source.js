@@ -1,7 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MCP_VERSION } from './package-info.js';
 
 export const SDK_BUNDLE_PATHS = Object.freeze({
   android: fileURLToPath(new URL('../sdk/dist/android.js', import.meta.url)),
@@ -16,8 +15,7 @@ export async function loadSdkSource(platform = 'android') {
     throw new Error(`Unsupported platform: ${platform}; expected android or ios`);
   }
   try {
-    const source = await readFile(bundlePath, 'utf8');
-    return `${source}\nglobalThis.__mobileEasyUseSdkVersion = ${JSON.stringify(MCP_VERSION)};\n`;
+    return await readFile(bundlePath, 'utf8');
   } catch (error) {
     throw new Error(
       `${platform} SDK bundle is unavailable; run \`npm run build:${platform}\`: ${error.message}`,

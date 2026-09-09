@@ -256,9 +256,9 @@ test('iOS runtimeStatus only reports the target App runtime', async () => {
 
   const status = await fixture.context.runtimeStatus();
 
-  assert.equal(status.platform, 'ios');
-  assert.equal(status.available, true);
-  assert.equal(status.appId, 'com.example.app');
+  assert.deepEqual(JSON.parse(JSON.stringify(status)), {
+    platform: 'ios', available: true, appId: 'com.example.app', releaseVersion: null,
+  });
   assert.deepEqual(fixture.controllerRequests, []);
 });
 

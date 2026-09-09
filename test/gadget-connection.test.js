@@ -115,7 +115,6 @@ class FakeDeviceManager {
       platform: 'android',
       available: true,
       appId: 'com.example.app',
-      sdkVersion: '0.1.0',
       releaseVersion: '0.1.0',
     };
     this.runtimeStatusCalls = 0;
@@ -227,7 +226,7 @@ test('connect uses the complete target and Host endpoint', async () => {
     fridaTarget: 'Gadget',
     runtime: {
       platform: 'android', available: true, appId: 'com.example.app',
-      sdkVersion: '0.1.0', releaseVersion: '0.1.0',
+      releaseVersion: '0.1.0',
     },
     compatibility: {
       releaseVersion: '0.1.0', mcpVersion: '0.1.0',
@@ -328,7 +327,6 @@ test('iOS connect loads before a real connection and skips loading on reuse', as
     platform: 'ios',
     available: true,
     appId: 'com.example.app',
-    sdkVersion: '0.1.0',
     releaseVersion: '0.1.0',
   };
   const events = [];
@@ -387,7 +385,7 @@ test('missing iOS signing configuration fails after runtime compatibility valida
   const manager = new FakeDeviceManager();
   manager.runtimeStatus = {
     platform: 'ios', available: true, appId: 'com.example.app',
-    sdkVersion: '0.1.0', releaseVersion: '0.1.0',
+    releaseVersion: '0.1.0',
   };
   let loaded = false;
   const error = new IOSSigningError('IOS_SIGNING_SETUP_REQUIRED', 'Run to-ios-integrate');
@@ -405,7 +403,7 @@ test('iOS connect reuses prepared signing without persisting configuration', asy
   const manager = new FakeDeviceManager();
   manager.runtimeStatus = {
     platform: 'ios', available: true, appId: 'com.example.app',
-    sdkVersion: '0.1.0', releaseVersion: '0.1.0',
+    releaseVersion: '0.1.0',
   };
   const events = [];
   let fail = true;
@@ -1153,14 +1151,14 @@ test('callFunction validates its input and requires a readable probe file', asyn
   }
 });
 
-test('failed SDK initialization resets the connection', async () => {
+test('failed SDK loading resets the connection', async () => {
   const manager = new FakeDeviceManager();
-  manager.sdkLoadError = new Error('SDK initialization failed');
+  manager.sdkLoadError = new Error('SDK loading failed');
   const connection = new GadgetConnection(manager);
 
   await assert.rejects(
     connection.connect(targetInput({ ip: '127.0.0.1' })),
-    /SDK initialization failed/,
+    /SDK loading failed/,
   );
   assert.equal(connection.state, 'disconnected');
   assert.equal(connection.currentConnection, null);

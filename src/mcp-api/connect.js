@@ -105,11 +105,6 @@ export async function connect(owner, {
     });
     await sdkScript.load();
     const runtimeStatus = await validateRuntime(sdkScript, { platform, appId, runtimePort });
-    if (runtimeStatus.sdkVersion !== MCP_VERSION) {
-      throw new Error(
-        `Loaded SDK ${String(runtimeStatus.sdkVersion)} does not match MCP ${MCP_VERSION}; reinstall the npm package.`,
-      );
-    }
     let compatibility = null;
     let compatibilityWarning = null;
     let catalog = null;
@@ -171,7 +166,7 @@ async function validateRuntime(sdkScript, { platform, appId, runtimePort }) {
   const runtimeStatus = await sdkScript.exports.runtimeStatus();
   if (runtimeStatus?.platform !== platform || runtimeStatus.available !== true) {
     throw new Error(
-      `SDK runtime is unavailable after initialization: ${JSON.stringify(runtimeStatus)}`,
+      `SDK runtime is unavailable after loading: ${JSON.stringify(runtimeStatus)}`,
     );
   }
   if (runtimeStatus.appId !== appId) {

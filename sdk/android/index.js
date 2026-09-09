@@ -30,7 +30,6 @@ globalThis.runtimeStatus = () => {
     platform: 'android',
     available,
     appId,
-    sdkVersion: globalThis.__mobileEasyUseSdkVersion ?? null,
     releaseVersion,
   };
 };
