@@ -8,26 +8,26 @@ Relevant section example:
 
 ```json
 {
-  "actionDescription": "Submit search",
+  "actionDescription": "Submit form",
   "chain": [
     {
       "type": "method",
-      "className": "com.example.SearchService",
-      "method": "submitQuery",
+      "className": "com.example.FormService",
+      "method": "submitForm",
       "argumentTypes": ["java.lang.String"],
       "phase": "enter",
-      "capture": { "args": { "query": "shoes" } }
+      "capture": { "args": { "text": "hello" } }
     },
     {
       "type": "log",
       "level": "d",
-      "tag": "Search",
+      "tag": "Form",
       "message": "request queued"
     },
     {
       "type": "method",
-      "className": "com.example.SearchService",
-      "method": "submitQuery",
+      "className": "com.example.FormService",
+      "method": "submitForm",
       "argumentTypes": ["java.lang.String"],
       "phase": "leave",
       "capture": {

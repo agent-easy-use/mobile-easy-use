@@ -8,7 +8,7 @@ Relevant section example:
 
 ```json
 {
-  "actionDescription": "Submit search",
+  "actionDescription": "Submit form",
   "ui": {
     "resultLabel": {
       "className": "UILabel",

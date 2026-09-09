@@ -47,7 +47,7 @@ declare global {
   }
 
   /** Dynamic, non-enumerable resource lookup; values are IDs, not resolved strings/colors.
-   * @example const buttonId = R.id.search_button;
+   * @example const buttonId = R.id.submit_button;
    */
   interface AndroidR {
     readonly anim: AndroidResourceClass;
@@ -113,7 +113,7 @@ declare global {
      * View's actual runtime class. Java object results returned by its methods lazily promote to
      * their runtime wrapper when a member is absent from Frida's declared-type wrapper.
      * Requires a positive integer. Missing focus/match returns null; invalid targets throw.
-     * @example const view = await AndroidExp.runOnMainThread(() => AndroidExp.ui.find(R.id.search_button));
+     * @example const view = await AndroidExp.runOnMainThread(() => AndroidExp.ui.find(R.id.submit_button));
      */
     find(resourceId: number): Java.Wrapper | null;
     /**
@@ -123,7 +123,7 @@ declare global {
      * wrapped as its actual runtime class, and the returned Wrapper preserves the final runtime class.
      * Java object results returned by its methods use the same lazy runtime-wrapper promotion.
      * Missing focus/step returns null; invalid paths or getters throw. Matching does not require visibility.
-     * @example const view = await AndroidExp.runOnMainThread(() => AndroidExp.ui.find([`id::${R.id.form}`, 'text::Search']));
+     * @example const view = await AndroidExp.runOnMainThread(() => AndroidExp.ui.find([`id::${R.id.form}`, 'text::Submit']));
      */
     find(path: AndroidUiPath): Java.Wrapper | null;
   }
@@ -246,7 +246,7 @@ declare global {
     /**
      * Resolve the target and inject one touchscreen DOWN/UP sequence with a fixed 16 ms press.
      * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await AndroidExp.runOnMainThread(() => AndroidExp.input.click(R.id.search_button));
+     * @example const result = await AndroidExp.runOnMainThread(() => AndroidExp.input.click(R.id.submit_button));
      */
     click(resourceId: number): Promise<AndroidClickResult>;
     click(path: AndroidUiPath): Promise<AndroidClickResult>;
@@ -268,7 +268,7 @@ declare global {
      * text must be non-empty and representable by KeyCharacterMap (arbitrary Unicode may fail).
      * Types into the focused field without clearing its current contents.
      * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await AndroidExp.runOnMainThread(() => AndroidExp.input.input(R.id.search_input, "hello"));
+     * @example const result = await AndroidExp.runOnMainThread(() => AndroidExp.input.input(R.id.form_input, "hello"));
      */
     input(resourceId: number, text: string): Promise<AndroidTargetInputResult>;
     input(path: AndroidUiPath, text: string): Promise<AndroidTargetInputResult>;
@@ -335,7 +335,7 @@ declare global {
     /** Re-resolve a positive resource ID on the main thread until the state matches.
      * Resolves ok:false for invalid arguments or timeout; check exceptions are retried and reported
      * as lastCheckError on timeout. Success contains no View; use ui.find if needed.
-     * @example const ready = await AndroidExp.wait.ui(R.id.search_button, 'visible');
+     * @example const ready = await AndroidExp.wait.ui(R.id.submit_button, 'visible');
      */
     ui(
       resourceId: number,
@@ -380,7 +380,7 @@ declare global {
     /** Capture the focused App Window, keyed element crops, or both; requires the native screenshot bridge
      * and Host file controller. Resolves ok:false for invalid options, capture, or persistence errors.
      * Missing/hidden/out-of-window targets can be omitted on success; check each requested key.
-     * @example const shot = await AndroidExp.screenshot({ targets: { submit: R.id.search_button }, includeWindow: true });
+     * @example const shot = await AndroidExp.screenshot({ targets: { submit: R.id.submit_button }, includeWindow: true });
      */
     screenshot(options?: AndroidScreenshotOptions): Promise<AndroidScreenshotResult>;
     readonly window: AndroidWindowApi;
@@ -527,7 +527,7 @@ declare global {
      * execution, shared only by wrappers observing that same execution.
      * @param logTag Exact TAG or TAG set; omit for method-only capture.
      * @param methodHooks Methods to observe; omit for log-only capture.
-     * @example const result = await Probe.evidence.withChainEvidence(() => AndroidExp.input.click({ x: 120, y: 360 }), 'Submit search', 'Search');
+     * @example const result = await Probe.evidence.withChainEvidence(() => AndroidExp.input.click({ x: 120, y: 360 }), 'Submit form', 'Form');
      */
     withChainEvidence<TResult>(
       action: () => TResult,
@@ -560,7 +560,7 @@ declare global {
      * are reported/skipped; screenshot failure yields null image paths. UI and images are separate reads.
      * Evidence includes className, exist, visible, pixel bounds, empty properties, and screenshot paths.
      * Returns awaited action result (not snapshots), propagates action error; finalizer errors are reported.
-     * @example await Probe.evidence.withUiEvidence(() => AndroidExp.input.click({ x: 120, y: 360 }), 'Submit', { submit: [`id::${R.id.search_button}`] });
+     * @example await Probe.evidence.withUiEvidence(() => AndroidExp.input.click({ x: 120, y: 360 }), 'Submit', { submit: [`id::${R.id.submit_button}`] });
      * @param action Trigger the action and await its required completion before returning.
      * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
      * execution, shared only by wrappers observing that same execution.
@@ -576,7 +576,7 @@ declare global {
     readonly evidence: ProbeEvidenceApi;
   }
 
-  /** Dynamically resolved Android application resources, for example `R.id.search_button`. */
+  /** Dynamically resolved Android application resources, for example `R.id.submit_button`. */
   const R: AndroidR;
 
   /** Android UI helpers, waits, and controlled input extensions. */

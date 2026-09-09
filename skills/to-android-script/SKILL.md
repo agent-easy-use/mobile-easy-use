@@ -119,18 +119,18 @@ Follow native Frida semantics; use `Java.registerClass()` to implement Java inte
 
 ## Composition example
 
-The helpers and definitions below represent source-resolved App code; `submitSearch` and `waitForSearchCompleted` must throw on failed input or wait results.
+The helpers and definitions below represent source-resolved App code; `submitForm` and `waitForSubmissionCompleted` must throw on failed input or wait results.
 
 ```javascript
-const description = 'Submit search under JP region #1';
+const description = 'Submit form under JP region #1';
 
 await Override.run(definitions, () =>
   Probe.evidence.withUiEvidence(
     () => Probe.evidence.withStateEvidence(
       () => Probe.evidence.withChainEvidence(
         async () => {
-          await submitSearch();
-          return await waitForSearchCompleted();
+          await submitForm();
+          return await waitForSubmissionCompleted();
         },
         description,
         logTag,

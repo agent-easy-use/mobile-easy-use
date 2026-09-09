@@ -59,11 +59,11 @@ declare global {
     /** Find the first UIView matching a non-empty accessibilityIdentifier. Returns null on no match/window.
      * A plain string is always an identifier, even if it contains ::. Raw methods on the returned ObjC
      * object retain UIKit thread requirements; use IOS.runOnMainThread for subsequent UI access.
-     * @example const view = IOS.ui.find('search.submit');
+     * @example const view = IOS.ui.find('form.submit');
      */
     find(accessibilityIdentifier: string): ObjCBridge.Object | null;
     /** Resolve each step in the preceding UIView subtree (including that View). Returns null on any miss.
-     * @example const view = IOS.ui.find(['identifier::search.form', 'label::Submit']);
+     * @example const view = IOS.ui.find(['identifier::form.container', 'label::Submit']);
      */
     find(path: IOSUiPath): ObjCBridge.Object | null;
   }
@@ -181,18 +181,18 @@ declare global {
    */
   interface IOSInputApi {
     /** Resolve the target in the App and synthesize a real touch at its screen point.
-     * @example const result = await IOS.input.click('search.submit');
+     * @example const result = await IOS.input.click('form.submit');
      */
     click(target: IOSInputTarget): Promise<IOSClickResult>;
     /** Tap to focus, then synthesize a non-empty text input; existing contents are not cleared.
      * Tap completion does not verify keyboard focus or the resulting text.
-     * @example const result = await IOS.input.input('search.query', 'hello');
+     * @example const result = await IOS.input.input('form.text', 'hello');
      */
     input(target: IOSInputTarget, text: string): Promise<IOSTargetInputResult>;
     /** Compute endpoints in the App and drag in the finger direction, clamped to visible target
      * bounds (App bounds for a raw coordinate). Completion does not wait for scrolling inertia.
      * @param distance Positive finite distance in points; defaults to 300, may be clamped.
-     * @example const result = await IOS.input.scroll('search.results', 'up', 300);
+     * @example const result = await IOS.input.scroll('form.results', 'up', 300);
      */
     scroll(target: IOSInputTarget, direction: IOSInputDirection, distance?: number): Promise<IOSScrollResult>;
     /** Resolve the target in the App and synthesize a real touch held for the requested duration.
@@ -235,7 +235,7 @@ declare global {
     /** Re-resolve a native UIView target each check; native bridge owns main-queue dispatch.
      * Resolves ok:false for invalid arguments or timeout; check exceptions are retried and reported
      * as lastCheckError on timeout. Success contains no View. Does not accept UIView objects.
-     * @example const ready = await IOS.wait.ui('search.results', 'visible', { timeoutMs: 10000 });
+     * @example const ready = await IOS.wait.ui('form.results', 'visible', { timeoutMs: 10000 });
      */
     ui(
       target: string | IOSUiPath,
@@ -254,14 +254,14 @@ declare global {
     /** Schedule work on the iOS main queue. Only the synchronous part before the first await
      * is guaranteed to run there; a returned Promise is adopted, not kept on the main queue.
      * Callback errors reject; unavailable ObjC throws synchronously. Never block waiting for this Promise.
-     * @example const label = await IOS.runOnMainThread(() => IOS.ui.find('search.submit')?.accessibilityLabel()?.toString() ?? null);
+     * @example const label = await IOS.runOnMainThread(() => IOS.ui.find('form.submit')?.accessibilityLabel()?.toString() ?? null);
      */
     runOnMainThread<TResult>(work: () => TResult | Promise<TResult>): Promise<TResult>;
     /** Capture the focused App Window, keyed element crops, or both, using the native UIView query.
      * Requires MEUScreenshot and Host file controller; image values are saved Host JPEG paths.
      * Missing/hidden/out-of-window targets can be omitted on success; check each requested key.
      * Invalid options, failed/incomplete capture, and persistence errors resolve ok:false.
-     * @example const shot = await IOS.screenshot({ targets: { submit: 'search.submit' }, includeWindow: true });
+     * @example const shot = await IOS.screenshot({ targets: { submit: 'form.submit' }, includeWindow: true });
      */
     screenshot(options?: IOSScreenshotOptions): Promise<IOSScreenshotResult>;
     readonly ui: IOSUiApi;
@@ -425,7 +425,7 @@ declare global {
      * execution, shared only by wrappers observing that same execution.
      * @param logTag Non-empty exact TAG or set of non-empty TAGs; omit for method-only capture; matches `[TAG] ` or `[%@]` with TAG as the first NSString argument.
      * @param methodHooks Methods to observe; omit for log-only capture.
-     * @example const result = await Probe.evidence.withChainEvidence(() => IOS.input.click('search.submit'), 'Submit search', 'Search');
+     * @example const result = await Probe.evidence.withChainEvidence(() => IOS.input.click('form.submit'), 'Submit form', 'Form');
      */
     withChainEvidence<TResult>(
       action: () => TResult,
@@ -460,7 +460,7 @@ declare global {
      * userInteractionEnabled when readable, and screenshots. Here visible tests only the View's own
      * hidden/alpha/bounds and window attachment; wait.ui additionally checks ancestors.
      * Returns awaited action result (not snapshots), propagates action error; finalizer errors are reported.
-     * @example await Probe.evidence.withUiEvidence(() => IOS.input.click('search.submit'), 'Submit', { submit: 'search.submit' });
+     * @example await Probe.evidence.withUiEvidence(() => IOS.input.click('form.submit'), 'Submit', { submit: 'form.submit' });
      * @param action Trigger the action and await its required completion before returning.
      * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
      * execution, shared only by wrappers observing that same execution.

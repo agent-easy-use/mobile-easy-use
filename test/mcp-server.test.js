@@ -222,7 +222,7 @@ test('eval_script and call_function failures preserve stack and evidence', async
   const failure = new Error('Failed to evaluate script: selector not found');
   failure.stack = 'Error: selector not found\n    at inspect (/eval/source.js:8:11)';
   failure.evidence = [{
-    actionDescription: 'Inspect search state',
+    actionDescription: 'Inspect form state',
     evidencePath: '/tmp/evidence.json',
   }];
   const server = serverWithConnection(connectionFixture({
@@ -261,7 +261,7 @@ test('eval_script and call_function failures preserve stack and evidence', async
         stack: 'Error: selector not found\n    at inspect (/eval/source.js:8:11)',
       },
       evidence: [{
-        actionDescription: 'Inspect search state',
+        actionDescription: 'Inspect form state',
         evidencePath: '/tmp/evidence.json',
       }],
     });

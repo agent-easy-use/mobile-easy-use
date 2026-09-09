@@ -714,8 +714,8 @@ test('evalScript aggregates action-scoped evidence', async () => {
   const manager = new FakeDeviceManager();
   manager.evalResult = { ok: true };
   manager.evalLogs = [
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"SearchState#query","actionDescription":"Inspect query","checkpoint":"before","value":"Cat"}}'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"SearchState#query","actionDescription":"Inspect query","checkpoint":"after","value":"Cat"}}'],
+    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"FormState#text","actionDescription":"Inspect text","checkpoint":"before","value":"Cat"}}'],
+    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"FormState#text","actionDescription":"Inspect text","checkpoint":"after","value":"Cat"}}'],
   ];
   const evidenceDirectory = mkdtempSync(join(tmpdir(), 'mobile-eval-evidence-'));
   const connection = new GadgetConnection(manager, {
@@ -730,13 +730,13 @@ test('evalScript aggregates action-scoped evidence', async () => {
   });
 
   assert.deepEqual(result.evidence, [{
-    actionDescription: 'Inspect query',
+    actionDescription: 'Inspect text',
     evidencePath: join(evidenceDirectory, 'eval-evidence-result.json'),
   }]);
   const evidence = JSON.parse(readFileSync(result.evidence[0].evidencePath, 'utf8'));
-  assert.equal(evidence.actionDescription, 'Inspect query');
-  assert.equal(Object.hasOwn(evidence.state['SearchState#query'], 'changed'), false);
-  assert.equal(Object.hasOwn(evidence.state['SearchState#query'], 'actionDescription'), false);
+  assert.equal(evidence.actionDescription, 'Inspect text');
+  assert.equal(Object.hasOwn(evidence.state['FormState#text'], 'changed'), false);
+  assert.equal(Object.hasOwn(evidence.state['FormState#text'], 'actionDescription'), false);
 });
 
 test('evalScript rejects concurrent operations and clears its active call after failure', async () => {
@@ -762,7 +762,7 @@ test('evalScript rejects concurrent operations and clears its active call after 
   await firstEval;
 
   manager.evalLogs = [
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"SearchState#query","actionDescription":"Inspect before failure","checkpoint":"before","value":"Cat"}}'],
+    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"FormState#text","actionDescription":"Inspect before failure","checkpoint":"before","value":"Cat"}}'],
   ];
   manager.evalError = new Error('syntax error');
   manager.evalError.stack = 'Error: syntax error\n    at inspect (/eval/source.js:4:9)';
@@ -774,7 +774,7 @@ test('evalScript rejects concurrent operations and clears its active call after 
     evidencePath: join(evidenceDirectory, 'eval-failure.json'),
   }]);
   assert.equal(JSON.parse(readFileSync(failure.evidence[0].evidencePath, 'utf8'))
-    .state['SearchState#query'].before, 'Cat');
+    .state['FormState#text'].before, 'Cat');
   manager.evalError = null;
   manager.evalLogs = [];
   manager.evalResult = true;
@@ -820,12 +820,12 @@ test('callFunction writes one aggregated evidence file per action', async () => 
   manager.functionResult = { ok: true };
   manager.functionLogs = [
     ['info', 'ordinary log'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"SearchState#query","actionDescription":"Enter Cat","checkpoint":"before","value":""}}'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"chain","payload":{"type":"method","actionDescription":"Open search","method":"open","phase":"enter"}}'],
+    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"FormState#text","actionDescription":"Enter Cat","checkpoint":"before","value":""}}'],
+    ['info', '@@MOBILE_EVIDENCE@@{"category":"chain","payload":{"type":"method","actionDescription":"Open form","method":"open","phase":"enter"}}'],
     ['info', '@@MOBILE_EVIDENCE@@not-json'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"ui","payload":{"uiKey":"search_input","className":null,"actionDescription":"Open search","checkpoint":"before","value":{"exist":false}}}'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"ui","payload":{"uiKey":"search_input","className":"android.widget.EditText","actionDescription":"Open search","checkpoint":"after","value":{"exist":true}}}'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"SearchState#query","actionDescription":"Enter Cat","checkpoint":"after","value":"Cat"}}'],
+    ['info', '@@MOBILE_EVIDENCE@@{"category":"ui","payload":{"uiKey":"form_input","className":null,"actionDescription":"Open form","checkpoint":"before","value":{"exist":false}}}'],
+    ['info', '@@MOBILE_EVIDENCE@@{"category":"ui","payload":{"uiKey":"form_input","className":"android.widget.EditText","actionDescription":"Open form","checkpoint":"after","value":{"exist":true}}}'],
+    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"FormState#text","actionDescription":"Enter Cat","checkpoint":"after","value":"Cat"}}'],
   ];
   const evidenceDirectory = mkdtempSync(join(tmpdir(), 'mobile-evidence-'));
   let nextEvidenceId = 1;
@@ -849,7 +849,7 @@ test('callFunction writes one aggregated evidence file per action', async () => 
         evidencePath: join(evidenceDirectory, 'evidence-1.json'),
       },
       {
-        actionDescription: 'Open search',
+        actionDescription: 'Open form',
         evidencePath: join(evidenceDirectory, 'evidence-2.json'),
       },
     ],
@@ -859,22 +859,22 @@ test('callFunction writes one aggregated evidence file per action', async () => 
     chain: [],
     ui: {},
     state: {
-      'SearchState#query': {
-        path: 'SearchState#query',
+      'FormState#text': {
+        path: 'FormState#text',
         before: '',
         after: 'Cat',
       },
     },
   });
   assert.deepEqual(JSON.parse(readFileSync(result.evidence[1].evidencePath, 'utf8')), {
-    actionDescription: 'Open search',
+    actionDescription: 'Open form',
     chain: [{
       type: 'method',
       method: 'open',
       phase: 'enter',
     }],
     ui: {
-      search_input: {
+      form_input: {
         className: 'android.widget.EditText',
         before: { exist: false },
         after: { exist: true },
@@ -888,10 +888,10 @@ test('callFunction nests Window and element screenshots in UI checkpoints', asyn
   const manager = new FakeDeviceManager();
   const image = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
   const evidenceDirectory = mkdtempSync(join(tmpdir(), 'mobile-screenshot-evidence-'));
-  const evidenceLog = (checkpoint, value, uiKey = 'searchInput') => ['info', `@@MOBILE_EVIDENCE@@${JSON.stringify({
+  const evidenceLog = (checkpoint, value, uiKey = 'formInput') => ['info', `@@MOBILE_EVIDENCE@@${JSON.stringify({
     category: 'ui',
     payload: {
-      actionDescription: 'Open search',
+      actionDescription: 'Open form',
       checkpoint,
       uiKey,
       className: 'android.widget.EditText',
@@ -963,16 +963,16 @@ test('callFunction nests Window and element screenshots in UI checkpoints', asyn
   assert.equal(result.evidence[0].evidencePath, join(evidenceDirectory, 'screenshot-1.json'));
   assert.equal(Object.hasOwn(result.evidence[0], 'screenshots'), false);
   const manifest = JSON.parse(readFileSync(result.evidence[0].evidencePath, 'utf8'));
-  assert.equal(manifest.actionDescription, 'Open search');
+  assert.equal(manifest.actionDescription, 'Open form');
   assert.equal(Object.hasOwn(manifest, 'screenshots'), false);
-  const before = manifest.ui.searchInput.before.screenshots;
-  const after = manifest.ui.searchInput.after.screenshots;
+  const before = manifest.ui.formInput.before.screenshots;
+  const after = manifest.ui.formInput.after.screenshots;
   assert.equal(before.window, join(evidenceDirectory, 'screenshot-1.jpg'));
   assert.equal(before.element, null);
   assert.equal(after.window, join(evidenceDirectory, 'screenshot-2.jpg'));
   assert.equal(after.element, join(evidenceDirectory, 'screenshot-3.jpg'));
   assert.deepEqual(readFileSync(after.element), image);
-  assert.equal(Object.hasOwn(manifest.ui.searchInput, 'changed'), false);
+  assert.equal(Object.hasOwn(manifest.ui.formInput, 'changed'), false);
   assert.equal(Object.hasOwn(manifest.ui.stableLabel, 'changed'), false);
   assert.deepEqual(
     manager.createdScripts[0].script.postCalls.map((message) => ({

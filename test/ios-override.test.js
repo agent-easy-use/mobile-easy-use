@@ -51,16 +51,16 @@ test('iOS Override.run replaces matching returns and restores the IMP', async ()
     [{
       target: 'RegionProvider',
       selector: '- regionForScene:',
-      filter: (invocation) => invocation.args[0] === 'search',
+      filter: (invocation) => invocation.args[0] === 'form',
       withReturn: 'JP',
     }],
     () => ({
-      search: fixture.method.implementation(fixture.receiver, null, 'search'),
+      form: fixture.method.implementation(fixture.receiver, null, 'form'),
       feed: fixture.method.implementation(fixture.receiver, null, 'feed'),
     }),
   );
 
-  assert.deepEqual(result, { search: 'JP', feed: 'original:feed' });
+  assert.deepEqual(result, { form: 'JP', feed: 'original:feed' });
   assert.equal(originalCalls, 1);
   assert.equal(fixture.method.implementation, original);
 });
@@ -249,7 +249,7 @@ test('iOS chain evidence keeps the NSLog replacement through Promise settlement 
       resolveAction = resolve;
     }),
     'First action',
-    'Search',
+    'Form',
   );
 
   assert.equal(fixture.isNSLogReplaced(), true);
@@ -261,7 +261,7 @@ test('iOS chain evidence keeps the NSLog replacement through Promise settlement 
   await withChainEvidence(
     () => { secondReplacement = fixture.currentNSLogReplacement(); },
     'Second action',
-    'Search',
+    'Form',
   );
 
   assert.equal(secondReplacement, firstReplacement);

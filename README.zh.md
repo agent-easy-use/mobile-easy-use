@@ -1,224 +1,165 @@
 # Mobile Easy Use
 
-**让 AI Agent 真正看见、理解并操作移动 App。**
+**面向 Android / iOS 开发者，让 AI Agent 探查 App 真实运行信息的工具。**
 
 [English](./README.md)
 
-> Tool 能观测到的信息越多，Agent 工作得越准确。
+源码告诉你 App 如何实现，运行现场告诉你它实际发生了什么。Mobile Easy Use 通过 MCP 将移动 App 的运行时开放给 AI Agent，让它结合源码探查方法调用、业务对象、状态变化、日志和 UI，帮助开发者理解业务、定位问题和验证改动。
 
-Agent 的准确度取决于它能够获得多少真实证据。源码描述了 App 应该如何工作，却无法完整呈现 App 在运行时究竟发生了什么。
+你可以直接提出开发中的问题：
 
-在移动端开发中，这种信息差尤其明显。App 运行在真机或模拟器中，受到进程沙箱和平台原生 UI 系统的隔离；关键线索分散在设备日志、运行时对象、方法调用、视图层级、页面截图和状态变化之中。通用编码工具能够阅读仓库，却很难主动获取并关联这些实时信息。因此，Agent 即使读懂了实现，也可能依然看不见设备上真正发生的事情。
+```text
+数据请求成功了，为什么列表没有更新？检查相关方法调用、数据状态和页面变化。
+```
 
-这正是我们开发 Mobile Easy Use 的原因。它把 Android 和 iOS App 内部的运行时、调用链、业务状态、UI 状态、截图和受控交互能力交给 Agent，让 Agent 不再只靠源码猜测，而是基于真实运行证据完成分析、验证和自动化。
+```text
+检查收藏功能的这次改动，操作前后的业务对象和按钮状态是否一致？
+```
 
-我们希望把 Mobile Easy Use 打造成面向 Agent 的移动端开发终极 Tool：连接源码与真实运行现场，让 Agent 从“阅读代码”走向“观察 App、操作 App、验证结果”。
+## 可以探查什么
 
-## Agent 可以看见什么
+| 信息或操作 | 能力 |
+| --- | --- |
+| 方法调用与日志 | 观察相关 Java / Objective-C 方法调用和关键链路日志，确认实际执行路径 |
+| 业务对象与状态 | 读取运行时对象、字段和资源，对比操作前后的业务状态 |
+| 原生 UI | 查找控件、查看视图状态，获取窗口截图和元素截图 |
+| 交互与场景 | 点击、输入、滚动、等待 UI 变化，进入需要分析的场景 |
+| 临时探查 | 按问题生成并执行 Probe，必要时临时调整方法返回值或字段来构造条件 |
+| 结果与失败现场 | 保留执行结果、失败阶段及已采集的证据，结合源码解释原因 |
 
-借助 Mobile Easy Use，Agent 可以在 Android 和 iOS App 的真实运行环境中观测：
+支持 Android 和 iOS 的真机与模拟器。当前 iOS 方法探查基于 Objective-C 运行时，UI 查找基于 UIKit；纯 Swift 方法和没有对应 UIView 的 SwiftUI 元素不在这些接口的直接覆盖范围内。
 
-- **运行时调用链**：观察相关 Java 方法、Objective-C 方法及业务日志，理解一次操作实际触发了哪些代码路径。
-- **业务状态变化**：对比操作前后的值、对象、缓存和应用状态，判断逻辑是否真正生效。
-- **原生 UI 状态**：在当前窗口中查找原生控件，观察 App 正在呈现的真实界面。
-- **窗口与元素截图**：获取完整 App 窗口及关键元素截图，让视觉结果成为可审查的证据。
-- **运行时对象与资源**：访问 Android 资源、Java 对象、Objective-C 对象和原生运行时能力。
-- **异常与失败现场**：保留操作结果、失败阶段和已经收集的证据，帮助 Agent 区分观察事实与源码推断。
+## 不仅仅是用来做 UI 自动化测试
 
-Mobile Easy Use 不只提供“看见”的能力，也让 Agent 能够进行受控操作：
+Mobile Easy Use 支持 UI 自动化测试，也让 Agent 在编码前和编码过程中探查 App 的真实运行状态。移动端开发需要理解页面背后的数据、对象和执行路径；这些信息可以直接帮助 Agent 判断应该改哪里、如何实现，以及改动是否符合预期。
 
-- 点击、输入、滚动和等待 UI 状态
-- 导航到目标场景并验证最终结果
-- 按任务动态生成并执行运行时探测脚本
-- 临时构造测试条件，并在操作结束后恢复
-- 将验证过的工作流沉淀为可复用 Preset
+| 维度 | 以 UI 为中心的自动化测试 | Mobile Easy Use |
+| --- | --- | --- |
+| 主要目标 | 执行用例，检查界面和交互是否符合预期 | 理解 App 运行行为，辅助编码、定位问题并验证结果 |
+| 观察范围 | 控件、交互、截图和界面状态 | UI，以及方法调用、日志、业务对象和状态变化 |
+| 任务入口 | 围绕预期行为编写或生成测试用例 | 围绕当前开发问题生成并执行 Probe |
+| 对编码的帮助 | 通过测试结果发现行为偏差 | 结合源码与运行时证据，帮助确定修改位置和实现方式 |
+| 可复用能力 | 测试用例、页面对象和辅助函数 | 页面操作、业务探查和状态读取 Presets |
 
-## 它能帮助你做什么
+### 为什么适合 Coding 环境
 
-### 用真实证据定位问题
+Agent 在编码时需要持续获取 App 的真实信息。Mobile Easy Use 将运行时探查带入开发过程，让源码分析、实际观测和代码修改相互验证：
 
-让 Agent 同时检查源码和真实运行现场，回答：
+- **编码前理解现状**：探索目标页面和业务流程，读取当前对象、配置与状态，观察实际调用路径，为实现方案提供依据。
+- **编码中检查判断**：针对正在修改的逻辑随时发起探查，检查数据是否到达、状态在哪一步变化、代码实际进入哪个分支，帮助定位问题和调整实现。
+- **改动后验证结果**：执行相关交互，对比业务状态与 UI 变化，确认改动是否生效，并将常用操作沉淀为 Presets。
 
-- 点击按钮后为什么没有跳转？
-- 请求已经成功，为什么页面没有更新？
-- 某个业务状态在哪一步发生了变化？
-- 为什么运行时走了与源码预期不同的分支？
-- 问题来自交互、业务逻辑、状态管理，还是 UI 渲染？
+例如，处理“数据请求成功但列表未更新”时，Agent 可以先探查请求回调、结果对象和列表状态，结合源码确定修改位置；修改并运行新构建后，再检查同一条链路的状态与界面变化。探查贯穿问题理解、编码和验证全过程。
 
-### 更可信地验证改动
+## 使用方式
 
-修改代码后，Agent 可以进入目标页面、执行相关操作，并收集调用链、状态和 UI 证据。验证结果不再只是“测试通过”或“看起来没问题”，而是一份可以复查的真实运行记录。
+准备 Node.js 20+，并通过所用 Agent 的 Skill / Plugin 安装流程安装本仓库 [skills](./skills) 中对应平台的 Skill，保留其引用的兄弟 Skill、脚本和参考文件。**MCP npm 包与 Skills 分开安装**：MCP 提供连接与执行工具，Skills 指导 Agent 如何使用这些工具完成开发任务。
 
-### 更高效地探索陌生 App
+Android 需要 ADB 和可用设备或模拟器；iOS 需要 macOS、Xcode 及其命令行工具，真机连接还需要 `iproxy`，输入操作所用的 XCTest Runner 需要完成开发签名。
 
-面对文档缺失、架构复杂或历史包袱较重的工程，Agent 可以结合源码与运行时逐步建立认知，发现关键页面、入口、资源、对象和业务路径。
+### 1. 先集成到 App
 
-### 把一次发现变成长期能力
+在目标 App 工程中，让 Agent 使用对应的 Integrate Skill：
 
-经过验证的页面导航、业务操作和状态探测可以沉淀为 Preset。后续 Agent 无需重新探索，即可稳定复用同一套能力。
+```text
+使用 to-android-integrate，将 Mobile Easy Use 集成到这个 App 的 debug variant。
+```
 
-### Presets 目录与构建
+```text
+使用 to-ios-integrate，将 Mobile Easy Use 集成到这个 App 的内部调试配置。
+```
 
-Android、iOS 分别使用 `to-android-presets`、`to-ios-presets`。Skill 按用户诉求沉淀探查代码和声明；有设备时连接并真实执行验证，无设备时注明未实机验证。
-目录只根据 `.meu/config.json` 中的基础目录解析；初始化时写入用户指定目录，未指定则写入默认值：
+Integrate 会获取并校验 Release 产物，修改目标工程配置，并返回兼容的 **MCP 固定版本启动命令**。Android 通过 AAR 接入并自动启动 Runtime；iOS 嵌入桥接库和 Runtime，由 MCP 连接时加载。将集成限定在内部调试构建，随后构建并安装到目标设备。
+
+详细接入说明：[Android](./integration/android/README.md) · [iOS](./integration/ios/README.md)。
+
+### 2. 安装并配置 MCP
+
+在 Agent 的 MCP 配置中添加 `mobile-easy-use`，使用 Integrate 返回的版本。以下是通用 stdio 配置示例，`0.1.0` 仅作示例，应替换为集成结果中的兼容版本：
 
 ```json
-{ "presets": { "directory": ".meu/presets" } }
+{
+  "mcpServers": {
+    "mobile-easy-use": {
+      "command": "npx",
+      "args": ["-y", "@agent-easy-use/mobile-easy-use@0.1.0"]
+    }
+  }
+}
 ```
 
-相对路径以目标项目根目录为基准；MCP 必须从该项目根目录启动。平台后缀自动添加：
+`npx` 会获取并启动指定版本，无需先全局安装。按所用客户端的配置方式设置工作目录为**目标 App 项目根目录**，以便读取项目 Presets；Agent 与 MCP 需要共享本地文件系统，用于读取 SDK 声明和探查文件。
+
+重新加载 MCP 配置后，确认 Agent 能看到 `get_sdk_declarations`、`connect` 等工具。新建连接时，MCP 会检查 App Runtime Release 与 MCP 版本的兼容性；不匹配时会给出调整建议。
+
+### 3. 使用 Probe 探查
+
+连接设备后，提供目标 App 和要调查的问题：
 
 ```text
-.meu/presets/
-├── android/
-│   ├── page-state/probe.js
-│   ├── page-state/probe.d.ts
-│   ├── presets.entry.js
-│   └── presets.dist.js
-└── ios/                       # 相同结构，独立实现
-```
-
-`presets.entry.js` 定义公开导出，各功能的 `probe.d.ts` 描述接口。to-script 查阅入口和对应功能声明，优先复用已有能力。
-connect 根据平台加载 `presets.dist.js`，运行时统一通过 `/meu/presets.js` 导入。
-无论是否配置基础目录，对应平台的产物不存在就跳过；已有产物为空、读取失败或加载失败时明确报错。
-
-在目标项目根目录执行对应 skill 的构建脚本：
-
-```bash
-node <skill目录>/scripts/build-presets.mjs
-```
-
-配置、源码目录及入口和声明文件由 skill 维护。用户指定新目录且旧配置目录下已有任一平台的 `presets.dist.js` 时，skill 提示旧能力将不再从新目录加载，得到明确确认后才更新配置并继续生成、打包；旧文件保留。
-每个平台的 skill 自带独立构建脚本。脚本只读取配置或默认路径，从已有入口生成 `presets.dist.js`，不修改配置或初始化文件。
-脚本通过 npm 缓存调用固定版本的 esbuild-wasm，
-将 JavaScript 模块打包为单文件 ESM；首次需要 npm 源可访问，无需手动安装或修改 App 的依赖。
-
-临时 `probe.js` 直接通过 `call_function` 执行。
-产物原子替换，构建失败保留旧文件；构建成功不能替代设备验证。
-有设备时，更新 presets 后断开并重新 connect，再执行变更的公开接口验收；无设备时仍可完成生成和打包，但必须说明真实运行效果尚不确定，并建议连接真机验证。单纯 connect 会复用健康连接及旧 bundle。
-
-## 不只是 UI 自动化
-
-传统 UI 自动化主要记录“点了什么”和“页面长什么样”。Mobile Easy Use 同时连接 UI、业务状态和运行时执行过程。
-
-| 能力 | 传统 UI 自动化 | Mobile Easy Use |
-| --- | :---: | :---: |
-| 操作 App | ✓ | ✓ |
-| 页面与元素截图 | ✓ | ✓ |
-| 观察业务对象和状态 | — | ✓ |
-| 观察相关方法调用链 | — | ✓ |
-| 关联源码解释运行结果 | — | ✓ |
-| 为 Agent 动态生成探测能力 | — | ✓ |
-| 沉淀可复用业务 Preset | 有限 | ✓ |
-
-Mobile Easy Use 不是另一套录制回放框架，而是 AI Agent 与移动 App 运行时之间的桥梁。
-
-## 平台能力
-
-| 能力 | Android | iOS |
-| --- | :---: | :---: |
-| 真机与模拟器 | ✓ | ✓ |
-| 原生 UI 查找 | ✓ | ✓ |
-| 点击、输入和滚动 | ✓ | ✓ |
-| UI 状态等待 | ✓ | ✓ |
-| 窗口与元素截图 | ✓ | ✓ |
-| 操作前后状态证据 | ✓ | ✓ |
-| 业务方法调用证据 | Java | Objective-C |
-| 原生日志证据 | Log | NSLog |
-| 临时返回值替换 | ✓ | ✓ |
-| 自定义运行时探测 | ✓ | ✓ |
-
-## 用户如何使用
-
-Mobile Easy Use 提供 MCP 服务，连接 Agent 与设备和 App、执行运行时操作并返回证据。连接后，只需要用自然语言描述目标：
-
-```text
-检查登录按钮点击后为什么没有进入首页，并给出调用链、状态和 UI 证据。
+使用 to-android-probe，探查设备上 com.example.app 的列表刷新流程：
+进入列表页并刷新，检查请求回调是否触发、数据状态是否更新、列表是否显示新内容。
 ```
 
 ```text
-进入商品详情页，验证收藏操作是否同时更新了业务对象和可见界面。
+使用 to-ios-probe，检查 com.example.app 点击登录后为什么没有进入首页。
+结合相关方法调用、业务状态和 UI 证据解释原因。
 ```
 
-```text
-探索这个 App 的搜索流程，并把验证过的操作沉淀成可复用 Preset。
-```
+Probe 会结合源码和已有 Presets 生成探查逻辑，通过 MCP 连接 App、执行操作并收集相关证据，最后回答原始问题。你不需要手写探查脚本；结果会区分真实观测、源码推断和仍未验证的部分。
 
-Agent 会根据任务选择 Android 或 iOS 工作流，生成最小且必要的探测代码，执行受控操作，并用真实运行证据回答原始问题。
+## 四类 Skill 能力
 
-## 快速开始
+四类能力覆盖编码、接入、日常探查和复用；Android 与 iOS 各有对应实现。
 
-### 环境要求
+| 能力 | 何时使用 | Android / iOS Skill |
+| --- | --- | --- |
+| **Observable** | 编写或修改 App 代码时，复用或补充关键日志、稳定 UI 标识，以及必要的运行时入口，让后续探查更容易 | [android-observable-code](./skills/android-observable-code/SKILL.md) / [ios-observable-code](./skills/ios-observable-code/SKILL.md) |
+| **Integrate** | 首次接入或维护调试集成，获取 Runtime 产物、配置工程，并确定兼容 MCP 版本；iOS 还包含 Runner 签名准备与修复 | [to-android-integrate](./skills/to-android-integrate/SKILL.md) / [to-ios-integrate](./skills/to-ios-integrate/SKILL.md) |
+| **Probe** | 用自然语言发起一次运行时调查，完成探查生成、执行及证据分析 | [to-android-probe](./skills/to-android-probe/SKILL.md) / [to-ios-probe](./skills/to-ios-probe/SKILL.md) |
+| **Presets** | 把常用页面导航、业务操作和状态读取沉淀为带类型声明的可复用能力，构建后供后续 Probe 使用 | [to-android-presets](./skills/to-android-presets/SKILL.md) / [to-ios-presets](./skills/to-ios-presets/SKILL.md) |
 
-- Node.js 20 或更高版本
-- Android：ADB 与可用的真机或模拟器
-- iOS：macOS、Xcode Command Line Tools 与可用的真机或模拟器
-- iOS 物理设备连接需要 `iproxy`
+Probe 内部组合对应平台的 `to-*-script` 和 `to-*-run`，分别负责生成与执行；日常使用从 Probe 入口提出问题即可。
 
-开始运行时探索前，需要将 Mobile Easy Use Runtime 接入目标 App 的调试构建。
+### 让新增代码便于观测
 
-集成流程会返回明确的兼容 MCP 版本。请直接运行这个固定版本：
-
-```bash
-npx -y @agent-easy-use/mobile-easy-use@0.1.0
-```
-
-每次新建连接时，Mobile Easy Use 会用实时兼容目录校验 App Runtime 的 Release；版本不匹配时，会给出明确的升级或降级建议。
-
-面向不同 Agent 的 Plugin 及其安装说明将在独立仓库中维护。
-
-生成或修改 probe 前，`to-android-script` 和 `to-ios-script` 会调用
-`get_sdk_declarations` MCP 工具，传入 `platform: "android"` 或 `platform: "ios"`。
-工具返回 `{ platform, sdkVersion, files }`，每个文件包含 `source`（`sdk`、`bridge` 或
-`gum`）、一句话 `description`、`packageName`、`packageVersion` 和本地绝对 `path`。Agent 自行搜索并读取任务
-涉及的声明及关联类型，MCP 不传输声明正文。Agent 和 MCP 需要共享文件系统访问权限，
-无需连接设备或进行本地编译。Frida Gum 声明作为 npm 生产依赖安装，项目自身的
-presets 入口和各功能的 `probe.d.ts` 仍从本地读取。
-
-### 编码指导（可选）
-
-通过所用 Agent 的 Skill/Plugin 安装流程安装 `android-observable-code` 和 `ios-observable-code` 后，在目标 App 项目的 `AGENTS.md` 或 Agent 编码规则中添加以下内容，明确要求在开发时使用对应 Skill。仅安装 MCP npm 包不会安装这些 Skill。
+安装 Observable Skill 后，可将对应规则加入目标工程的 `AGENTS.md` 或 Agent 编码规则，单端项目只保留对应行：
 
 ```markdown
 When writing or modifying Android App code, apply the android-observable-code skill.
 When writing or modifying iOS App code, apply the ios-observable-code skill.
 ```
 
-单端项目可只保留对应的一行。这两个 Skill 指导以极低侵入复用或补充关键链路日志、稳定 UI 标识，便于 Mobile Easy Use 观察运行行为和验证改动。
+### 将探查沉淀为 Presets
 
-## 灵感来源
+```text
+使用 to-android-presets，把进入列表页、刷新内容和读取数据状态沉淀为可复用能力。
+```
 
-Mobile Easy Use 受到 **quickjs-android**、**xLua**、**Frida** 等项目互操作机制的启发，重点借鉴了脚本运行时嵌入、JavaScript 或 Lua 与原生对象桥接，以及跨运行时调用平台能力等方面的设计思想。
+Presets 的基础目录由目标项目 `.meu/config.json` 中的 `presets.directory` 配置，默认 `.meu/presets`，下面按 `android/` 和 `ios/` 分开维护。Skill 生成 `probe.js`、`probe.d.ts` 和导出入口，并构建 `presets.dist.js`；MCP 在连接时加载对应平台的产物。
 
-- **quickjs-android**：展示了如何在 Android 中嵌入轻量 JavaScript 运行时，并连接 JavaScript 与平台原生能力。
-- **xLua**：在脚本语言与宿主应用运行时之间的高效互操作方面提供了重要思路。
-- **Frida**：提供动态插桩与跨平台运行时访问能力，使工具能够深入观察并操作真实运行中的 Android 和 iOS App。
+更新后需要断开并重新连接才能加载新产物。有设备时会执行验证；没有设备时可以完成生成和构建，但会明确注明运行效果尚未验证。具体目录与构建约定见上表的 Presets Skill。
 
-在综合这些方案之后，Mobile Easy Use 最终选择 **基于 Frida 实现**，并将 Frida 的运行时能力进一步扩展为面向 AI Agent 的移动端 Tool，把运行时访问、受控交互、证据采集和可复用开发工作流连接在一起。
+## 灵感来源与 Frida 依赖
 
-## 开发与发布
+Mobile Easy Use 的设计受到 **quickjs-android**、**xLua** 和 **Frida** 的启发：将脚本运行时嵌入宿主应用，桥接脚本与原生对象，让工具能够跨越运行时边界访问 App 内部能力。
 
-安装依赖并运行测试：
+**Frida 是本项目的实现基础和实际依赖。** App 侧 Runtime 基于 Frida Gadget；MCP 侧通过 `frida` 建立运行时连接，并使用 Java / Objective-C bridge 访问平台对象。Mobile Easy Use 在这些能力上提供面向移动开发的 SDK、MCP 工具、证据采集和 Skill 工作流。
+
+```text
+开发者的问题 → AI Agent + Skills → MCP → App 内的 Frida Runtime
+                                           ↕
+                                 方法 / 对象 / 状态 / 日志 / UI
+```
+
+依赖版本见 [package.json](./package.json)，App 侧二进制版本及第三方声明见 [Android 集成说明](./integration/android/README.md#embedded-native-runtime)、[iOS 集成说明](./integration/ios/README.md#embedded-native-runtime)、[Android 第三方声明](./integration/android/mobile-easy-use/THIRD_PARTY_NOTICES.md) 和 [iOS 第三方声明](./integration/ios/THIRD_PARTY_NOTICES.md)。Runtime Release 与 MCP 的兼容关系由[兼容目录](./distribution/README.md)维护。
+
+## 本地开发
 
 ```bash
 npm install
 npm test
-```
-
-检查 npm 发布内容：
-
-```bash
 npm pack --dry-run
 ```
 
-发布 npm 包：
-
-```bash
-npm publish --access public
-```
-
-npm 包名为 `@agent-easy-use/mobile-easy-use`。
-
----
-
-**给 Agent 更多真实信息，让每一次分析、修改和验证都有据可依。**
+npm 包名：`@agent-easy-use/mobile-easy-use`。

@@ -8,25 +8,25 @@ Relevant section example:
 
 ```json
 {
-  "actionDescription": "Submit search",
+  "actionDescription": "Submit form",
   "chain": [
     {
       "type": "method",
-      "className": "SearchService",
-      "selector": "- submitQuery:",
+      "className": "FormService",
+      "selector": "- submitForm:",
       "phase": "enter",
-      "capture": { "args": { "query": "shoes" } }
+      "capture": { "args": { "text": "hello" } }
     },
     {
       "type": "log",
       "level": "default",
-      "tag": "Search",
-      "message": "[Search] request queued"
+      "tag": "Form",
+      "message": "[Form] request queued"
     },
     {
       "type": "method",
-      "className": "SearchService",
-      "selector": "- submitQuery:",
+      "className": "FormService",
+      "selector": "- submitForm:",
       "phase": "leave",
       "capture": {
         "result": { "accepted": true },

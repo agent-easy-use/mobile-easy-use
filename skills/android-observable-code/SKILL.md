@@ -15,6 +15,6 @@ Keep observability changes small and local to the requested work. Reuse existing
 
 ## UI identifiers
 
-- Give relevant native Views stable resource IDs, such as `R.id.search_submit`. Reuse existing IDs; distinguish repeated elements within their parent scope.
+- Give relevant native Views stable resource IDs, such as `R.id.form_submit`. Reuse existing IDs; distinguish repeated elements within their parent scope.
 - Mobile Easy Use also supports string View tags through `tag::` paths. Reuse suitable existing tags without overwriting tags used by application logic.
 - Current queries traverse native Views, not the Compose semantics tree. A Compose test tag alone does not make an element addressable through these queries. Preserve user-facing accessibility text.

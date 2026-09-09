@@ -8,13 +8,13 @@ Use one read-only getter per state and a source-qualified key that identifies it
 
 ```javascript
 const stateGetters = {
-  'SearchModel#query': () => IOS.runOnMainThread(() => readCurrentQuery()),
-  'SearchSession#query': () => {
-    const query = ObjC.classes.SearchSession.sharedSession().query();
-    return query == null ? null : query.toString();
+  'FormModel#text': () => IOS.runOnMainThread(() => readCurrentText()),
+  'FormSession#text': () => {
+    const text = ObjC.classes.FormSession.sharedSession().text();
+    return text == null ? null : text.toString();
   },
-  'SearchViewModel#resultCount': () =>
-    Number(ObjC.classes.SearchViewModel.sharedModel().resultCount()),
+  'FormViewModel#resultCount': () =>
+    Number(ObjC.classes.FormViewModel.sharedModel().resultCount()),
 };
 ```
 
@@ -27,10 +27,10 @@ Getters may return JSON or a Promise of JSON. Use `IOS.runOnMainThread` inside a
 ```javascript
 return Probe.evidence.withStateEvidence(
   async () => {
-    await IOS.input.input('search_field', value);
-    await waitForQueryApplied(value);
+    await IOS.input.input('form_field', value);
+    await waitForTextApplied(value);
   },
-  'Enter the search query',
+  'Enter the form text',
   stateGetters,
 );
 ```

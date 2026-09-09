@@ -13,11 +13,11 @@ Keep observability changes small and local to the requested work. Reuse existing
 - Prefer a stable literal `[TAG] ` prefix in the `NSLog` format string, with event names and relevant outcome values in the message:
 
   ```swift
-  NSLog("[Search] completed count=%ld", results.count)
+  NSLog("[Form] completed count=%ld", results.count)
   ```
 
   ```objc
-  NSLog(@"[Search] completed count=%ld", (long)results.count);
+  NSLog(@"[Form] completed count=%ld", (long)results.count);
   ```
 
 - Existing `NSLog` formats beginning with `[%@]` are also supported when the first argument is an NSString matching the TAG. Mobile Easy Use's log capture requires its iOS Runtime and does not capture Swift `print` or `os_log`.
@@ -25,7 +25,7 @@ Keep observability changes small and local to the requested work. Reuse existing
 
 ## UI identifiers
 
-- Give relevant UIKit controls and result views stable `accessibilityIdentifier` values, such as `search.submit`. Reuse existing identifiers; distinguish repeated elements within their parent scope. Preserve user-facing accessibility labels.
+- Give relevant UIKit controls and result views stable `accessibilityIdentifier` values, such as `form.submit`. Reuse existing identifiers; distinguish repeated elements within their parent scope. Preserve user-facing accessibility labels.
 - Current queries traverse UIViews. SwiftUI or virtual accessibility elements without a corresponding UIView are not addressable through these queries merely by adding an identifier.
 
 ## Method visibility

@@ -856,7 +856,7 @@ test('withChainEvidence filters fixed Log tags and business methods, then uninst
   const result = await fixture.context.Probe.evidence.withChainEvidence(
     () => {
       fixture.emitNativeLog(3, 'IgnoredTag', 'ignored');
-      fixture.emitNativeLog(4, 'SearchTag', 'opened');
+      fixture.emitNativeLog(4, 'FormTag', 'opened');
       assert.equal(
         evidenceRecords(lines).some((record) => record.payload.message === 'opened'),
         true,
@@ -865,8 +865,8 @@ test('withChainEvidence filters fixed Log tags and business methods, then uninst
       businessOverload.implementation.call(null, 'skip');
       return businessOverload.implementation.call(null, 'match');
     },
-    'Open search',
-    new Set(['SearchTag']),
+    'Open form',
+    new Set(['FormTag']),
     [{
       target: Business,
       method: 'run',
@@ -881,7 +881,7 @@ test('withChainEvidence filters fixed Log tags and business methods, then uninst
   const records = evidenceRecords(lines).filter((record) => record.category === 'chain');
   assert.deepEqual(records.map((record) => record.payload.type), ['log', 'method', 'method']);
   assert.deepEqual(records.map((record) => record.payload.phase ?? null), [null, 'enter', 'leave']);
-  assert.ok(records.every((record) => record.payload.actionDescription === 'Open search'));
+  assert.ok(records.every((record) => record.payload.actionDescription === 'Open form'));
   assert.equal(records[0].payload.level, 'i');
 
   const appError = new Error('action failed');
@@ -889,7 +889,7 @@ test('withChainEvidence filters fixed Log tags and business methods, then uninst
     () => fixture.context.Probe.evidence.withChainEvidence(
       () => { throw appError; },
       'Fail chain',
-      'SearchTag',
+      'FormTag',
     ),
     (error) => error === appError,
   );
@@ -954,8 +954,8 @@ test('withChainEvidence keeps hooks until a Promise action settles', async () =>
 
   const result = fixture.context.Probe.evidence.withChainEvidence(
     () => actionResult,
-    'Async search',
-    'SearchTag',
+    'Async submission',
+    'FormTag',
   );
 
   assert.equal(typeof result.then, 'function');
@@ -977,7 +977,7 @@ test('withChainEvidence rolls back earlier hooks when a later hook cannot instal
         actionCalled = true;
       },
       'Invalid setup',
-      'SearchTag',
+      'FormTag',
       [{ target: fixture.context.Java.use('android.util.Log'), method: 'missing' }],
     ),
     /Java method not found/,
@@ -1042,12 +1042,12 @@ test('withChainEvidence compiles the native filter once and reuses immutable TAG
   await fixture.context.Probe.evidence.withChainEvidence(
     () => { firstTagPointer = fixture.nativeLogListeners[0].data; },
     'First action',
-    'Search',
+    'Form',
   );
   await fixture.context.Probe.evidence.withChainEvidence(
     () => { secondTagPointer = fixture.nativeLogListeners[0].data; },
     'Second action',
-    'Search',
+    'Form',
   );
 
   assert.equal(fixture.getCModuleCompileCount(), 1);
@@ -1088,16 +1088,16 @@ test('Override.run replaces matching Android returns and restores the method', a
       target: RegionProvider,
       method: 'getRegion',
       argumentTypes: ['java.lang.String'],
-      filter: (invocation) => String(invocation.args[0]) === 'search',
+      filter: (invocation) => String(invocation.args[0]) === 'form',
       withReturn: 'JP',
     }],
     () => ({
-      search: regionOverload.implementation.call(receiver, 'search'),
+      form: regionOverload.implementation.call(receiver, 'form'),
       feed: regionOverload.implementation.call(receiver, 'feed'),
     }),
   );
 
-  assert.deepEqual(result, { search: 'JP', feed: 'original:feed' });
+  assert.deepEqual(result, { form: 'JP', feed: 'original:feed' });
   assert.equal(originalCalls, 1);
   assert.equal(regionOverload.implementation, null);
 });

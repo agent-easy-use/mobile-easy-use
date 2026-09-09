@@ -326,7 +326,7 @@ function windowFixture() {
   f.ObjC.classes.UIView = {};
   const view = {
     isKindOfClass_: () => true, window: () => f.window,
-    $className: 'UIButton', accessibilityIdentifier: () => 'search.submit',
+    $className: 'UIButton', accessibilityIdentifier: () => 'form.submit',
     isHidden: () => false, alpha: () => 1, isUserInteractionEnabled: () => true,
     clipsToBounds: () => false, superview: () => null,
     bounds: () => [[0, 0], [100, 300]],
@@ -415,7 +415,7 @@ test('touch errors distinguish same-window mismatch, cross-window mismatch and n
   await loadSdk(f);
   const cross = await f.context.IOS.input.click(f.view);
   assert.equal(cross.error.code, 'TOUCH_TARGET_MISMATCH');
-  assert.equal(cross.error.message, 'TOUCH_TARGET_MISMATCH: target UIButton(identifier="search.submit") does not receive the touch at screen point (70, 250); hit UIView(identifier="dialog.mask") in another App window');
+  assert.equal(cross.error.message, 'TOUCH_TARGET_MISMATCH: target UIButton(identifier="form.submit") does not receive the touch at screen point (70, 250); hit UIView(identifier="dialog.mask") in another App window');
 
   f.overlay.hitTest_withEvent_ = () => null;
   f.window.hitTest_withEvent_ = () => f.blocker;
@@ -426,7 +426,7 @@ test('touch errors distinguish same-window mismatch, cross-window mismatch and n
   f.window.hitTest_withEvent_ = () => null;
   const none = await f.context.IOS.input.click(f.view);
   assert.equal(none.error.code, 'NO_TOUCH_RECEIVER');
-  assert.equal(none.error.message, 'NO_TOUCH_RECEIVER: no view receives the touch at screen point (70, 250) for target UIButton(identifier="search.submit") in its App scene');
+  assert.equal(none.error.message, 'NO_TOUCH_RECEIVER: no view receives the touch at screen point (70, 250) for target UIButton(identifier="form.submit") in its App scene');
   assert.equal(f.controllerRequests.length, 0);
 });
 
