@@ -1,6 +1,6 @@
 # Mobile Easy Use
 
-**A tool for Android and iOS developers to explore live app behavior with AI agents.**
+**A tool for Android and iOS developers that brings live app runtime capabilities into AI coding—from understanding and implementation to debugging and verification.**
 
 [中文文档](./README.zh.md)
 

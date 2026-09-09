@@ -18,7 +18,7 @@ Before editing the target project, run `node scripts/ensure-artifacts.mjs`, reso
 
 If the JSON result contains `actionRequired: "confirm-update"`, report the cached and latest Release versions and ask whether to update. Run again with `--update` when accepted or `--use-cached` when declined. Preserve a Release already pinned in the project unless the user accepts an upgrade; select it with `--version <version>`.
 
-Use `MEU_HOME` when the user or environment needs a cache root other than `~/.meu`. Use `GITHUB_TOKEN` when authenticated GitHub API access is required. The selected Release is the integration source, and its catalog range defines MCP compatibility. Stop and report acquisition, catalog, or checksum errors.
+Use `MEU_HOME` when the user or environment needs a cache root other than `~/.meu`. Artifacts and checksums are downloaded directly from the public GitHub Release; no GitHub token or login is required. The selected Release is the integration source, and its catalog range defines MCP compatibility. Stop and report acquisition, catalog, or checksum errors.
 
 ## Workflow
 
