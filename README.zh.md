@@ -1,6 +1,6 @@
 # Mobile Easy Use
 
-**面向 Android / iOS 开发者，将 App 运行时能力融入 AI 编码，贯穿理解、实现、调试与验证。**
+**面向 Android / iOS 开发者，让 AI Agent 访问 App 运行时，理解、探查、调试和验证 App。**
 
 [English](./README.md)
 
