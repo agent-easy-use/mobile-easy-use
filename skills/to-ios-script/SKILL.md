@@ -9,6 +9,8 @@ Generate the smallest iOS runtime code that answers the requested runtime questi
 
 ## Common contract
 
+Before generating or revising Inline or Module code, call `get_sdk_declarations({"platform":"ios"})`; no device connection is required. Use the returned `files[].path` to read the SDK's general constraints and relevant declarations, JSDoc, and referenced types as the API contract.
+
 Before generating Module code, inspect `docs/mobile-easy-use/presets.d.ts` when it exists. Reuse a preset export only when its declaration and source evidence explicitly establish iOS compatibility. Never import an export that depends on Android `Java`, `R`, or `AndroidExp`. Import compatible exports only from the stable Frida module path `/docs/mobile-easy-use/presets.js`:
 
 ```js
@@ -73,7 +75,7 @@ Never use CommonJS `exports.name = ...` or `module.exports`, and never use Frida
 
 Unless the caller specifies another initial scene, assume the App starts on its home page. Generate Driver code from that state to each requested scene. Prefer high-level input because it reproduces real user behavior; use routing or business methods only when the requested scenario explicitly requires them.
 
-1. Read [references/driver-generation.md](references/driver-generation.md) before generating any App-driving code.
+1. Read [references/driver-generation.md](references/driver-generation.md) and `sdk` declarations for `IOS.input`, plus `ui` and `wait` as needed. For direct business calls, also read `bridge`.
 2. In Module mode, export only the entry methods the caller needs. In Inline mode, put the requested flow directly in the IIFE. One operation may compose multiple driver steps.
 3. Stop a flow when an input or wait result has `ok: false`.
 
@@ -81,11 +83,11 @@ Unless the caller specifies another initial scene, assume the App starts on its 
 
 Add Override code only when the requested condition cannot reasonably be established through normal App configuration or Driver actions. Override controls a test precondition; it does not drive the App or prove the result.
 
-Read [references/override-generation.md](references/override-generation.md) before generating Override code. Wrap the complete dependent Driver and Evidence work in one `Override.run(definitions, action)` call. Never install an Override at Module top level or leave one active after the generated operation settles.
+Read [references/override-generation.md](references/override-generation.md) and `sdk` declarations for `Override`. Read `bridge` when definitions or the action use Objective-C objects or business methods. Wrap the complete dependent Driver and Evidence work in one `Override.run(definitions, action)` call. Never install an Override at Module top level or leave one active after the generated operation settles.
 
 ## 3. Evidence
 
-Add Evidence code only for evidence requested by the user or required to answer the runtime question.
+Add Evidence code only for evidence requested by the user or required to answer the runtime question. Read `sdk` declarations for `Probe.evidence`; read `bridge` when the action, getters, or hook callbacks directly use business classes or methods.
 
 Treat an action as the smallest evidence boundary:
 
@@ -135,7 +137,7 @@ Prefer Driver, Override, and Evidence when they accurately express the request. 
 
 Use the native Objective-C bridge exposed as `globalThis.ObjC`, or other Frida Gum APIs, when the encapsulated capabilities are insufficient. Direct Frida may form a standalone probe or compose with Driver, Override, and Evidence.
 
-Read [references/direct-frida-generation.md](references/direct-frida-generation.md) before generating Direct Frida code.
+Read [references/direct-frida-generation.md](references/direct-frida-generation.md). Read `bridge` (`frida-objc-bridge`) for Objective-C APIs and `gum` for native Frida APIs; read both when needed.
 
 ## SDK boundaries
 

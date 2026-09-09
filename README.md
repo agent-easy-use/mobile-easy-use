@@ -129,6 +129,15 @@ On a new connection, Mobile Easy Use checks the App runtime's Release against th
 
 Agent-specific plugins and installation instructions are maintained separately from this runtime repository.
 
+Before generating or revising a probe, `to-android-script` and `to-ios-script` use the
+`get_sdk_declarations` MCP tool with `platform: "android"` or `platform: "ios"`. It returns
+`{ platform, sdkVersion, files }`. Each file includes its `source` (`sdk`, `bridge`, or `gum`),
+one-sentence `description`, `packageName`, `packageVersion`, and absolute local `path`. The Agent searches and reads the
+relevant declarations and related types itself; declaration text is not sent through MCP.
+The Agent and MCP must share filesystem access. No device connection or local compilation
+is required. Frida Gum declarations are included as an npm production dependency, and
+project-specific `presets.d.ts` continues to be read locally.
+
 ## Inspiration
 
 Mobile Easy Use draws inspiration from the interoperability mechanisms explored by projects such as **quickjs-android**, **xLua**, and **Frida**—especially their approaches to embedding scripting environments, bridging JavaScript or Lua with native objects, and invoking platform capabilities across runtime boundaries.
