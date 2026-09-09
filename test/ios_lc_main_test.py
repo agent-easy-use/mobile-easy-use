@@ -57,6 +57,29 @@ class MainEntryTest(unittest.TestCase):
 
 
 class DlopenCompletionTest(unittest.TestCase):
+    def test_image_timeouts_respect_caller_limit(self):
+        for image_name, requested, expected in [
+            ("MobileEasyUseRuntime.dylib", 90, 60),
+            ("MobileEasyUseRuntime.dylib", 30, 30),
+            ("MobileEasyUse.dylib", 90, 10),
+            ("MobileEasyUse.dylib", 5, 5),
+        ]:
+            with self.subTest(image=image_name, requested=requested):
+                target = MagicMock()
+                value = target.EvaluateExpression.return_value
+                value.GetError.return_value.Fail.return_value = False
+                value.GetError.return_value.GetCString.return_value = None
+                value.GetValue.return_value = "0x1234"
+                value.GetValueAsUnsigned.return_value = 0x1234
+                with patch.object(loader, "expression_options") as options, \
+                        patch.object(loader, "loaded_function_address", return_value=0x1234), \
+                        patch.object(loader, "wait_for_inferior_call_stop") as wait:
+                    loader.load_image_with_sbtarget(target, "/App/" + image_name, requested)
+                    options.assert_called_once_with(expected, False)
+                    wait.assert_called_once_with(
+                        target.GetProcess(), target.GetProcess().GetStopID(True),
+                        expected, "direct dlopen")
+
     def test_expression_failure_is_not_masked_by_mapped_images(self):
         target = MagicMock()
         value = target.EvaluateExpression.return_value

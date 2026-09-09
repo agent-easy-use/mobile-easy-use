@@ -346,7 +346,9 @@ def load_image_with_sbtarget(target, path, timeout_seconds, all_threads=False):
         "libdyld.dylib",
         "dlopen",
     )
-    options = expression_options(min(timeout_seconds, 10), all_threads)
+    timeout_limit = 60 if posixpath.basename(path) == RUNTIME_IMAGE_NAME else 10
+    call_timeout = min(timeout_seconds, timeout_limit)
+    options = expression_options(call_timeout, all_threads)
     process = target.GetProcess()
     previous_stop_id = process.GetStopID(True)
     started = time.monotonic()
@@ -366,7 +368,7 @@ def load_image_with_sbtarget(target, path, timeout_seconds, all_threads=False):
     wait_for_inferior_call_stop(
         process,
         previous_stop_id,
-        min(timeout_seconds, 10),
+        call_timeout,
         "direct dlopen",
     )
     if value.GetValueAsUnsigned(0) == 0:
