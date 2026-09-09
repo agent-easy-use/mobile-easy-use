@@ -138,6 +138,17 @@ The Agent and MCP must share filesystem access. No device connection or local co
 is required. Frida Gum declarations are included as an npm production dependency, and
 project-specific `presets.d.ts` continues to be read locally.
 
+### Coding guidance (optional)
+
+After installing the `android-observable-code` and `ios-observable-code` skills through your Agent's Skill/Plugin installation flow, add the following to the target App project's `AGENTS.md` or your Agent's coding rules to make their use explicit during development. Installing the MCP npm package alone does not install these skills.
+
+```markdown
+When writing or modifying Android App code, apply the android-observable-code skill.
+When writing or modifying iOS App code, apply the ios-observable-code skill.
+```
+
+Keep only the line for your platform if needed. These skills guide minimal changes to key-flow logs and stable UI identifiers so Mobile Easy Use can inspect runtime behavior and verify changes.
+
 ## Inspiration
 
 Mobile Easy Use draws inspiration from the interoperability mechanisms explored by projects such as **quickjs-android**, **xLua**, and **Frida**—especially their approaches to embedding scripting environments, bridging JavaScript or Lua with native objects, and invoking platform capabilities across runtime boundaries.

@@ -135,6 +135,17 @@ npx -y @agent-easy-use/mobile-easy-use@0.1.0
 无需连接设备或进行本地编译。Frida Gum 声明作为 npm 生产依赖安装，项目自身的
 `presets.d.ts` 仍从本地读取。
 
+### 编码指导（可选）
+
+通过所用 Agent 的 Skill/Plugin 安装流程安装 `android-observable-code` 和 `ios-observable-code` 后，在目标 App 项目的 `AGENTS.md` 或 Agent 编码规则中添加以下内容，明确要求在开发时使用对应 Skill。仅安装 MCP npm 包不会安装这些 Skill。
+
+```markdown
+When writing or modifying Android App code, apply the android-observable-code skill.
+When writing or modifying iOS App code, apply the ios-observable-code skill.
+```
+
+单端项目可只保留对应的一行。这两个 Skill 指导以极低侵入复用或补充关键链路日志、稳定 UI 标识，便于 Mobile Easy Use 观察运行行为和验证改动。
+
 ## 灵感来源
 
 Mobile Easy Use 受到 **quickjs-android**、**xLua**、**Frida** 等项目互操作机制的启发，重点借鉴了脚本运行时嵌入、JavaScript 或 Lua 与原生对象桥接，以及跨运行时调用平台能力等方面的设计思想。

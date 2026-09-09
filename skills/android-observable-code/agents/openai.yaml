@@ -1,0 +1,6 @@
+interface:
+  display_name: "Android Observable Code"
+  short_description: "Observability guidelines for Android App coding"
+  default_prompt: "Use $android-observable-code while implementing this Android change to preserve useful logs and stable UI identifiers."
+policy:
+  allow_implicit_invocation: true
