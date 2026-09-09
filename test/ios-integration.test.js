@@ -222,14 +222,8 @@ test('iOS Loader rejects the removed --process option', () => {
 test('iOS Runner help does not require an installed Runner artifact', () => {
   const result = spawnSync(
     iosRunnerScriptPath,
-    ['--help'],
-    {
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        MOBILE_EASY_USE_IOS_RUNNER_ROOT: '/path/that/does/not/exist',
-      },
-    },
+    ['--runner-root', '/path/that/does/not/exist', '--help'],
+    { encoding: 'utf8' },
   );
 
   assert.equal(result.status, 0, result.stderr);
@@ -240,19 +234,13 @@ test('iOS Runner rejects an unavailable explicit artifact root', () => {
   const missingRoot = `/path/that/does/not/exist-${process.pid}`;
   const result = spawnSync(
     iosRunnerScriptPath,
-    ['--simulator', 'SIMULATOR-UDID'],
-    {
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        MOBILE_EASY_USE_IOS_RUNNER_ROOT: missingRoot,
-      },
-    },
+    ['--simulator', 'SIMULATOR-UDID', '--runner-root', missingRoot],
+    { encoding: 'utf8' },
   );
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, new RegExp(`unavailable at '${missingRoot}'`));
-  assert.match(result.stderr, /MOBILE_EASY_USE_IOS_RUNNER_ROOT/);
+  assert.match(result.stderr, /App Release version/);
 });
 
 test('iOS Runner requires an explicit artifact root from the Host', () => {
@@ -264,9 +252,7 @@ test('iOS Runner requires an explicit artifact root from the Host', () => {
       encoding: 'utf8',
       env: {
         ...process.env,
-        HOME: '/different/home',
         MEU_HOME: meuHome,
-        MOBILE_EASY_USE_IOS_RUNNER_ROOT: '',
       },
     },
   );

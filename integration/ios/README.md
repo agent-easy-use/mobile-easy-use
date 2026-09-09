@@ -128,9 +128,10 @@ For a physical device, keep `iproxy -u "<device-udid>" 28484:8484` running and c
 `127.0.0.1:28484`. Port 28484 is the fixed iOS host-side mapping; the device runtime remains on 8484.
 
 After MCP `connect` validates the target App runtime, the connection starts `MEUStandaloneRunner`
-and opens its second Frida Session automatically. It uses
-`MOBILE_EASY_USE_IOS_RUNNER_ROOT` when set; otherwise it requires the matching package version at
-`<MEU_HOME>/ios/<version>/runner`, where `MEU_HOME` defaults to `~/.meu`. There is no
+and opens its second Frida Session automatically. The Host uses the target App dylib's
+`runtimeStatus.releaseVersion` to locate `<MEU_HOME>/ios/<releaseVersion>/runner`, where
+`MEU_HOME` defaults to `~/.meu`, and passes that path to the startup script via `--runner-root`.
+Missing Release versions or Runner directories fail explicitly. There is no
 source-checkout fallback. For physical devices, complete the signing setup in `to-ios-integrate`
 first; account or permission failures use its signing repair path. The Host also owns the Runner's
 dynamically reserved Host-port forwarding to device port `8485`. Do not start or forward the Runner

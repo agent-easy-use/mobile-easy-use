@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { readFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import test from 'node:test';
 import { IOSRunner } from '../src/mcp-api/ios-runner.js';
@@ -21,6 +22,28 @@ class FakeChild extends EventEmitter {
     return true;
   }
 }
+
+test('Runner discovery uses the App Release version under MEU_HOME or the default home', () => {
+  const previous = process.env.MEU_HOME;
+  try {
+    process.env.MEU_HOME = 'custom-meu-home';
+    for (const releaseVersion of ['0.1.0', '2.3.4']) {
+      const connection = { runtimeStatus: { releaseVersion } };
+      assert.equal(new IOSRunner({}, connection, 'com.example.app').runnerRoot,
+        resolve('custom-meu-home', 'ios', releaseVersion, 'runner'));
+    }
+    delete process.env.MEU_HOME;
+    assert.equal(new IOSRunner({}, { runtimeStatus: { releaseVersion: '2.3.4' } }, 'com.example.app').runnerRoot,
+      resolve(homedir(), '.meu', 'ios', '2.3.4', 'runner'));
+    for (const releaseVersion of [null, undefined, '']) {
+      assert.throws(() => new IOSRunner({}, { runtimeStatus: { releaseVersion } }, 'com.example.app'),
+        /did not report a Release version/);
+    }
+  } finally {
+    if (previous === undefined) delete process.env.MEU_HOME;
+    else process.env.MEU_HOME = previous;
+  }
+});
 
 test('iOS XCTest runner uses its dedicated listen endpoint', async () => {
   const config = JSON.parse(await readFile(
