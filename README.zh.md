@@ -117,11 +117,13 @@ Agent 会根据任务选择 Android 或 iOS 工作流，生成最小且必要的
 
 开始运行时探索前，需要将 Mobile Easy Use Runtime 接入目标 App 的调试构建。
 
-直接运行已经发布的 MCP 服务：
+集成流程会返回明确的兼容 MCP 版本。请直接运行这个固定版本：
 
 ```bash
-npx -y @agent-easy-use/mobile-easy-use@latest
+npx -y @agent-easy-use/mobile-easy-use@0.1.0
 ```
+
+每次新建连接时，Mobile Easy Use 会用实时兼容目录校验 App Runtime 的 Release；版本不匹配时，会给出明确的升级或降级建议。
 
 面向不同 Agent 的 Plugin 及其安装说明将在独立仓库中维护。
 

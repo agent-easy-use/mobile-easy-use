@@ -119,11 +119,13 @@ The agent selects the appropriate Android or iOS workflow, creates the smallest 
 
 Before runtime exploration, integrate Mobile Easy Use Runtime into a debug build of the target app.
 
-Run the published MCP server directly:
+The integration workflow reports the exact compatible MCP version. Run that pinned version directly:
 
 ```bash
-npx -y @agent-easy-use/mobile-easy-use@latest
+npx -y @agent-easy-use/mobile-easy-use@0.1.0
 ```
+
+On a new connection, Mobile Easy Use checks the App runtime's Release against the live compatibility catalog and gives a concrete upgrade or downgrade action when versions do not match.
 
 Agent-specific plugins and installation instructions are maintained separately from this runtime repository.
 
