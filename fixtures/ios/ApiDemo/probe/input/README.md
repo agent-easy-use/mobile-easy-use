@@ -16,6 +16,7 @@ separate `first` and `second` timings. The error probe times its complete sequen
 | `probeCustomViewTouch` | no args | 1 | touchesEnded = 1, accessibilityActivate = 0 |
 | `probeTextInput` | `["Hello 中文🙂", targetKind]` | 4 | editingChanged text exactly matches |
 | `probeTextAppend` | `[targetKind]` | 4 | complete text = `prefix-中文🙂` |
+| `probeTextFocusSwitch` | `[targetKind]` | 4 | A → B → A; both exact texts and exclusive first responder after each input |
 | `probeLongPress` | `[targetKind]`, `[targetKind, "800"]` | 8 | long-press recognizer began once |
 | `probeVerticalScroll` | `[targetKind, "up"]`, `[targetKind, "down"]` | 8 | contentOffset.y moves in the expected direction |
 | `probeHorizontalScroll` | `[targetKind, "left"]`, `[targetKind, "right"]` | 8 | contentOffset.x moves in the expected direction |
@@ -27,7 +28,36 @@ separate `first` and `second` timings. The error probe times its complete sequen
 | `probeWindowClick` | eight modes below × four target kinds | 32 | independent underlying/front button counters |
 | `probeWindowBlocked` | input/longPress/scroll × identifier/path/view | 9 | rejection, zero button/press counts, unchanged text/offset |
 | `probeWindowLifecycle` | no args; seven transitions on the same windows | 1 | view and raw-coordinate touches reach the same expected button |
-| Total | | 92 | |
+| Total | | 96 | |
+
+## Input focus switching
+
+Run `probeTextFocusSwitch` separately with `["identifier"]`, `["path"]`, `["view"]`, and
+`["coordinates"]`. Each starts at **Main → Input → focus_switch** and creates two empty UITextFields.
+The probe first requires neither field to be first responder. All three inputs use the selected
+target kind; no separate click, `becomeFirstResponder`, or native text assignment prepares focus.
+
+| Step | Input target/text | Expected Field A | Expected Field B | Exclusive first responder |
+| --- | --- | --- | --- | --- |
+| 1 | A / `A-` | `A-` | empty | A |
+| 2 | B / `B-中文🙂` | `A-` | `B-中文🙂` | B |
+| 3 | A / `回A🙂` | `A-回A🙂` | `B-中文🙂` | A |
+
+After every step, read each UITextField's own `text` and `isFirstResponder` in the native snapshot.
+Do not use the shared last-edit text as the oracle. Require SDK success and the expected text length,
+both exact field contents, target focus and loss of focus on the other field. Stop at the first failed
+step and return to Main. Results retain the two fields' before/after state and individual input timing.
+
+On 2026-09-09, all four focus-switch cases passed on the iPhone XS Max / iOS 18.7.10 physical
+device on their first run (12 input calls). Existing identifier text input, UIView append, and
+same-level window blocking also passed. This targeted run does not certify the full new 96-case
+matrix.
+
+A subsequent cold-start round on 2026-09-09 passed all four focus-switch target kinds on both
+the iPhone XS Max / iOS 18.7.10 physical device and iPhone 17 / iOS 26.0 simulator (24 input
+calls total, no retries). Each platform started one fresh App process and ran its four cases
+serially, with a fresh scenario per case; this was not a separate cold launch for every case.
+Both Runners were explicitly disconnected and verified absent after testing.
 
 ## Explicit cross-window test paths
 

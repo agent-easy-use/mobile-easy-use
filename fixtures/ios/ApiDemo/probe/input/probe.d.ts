@@ -21,6 +21,8 @@ export declare function probeTargetErrors(): Promise<InputProbeResult>;
 export declare function probeLongPress(targetKind?: InputTargetKind, durationMs?: string): Promise<InputProbeResult>;
 /** Two real text submissions must preserve prefix- and add Chinese/emoji text. */
 export declare function probeTextAppend(targetKind?: InputTargetKind): Promise<InputProbeResult>;
+/** Fresh Main -> Input -> focus_switch; input A -> B -> A, checking both texts and exclusive native focus after each step. */
+export declare function probeTextFocusSwitch(targetKind?: InputTargetKind): Promise<InputProbeResult>;
 /** View targets use the clipped center; raw coordinates retain their supplied, unclipped center. */
 export declare function probeClippedTarget(targetKind?: InputTargetKind): Promise<InputProbeResult>;
 /** View targets fail before touching the cover; raw coordinates touch the cover. */

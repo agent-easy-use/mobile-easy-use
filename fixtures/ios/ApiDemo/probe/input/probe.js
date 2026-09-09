@@ -274,6 +274,41 @@ export async function probeTextAppend(targetKind = 'identifier') {
   });
 }
 
+/** Switch A -> B -> A through input itself; verify both native texts and first responders. */
+export async function probeTextFocusSwitch(targetKind = 'identifier') {
+  return navigate('focus_switch', async () => {
+    const fields = async () => {
+      const { fixtures } = await snapshot();
+      return {
+        a: { text: fixtures.text.text, focused: fixtures.text.isFirstResponder },
+        b: { text: fixtures.textSecond.text, focused: fixtures.textSecond.isFirstResponder },
+      };
+    };
+    const initial = await fields();
+    const steps = [];
+    let before = initial;
+    const clean = initial.a.text === '' && initial.b.text === ''
+      && initial.a.focused === false && initial.b.focused === false;
+    if (clean) for (const step of [
+      { key: 'a', identifier: 'api.input.text', text: 'A-', a: 'A-', b: '' },
+      { key: 'b', identifier: 'api.input.text-second', text: 'B-中文🙂', a: 'A-', b: 'B-中文🙂' },
+      { key: 'a', identifier: 'api.input.text', text: '回A🙂', a: 'A-回A🙂', b: 'B-中文🙂' },
+    ]) {
+      const target = await targetFor(step.identifier, targetKind);
+      const result = await measured(() => IOS.input.input(target, step.text));
+      const after = await fields();
+      const passed = result.ok === true && result.textLength === step.text.length
+        && after.a.text === step.a && after.b.text === step.b
+        && after.a.focused === (step.key === 'a') && after.b.focused === (step.key === 'b');
+      steps.push({ target: step.key, passed, result, before, after });
+      before = after;
+      if (!passed) break;
+    }
+    return { passed: clean && steps.length === 3 && steps.every(step => step.passed),
+      api: `IOS.input.input(focus switch,${targetKind})`, result: steps, oracle: { initial, final: before } };
+  });
+}
+
 export async function probeClippedTarget(targetKind = 'identifier') {
   return navigate('geometry', async () => {
     const target = await targetFor('api.input.clipped', targetKind);

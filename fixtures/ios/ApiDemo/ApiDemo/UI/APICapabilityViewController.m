@@ -45,7 +45,7 @@
 
 - (NSArray<NSString *> *)scenarioKeys {
     if ([self.category isEqualToString:@"ui"]) return @[@"path", @"visibility", @"window"];
-    if ([self.category isEqualToString:@"input"]) return @[@"click", @"text", @"vertical_scroll", @"horizontal_scroll", @"errors", @"long_press", @"geometry", @"windows"];
+    if ([self.category isEqualToString:@"input"]) return @[@"click", @"text", @"focus_switch", @"vertical_scroll", @"horizontal_scroll", @"errors", @"long_press", @"geometry", @"windows"];
     if ([self.category isEqualToString:@"wait"]) return @[@"immediate", @"delayed_visible", @"delayed_gone", @"attach_detach", @"resize", @"timeout"];
     return @[@"method_log", @"state_evidence", @"ui_evidence", @"chain_evidence"];
 }
@@ -262,7 +262,7 @@
             [self pinView:duplicate inContainer:self.fixtureContainer top:210 + index * 70 height:48];
             [self recordFixture:duplicate key:[NSString stringWithFormat:@"duplicate%ld", (long)index]];
         }
-    } else if ([self.scenario isEqualToString:@"text"]) {
+    } else if ([self.scenario isEqualToString:@"text"] || [self.scenario isEqualToString:@"focus_switch"]) {
         UITextField *field = [[UITextField alloc] init];
         field.borderStyle = UITextBorderStyleRoundedRect;
         field.accessibilityIdentifier = @"api.input.text";
@@ -271,6 +271,18 @@
         [field addTarget:self action:@selector(textChanged:) forControlEvents:UIControlEventEditingChanged];
         [self pinView:field inContainer:self.fixtureContainer top:24 height:52];
         [self recordFixture:field key:@"text"];
+        if ([self.scenario isEqualToString:@"focus_switch"]) {
+            field.placeholder = @"Field A";
+            UITextField *second = [[UITextField alloc] init];
+            second.borderStyle = UITextBorderStyleRoundedRect;
+            second.placeholder = @"Field B";
+            second.accessibilityIdentifier = @"api.input.text-second";
+            second.autocorrectionType = UITextAutocorrectionTypeNo;
+            second.autocapitalizationType = UITextAutocapitalizationTypeNone;
+            [second addTarget:self action:@selector(textChanged:) forControlEvents:UIControlEventEditingChanged];
+            [self pinView:second inContainer:self.fixtureContainer top:100 height:52];
+            [self recordFixture:second key:@"textSecond"];
+        }
     } else if ([self.scenario hasSuffix:@"scroll"]) {
         UIScrollView *scroll = [[UIScrollView alloc] init];
         scroll.accessibilityIdentifier = [self.scenario hasPrefix:@"vertical"] ? @"api.input.vertical-scroll" : @"api.input.horizontal-scroll";
@@ -432,6 +444,12 @@
             NSMutableDictionary *values = [fixtureStates[key] mutableCopy];
             values[@"touchCount"] = @(((APIActivatingView *)view).touchCount);
             values[@"accessibilityActivationCount"] = @(((APIActivatingView *)view).accessibilityActivationCount);
+            fixtureStates[key] = values;
+        }
+        if ([view isKindOfClass:UITextField.class]) {
+            NSMutableDictionary *values = [fixtureStates[key] mutableCopy];
+            values[@"text"] = ((UITextField *)view).text ?: @"";
+            values[@"isFirstResponder"] = @(view.isFirstResponder);
             fixtureStates[key] = values;
         }
     }];

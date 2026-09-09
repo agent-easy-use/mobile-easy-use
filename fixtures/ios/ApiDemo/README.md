@@ -5,13 +5,13 @@ It is not a product-flow sample and does not reuse HelloWorld state or screens.
 
 ## Coverage baseline
 
-The checked-in Module operations currently provide 56 actual-runtime probe exports:
+The checked-in Module operations currently provide 57 actual-runtime probe exports:
 
 | Capability | Operations |
 | --- | ---: |
 | Runtime status / `callFunction` | 2 |
 | `IOS.ui.find` | 4 |
-| `IOS.input` | 17 |
+| `IOS.input` | 18 |
 | `IOS.wait` | 8 |
 | `Override.run` | 4 |
 | State / UI / Chain Evidence | 19 |
@@ -77,7 +77,7 @@ The physical-device Runtime endpoint is `127.0.0.1:28484`. The final App must be
 with `get-task-allow = true`, or LLDB attachment will fail.
 
 See `probe/README.md` for the one-operation execution contract.
-The [input matrix](probe/input/README.md) expands the 17 input exports into 92
+The [input matrix](probe/input/README.md) expands the 18 input exports into 96
 independent operations covering all target forms, directions and native state oracles.
 
 ## Release boundary
