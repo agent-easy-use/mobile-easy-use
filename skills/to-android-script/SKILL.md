@@ -13,8 +13,9 @@ Call `get_sdk_declarations({"platform":"android"})` to obtain declaration paths 
 
 Resolve `presets.directory` from `<project-root>/.meu/config.json`
 relative to the project root, defaulting to `.meu/presets`. If `<base-directory>/android/`
-contains both `presets.dist.js` and `presets.d.ts`, read the declarations and prefer reusing
-capabilities that satisfy the request.
+contains `presets.dist.js`, read `presets.entry.js` to identify public exports and the
+corresponding feature `probe.d.ts` files for their contracts. Prefer reusing capabilities that
+satisfy the request; import only names exported by the entry, including any aliases.
 
 When reusing a preset, use Module mode and import its declared export, for example:
 `import { inspectPageState } from '/meu/presets.js';`. Connect loads presets; generated code
