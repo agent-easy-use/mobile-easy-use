@@ -18,48 +18,69 @@ Verify this change to favorites. Do the business object and button state
 agree before and after the action?
 ```
 
-## What you can explore
+## What runtime information is available
 
-| Information or action | Capability |
+Mobile Easy Use gives agents live app information to interpret alongside source code, understand behavior, diagnose problems, and verify changes:
+
+| Runtime information | What it tells you |
 | --- | --- |
-| Method calls and logs | Observe relevant Java / Objective-C calls and key-flow logs to identify the actual execution path |
-| Business objects and state | Read runtime objects, fields, and resources; compare state before and after an action |
-| Native UI | Locate controls, inspect view state, and capture window and element screenshots |
-| Interactions and scenarios | Click, type, scroll, and wait for UI changes to reach the scenario under investigation |
-| Task-specific probes | Generate and execute probes; temporarily override method returns or fields when needed to establish conditions |
-| Results and failure context | Preserve outcomes, failure stages, and collected evidence, then interpret them alongside source code |
+| Method calls | Which methods an action triggers, their inputs and results, where calls originate, and which threads execute them |
+| Method timing | How long relevant methods take, providing clues to slow calls and waits |
+| Process memory | How process memory changes around method calls, providing clues for further memory investigations |
+| Business logs | Which business events occur during an action, how far execution progresses, and what clues point to a failure |
+| Business objects and state | Current data, configuration flags, counts, and business phases, including values that change after an action |
+| UI and control state | Whether controls exist, whether they are visible, where they appear, and their currently readable properties |
+| Window and element screenshots | The app's actual appearance, focused images of key elements, and visual changes before and after an action |
+| App resources | Resource identifiers and contents associated with Android controls and configuration, connecting source code with the running app |
+| Operation results and failure context | Whether an action completes, where it fails, and the state, logs, and images already collected |
 
-Android and iOS physical devices and simulators are supported. Current iOS method inspection uses the Objective-C runtime, and UI lookup uses UIKit. Pure Swift methods and SwiftUI elements without corresponding UIViews are outside the direct coverage of these interfaces.
+These observations can be combined around the same action to understand how method execution and data changes lead to what appears on screen. Available information depends on the platform and app implementation.
 
-## More than UI automation testing
+## Not another UI automation testing solution
 
-Mobile Easy Use supports UI automation testing and lets agents explore live app state before and during coding. Mobile development requires understanding the data, objects, and execution paths behind a screen. This information helps an agent decide where to make a change, how to implement it, and whether it behaves as intended.
+Mobile Easy Use can perform UI automation testing and participate throughout the mobile development coding process. It exposes app method calls, logs, business objects, state changes, and UI to agents, giving them runtime evidence alongside source code while understanding requirements, writing code, and verifying changes.
 
-| Dimension | UI-focused automation testing | Mobile Easy Use |
-| --- | --- | --- |
-| Primary goal | Run test cases and check expected UI and interactions | Understand runtime behavior, guide coding, diagnose problems, and verify results |
-| Observation scope | Controls, interactions, screenshots, and UI state | UI plus method calls, logs, business objects, and state changes |
-| Task entry point | Write or generate test cases around expected behavior | Generate and execute a probe around the current development question |
-| Contribution to coding | Reveal behavioral differences through test results | Correlate source code with runtime evidence to guide where and how to change code |
-| Reusable capabilities | Test cases, page objects, and helpers | Page actions, business probes, and state queries through Presets |
+UI-focused automation testing primarily answers whether the interface and interactions behave as expected. Mobile Easy Use also answers how the app currently works, where to make a change, and whether implementation assumptions hold, bringing runtime information directly into development decisions.
 
-### Why it fits a coding environment
+| Capability | Traditional UI automation | Mobile Easy Use |
+| --- | :---: | :---: |
+| UI interactions: click, type, scroll, and more | ✓ | ✓ |
+| UI state: locate controls, read properties, and wait for state | ✓ | ✓ |
+| Capture screens and elements | ✓ | ✓ |
+| Observe business objects and state | — | ✓ |
+| Method observation: collect call chains, arguments, results, and stacks | — | ✓ |
+| Measure execution time and process memory changes | — | ✓ |
+| Temporarily change runtime conditions: override method returns or fields, then restore them | — | ✓ |
+| Invoke internal app methods | — | ✓ |
+| Correlate runtime results with source code | — | ✓ |
 
-An agent needs access to real app behavior throughout development. Mobile Easy Use brings runtime exploration into that process, allowing source analysis, live observations, and code changes to inform one another:
+These capabilities span every stage of coding:
 
-- **Before coding, understand the current behavior:** Explore the target screen and business flow, inspect objects, configuration, and state, and observe actual call paths to inform the implementation plan.
-- **During coding, check assumptions:** Probe the logic being changed to determine whether data arrives, where state changes, and which branch executes, then use those observations to locate problems and adjust the implementation.
-- **After a change, verify the result:** Perform relevant interactions, compare business state and UI changes, confirm the outcome, and turn common actions into Presets.
+- **Before coding, understand the app and plan the change:** Explore target screens and business flows, inspect objects, configuration, and state, and observe actual call paths. Combine these observations with source code to decide where and how to implement the change.
+- **During coding, check assumptions and adjust the implementation:** Hook the logic under development to inspect data and execution branches. When needed, temporarily override dependency returns or configuration fields to check behavior under different conditions. After editing and running a new build, continue observing to check implementation decisions as the work progresses.
+- **After coding, verify behavior and preserve reusable capabilities:** Perform relevant interactions, compare business state and UI changes, confirm the intended outcome, and turn common actions and probes into reusable Presets.
 
-For example, when investigating a successful data request that leaves the list unchanged, an agent can inspect the request callback, result object, and list state before choosing where to edit the source. After changing the code and running the new build, it can inspect the same flow's state and UI changes again. Exploration spans understanding the problem, coding, and verification.
+For example, when developing a configuration-controlled page, an agent can first read its configuration and hook the page entry point to understand the existing path. During coding, it can temporarily replace the configuration getter's return value to establish enabled and disabled conditions, checking each branch's state and UI. After removing the overrides, it can verify the full interaction with real configuration in the new build. This provides both runtime understanding and active scenario control to check the implementation.
 
 ## Getting started
 
-Prepare Node.js 20+ and install the relevant platform Skills from [skills](./skills) through your agent's Skill / Plugin installation flow. Preserve the sibling Skills, scripts, and references they use. **Install MCP and Skills separately**: MCP provides connection and execution tools; Skills guide the agent through development tasks using those tools.
+Prepare Node.js 20+.
 
 Android requires ADB and an available device or emulator. iOS requires macOS, Xcode and its command-line tools; physical devices also require `iproxy` and development signing for the XCTest Runner used for input actions.
 
-### 1. Integrate into the app
+### 1. Install Skills
+
+Run from the target app project root:
+
+```bash
+npx skills add agent-easy-use/mobile-easy-use --skill '*'
+```
+
+This selects all Skills in the repository. Follow the prompts to choose your agent and installation scope. See the [Skills CLI documentation](https://github.com/vercel-labs/skills#options) for the command and options.
+
+**Install Skills and MCP separately**: Skills include Observable, Integrate, Probe, Presets, and their supporting script generation and execution workflows. MCP provides tools to connect to the app and execute operations.
+
+### 2. Integrate into the app
 
 In the target app project, ask the agent to use the platform's Integrate Skill:
 
@@ -73,11 +94,11 @@ Use to-ios-integrate to integrate Mobile Easy Use into this app's internal debug
 
 Integrate acquires and verifies Release artifacts, updates the project configuration, and returns an **exact compatible MCP launch command**. Android integrates an AAR that starts the Runtime automatically. iOS embeds the bridge and Runtime, which MCP loads when connecting. Scope integration to internal debug builds, then build and install the app on the target device.
 
-Detailed integration instructions: [Android](./integration/android/README.md) · [iOS](./integration/ios/README.md).
+Complete integration workflows: [Android Integrate Skill](./skills/to-android-integrate/SKILL.md) · [iOS Integrate Skill](./skills/to-ios-integrate/SKILL.md).
 
-### 2. Install and configure MCP
+### 3. Install and configure MCP
 
-Add `mobile-easy-use` to your agent's MCP configuration using the version returned by Integrate. This is a generic stdio configuration example; replace the example version `0.1.0` with the compatible version from your integration result:
+Add `mobile-easy-use` to your agent's MCP configuration. **Use the compatible MCP version returned by the Integrate Skill in the previous step.** The version `0.1.0` below is only an example; replace it with the version in the MCP launch command returned by the Skill:
 
 ```json
 {
@@ -94,9 +115,9 @@ Add `mobile-easy-use` to your agent's MCP configuration using the version return
 
 Reload the MCP configuration and check that tools such as `get_sdk_declarations` and `connect` are visible to the agent. New connections check compatibility between the app Runtime Release and MCP version and suggest an adjustment if they do not match.
 
-### 3. Explore with Probe
+### 4. Explore with Probe
 
-Connect a device, identify the target app, and describe your question:
+After integration, build the app debug version containing the Mobile Easy Use Runtime and install it on the target device or simulator before using Probe. Connect the device, identify the target app, and describe your question:
 
 ```text
 Use to-android-probe to investigate list refresh in com.example.app on the device.
@@ -118,16 +139,18 @@ These four capabilities cover coding, integration, everyday exploration, and reu
 
 | Capability | When to use it | Android / iOS Skill |
 | --- | --- | --- |
-| **Observable** | While changing app code, preserve or add useful logs, stable UI identifiers, and necessary runtime entry points to make later inspection easier | [android-observable-code](./skills/android-observable-code/SKILL.md) / [ios-observable-code](./skills/ios-observable-code/SKILL.md) |
+| **Observable** | Optional coding guidance with minimal intrusion: reuse or selectively add logs, UI identifiers, and runtime entry points so the app works better with Mobile Easy Use | [android-observable-code](./skills/android-observable-code/SKILL.md) / [ios-observable-code](./skills/ios-observable-code/SKILL.md) |
 | **Integrate** | Set up or maintain debug integration, acquire Runtime artifacts, configure the project, and select a compatible MCP version; also prepare or repair iOS Runner signing | [to-android-integrate](./skills/to-android-integrate/SKILL.md) / [to-ios-integrate](./skills/to-ios-integrate/SKILL.md) |
 | **Probe** | Start a runtime investigation in natural language, including probe generation, execution, and evidence analysis | [to-android-probe](./skills/to-android-probe/SKILL.md) / [to-ios-probe](./skills/to-ios-probe/SKILL.md) |
 | **Presets** | Turn common navigation, business actions, and state queries into reusable capabilities with type declarations, bundled for future probes | [to-android-presets](./skills/to-android-presets/SKILL.md) / [to-ios-presets](./skills/to-ios-presets/SKILL.md) |
 
 Probe composes the platform's `to-*-script` and `to-*-run` Skills for generation and execution. For everyday use, start with Probe and describe your question.
 
-### Make new code observable
+### Observable: minimal changes for better integration (optional)
 
-After installing the Observable Skills, add the relevant rules to the target project's `AGENTS.md` or agent coding rules. Keep only your platform's line if appropriate:
+Observable is not a prerequisite for using Mobile Easy Use. It prioritizes existing logs, UI identifiers, and runtime entry points, making only small, local additions when the current development task calls for them. These changes preserve business behavior while making control lookup, call observation, and state verification easier.
+
+Invoke Observable as needed. If you want it applied during everyday coding, you can add the following rules to the target project's `AGENTS.md` or agent coding rules after installing the Skills. Keep only your platform's line if appropriate:
 
 ```markdown
 When writing or modifying Android App code, apply the android-observable-code skill.
@@ -145,7 +168,7 @@ The target project's `.meu/config.json` sets the base directory through `presets
 
 Disconnect and reconnect after updates to load the new bundle. With a device available, the Skill executes the capabilities for verification. Without one, it can generate and build them but explicitly reports runtime behavior as unverified. See the Presets Skills above for directory and build details.
 
-## Inspiration and Frida dependency
+## Inspiration
 
 Mobile Easy Use draws inspiration from **quickjs-android**, **xLua**, and **Frida**: embedding a scripting runtime in a host application, bridging scripts with native objects, and accessing app capabilities across runtime boundaries.
 
@@ -157,7 +180,7 @@ Developer question → AI agent + Skills → MCP → Frida Runtime in the app
                                   Methods / Objects / State / Logs / UI
 ```
 
-See [package.json](./package.json) for package dependency versions. App-side binary versions and notices are documented in the [Android integration guide](./integration/android/README.md#embedded-native-runtime), [iOS integration guide](./integration/ios/README.md#embedded-native-runtime), [Android third-party notices](./integration/android/mobile-easy-use/THIRD_PARTY_NOTICES.md), and [iOS third-party notices](./integration/ios/THIRD_PARTY_NOTICES.md). The [compatibility catalog](./distribution/README.md) maintains Runtime Release / MCP compatibility.
+See [package.json](./package.json) for package dependency versions. App-side binary versions and notices are documented in the [Android third-party notices](./integration/android/mobile-easy-use/THIRD_PARTY_NOTICES.md) and [iOS third-party notices](./integration/ios/THIRD_PARTY_NOTICES.md). The [compatibility catalog](./distribution/README.md) maintains Runtime Release / MCP compatibility.
 
 ## Local development
 
