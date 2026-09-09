@@ -7,17 +7,18 @@ description: Generate Android mobile-easy-use runtime code as either a temporary
 
 Generate the smallest Android runtime code that answers the requested runtime question. Prefer Driver for requested user-visible actions, use Override only when normal App configuration or Driver actions cannot establish a required condition, add Evidence only when needed to answer the question, and use Direct Frida only when the encapsulated capabilities are insufficient. Driver, Override, Evidence, and Direct Frida can compose within their API boundaries; use only what the question requires and avoid unnecessary probing. Generate code only; do not connect to a device or execute it.
 
-## Common contract
+## Before generating code
 
-Before generating or revising Inline or Module code, call `get_sdk_declarations({"platform":"android"})`; no device connection is required. Use the returned `files[].path` to read the SDK's general constraints and relevant declarations, JSDoc, and referenced types as the API contract.
+Call `get_sdk_declarations({"platform":"android"})` to obtain declaration paths in `files[].path`. It returns `sdk` (platform SDK), `bridge` (Frida Java bridge), and `gum` (native Frida APIs) declarations. The capability sections below specify which declarations to read.
 
-Before generating Module code, inspect `docs/mobile-easy-use/presets.d.ts` when it exists. Prefer its existing capabilities over generating equivalent driver or probe code. Import only its declared exports from the stable Frida module path `/docs/mobile-easy-use/presets.js`:
+Resolve `presets.directory` from `<project-root>/.meu/config.json`
+relative to the project root, defaulting to `.meu/presets`. If `<base-directory>/android/`
+contains both `presets.dist.js` and `presets.d.ts`, read the declarations and prefer reusing
+capabilities that satisfy the request.
 
-```js
-import { xxxx } from '/docs/mobile-easy-use/presets.js';
-```
-
-`docs/mobile-easy-use/presets.js` is a Rollup-built single-file ES module loaded once when the MCP connects; do not read, modify, build, or copy it. Do not compute a relative import from the generated `probe.js`: the Host file path and the Frida module path are separate concepts. Inline code cannot import presets. If a capability is unavailable in the selected mode, generate the smallest local implementation instead. Also inspect the target repository when identifiers or business symbols are unknown; never guess them.
+When reusing a preset, use Module mode and import its declared export, for example:
+`import { inspectPageState } from '/meu/presets.js';`. Connect loads presets; generated code
+only needs the import.
 
 ## Output mode
 
@@ -44,11 +45,11 @@ probe.js
 probe.d.ts
 ```
 
-Declare only module exports in `probe.d.ts`. Add JSDoc describing every exported method and parameter. Do not declare internal actions, helpers, or SDK globals.
+Declare only module exports in `probe.d.ts`. Keep exported names and signatures consistent with `probe.js`, and add JSDoc for every exported method and parameter. Do not declare internal actions, helpers, or SDK globals.
 
 A module may export multiple scenario or probe methods. Module top level must only define helpers and exports: do not perform business actions or install persistent hooks while loading. Put behavior inside exported functions and clean up temporary hooks before each function settles, because loading changed content does not unload older module versions.
 
-`probe.js` is a standard ES Module. Export every callable entry with named ESM syntax:
+`probe.js` is a standard JavaScript ES Module. Export every callable entry with named ESM syntax:
 
 ```js
 export function inspectState() {
@@ -72,7 +73,7 @@ forms with an explicit error.
 
 ## 1. Driver
 
-Unless the caller specifies another initial scene, assume the App starts on its home page. Generate Driver code from that state to each requested scene. Prefer high-level input because it reproduces real user behavior; use routing or business methods only when the requested scenario explicitly requires them.
+Unless the caller specifies another initial scene, assume the App starts on its home page. Generate Driver code from that state to each requested scene. Resolve page and control identifiers from source instead of guessing. Prefer high-level input because it reproduces real user behavior; use routing or business methods only when the requested scenario explicitly requires them.
 
 1. Read [references/driver-generation.md](references/driver-generation.md) and `sdk` declarations for `AndroidExp.input`, plus `ui` and `wait` as needed. For direct business calls, also read `bridge`.
 2. In Module mode, export only the entry methods the caller needs. In Inline mode, put the requested flow directly in the IIFE. One operation may compose multiple driver steps.
@@ -113,19 +114,7 @@ Use `globalThis.Java` or other Frida Gum APIs for runtime work not covered by en
 
 Read [references/direct-frida-generation.md](references/direct-frida-generation.md). Read `bridge` (`frida-java-bridge`) for Java APIs and `gum` for native Frida APIs; read both when needed.
 
-## SDK boundaries
-
-The SDK provides these globals:
-
-1. `Java`: native Frida Java bridge exposed as `globalThis.Java` for Android Framework, business, and third-party Java/Kotlin classes.
-2. `R`: dynamic Android application resources such as `R.id.search_button`.
-3. `AndroidExp`: reusable Android extensions for main-thread dispatch, window access, input, and waits.
-4. `Override`: action-scoped Java method return substitution and temporary field assignment.
-5. `Probe.evidence`: action-scoped critical-chain, state, and UI evidence.
-
-Follow native Frida semantics; use `Java.registerClass()` to implement Java interfaces. Prefer the encapsulated SDK capabilities when they preserve the requested semantics. Treat repeated, reusable missing capabilities, rather than one direct Frida use, as candidates for a preset or SDK extension.
-
-Before delivery, verify that every referenced symbol comes from source or the SDK and no unrequested evidence or interaction was added. For Inline, verify the result is one complete async IIFE with no imports or exports. For Module, verify that `probe.js` uses named standard ES Module exports and its exports match `probe.d.ts`.
+Follow native Frida semantics; use `Java.registerClass()` to implement Java interfaces. Resolve business symbols from source instead of guessing.
 
 ## Composition example
 

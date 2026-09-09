@@ -7,19 +7,18 @@ description: Generate iOS mobile-easy-use runtime code as either a temporary inl
 
 Generate the smallest iOS runtime code that answers the requested runtime question. Prefer Driver for requested user-visible actions, use Override only when normal App configuration or Driver actions cannot establish a required condition, add Evidence only when needed to answer the question, and use Direct Frida only when the encapsulated capabilities are insufficient. Driver, Override, Evidence, and Direct Frida can compose within their API boundaries; use only what the question requires and avoid unnecessary probing. Generate code only; do not connect to a device or execute it.
 
-## Common contract
+## Before generating code
 
-Before generating or revising Inline or Module code, call `get_sdk_declarations({"platform":"ios"})`; no device connection is required. Use the returned `files[].path` to read the SDK's general constraints and relevant declarations, JSDoc, and referenced types as the API contract.
+Call `get_sdk_declarations({"platform":"ios"})` to obtain declaration paths in `files[].path`. It returns `sdk` (platform SDK), `bridge` (Frida Objective-C bridge), and `gum` (native Frida APIs) declarations. The capability sections below specify which declarations to read.
 
-Before generating Module code, inspect `docs/mobile-easy-use/presets.d.ts` when it exists. Reuse a preset export only when its declaration and source evidence explicitly establish iOS compatibility. Never import an export that depends on Android `Java`, `R`, or `AndroidExp`. Import compatible exports only from the stable Frida module path `/docs/mobile-easy-use/presets.js`:
+Resolve `presets.directory` from `<project-root>/.meu/config.json`
+relative to the project root, defaulting to `.meu/presets`. If `<base-directory>/ios/`
+contains both `presets.dist.js` and `presets.d.ts`, read the declarations and prefer reusing
+capabilities that satisfy the request.
 
-```js
-import { xxxx } from '/docs/mobile-easy-use/presets.js';
-```
-
-Do not read, modify, build, or copy the generated `docs/mobile-easy-use/presets.js`. Do not compute a relative import from `probe.js`; the Host file path and Frida module path are separate concepts. Inline code cannot import presets. When iOS compatibility is absent or unclear, generate the smallest local implementation instead.
-
-Inspect the target repository whenever identifiers, selectors, runtime names, or business symbols are unknown. Never guess them. A probe loaded after a startup event cannot observe that past event; report the limitation unless the caller provides a load and resume sequence that installs the hook first.
+When reusing a preset, use Module mode and import its declared export, for example:
+`import { inspectPageState } from '/meu/presets.js';`. Connect loads presets; generated code
+only needs the import.
 
 ## Output mode
 
@@ -46,11 +45,11 @@ probe.js
 probe.d.ts
 ```
 
-Declare only module exports in `probe.d.ts`. Add JSDoc describing every exported method and parameter. Do not declare internal actions, helpers, or SDK globals.
+Declare only module exports in `probe.d.ts`. Keep exported names and signatures consistent with `probe.js`, and add JSDoc for every exported method and parameter. Do not declare internal actions, helpers, or SDK globals.
 
 A module may export multiple scenario or probe methods. Module top level must only define helpers and exports: do not perform business actions, retain lifecycle objects, or install persistent hooks while loading. Put behavior inside exported functions and clean up temporary hooks, listeners, timers, and retained objects before each function settles, because loading changed content does not unload older module versions.
 
-`probe.js` is a standard ES Module. Export every callable entry with named ESM syntax:
+`probe.js` is a standard JavaScript ES Module. Export every callable entry with named ESM syntax:
 
 ```js
 export function inspectState() {
@@ -73,7 +72,7 @@ Never use CommonJS `exports.name = ...` or `module.exports`, and never use Frida
 
 ## 1. Driver
 
-Unless the caller specifies another initial scene, assume the App starts on its home page. Generate Driver code from that state to each requested scene. Prefer high-level input because it reproduces real user behavior; use routing or business methods only when the requested scenario explicitly requires them.
+Unless the caller specifies another initial scene, assume the App starts on its home page. Generate Driver code from that state to each requested scene. Resolve page and control identifiers from source instead of guessing. Prefer high-level input because it reproduces real user behavior; use routing or business methods only when the requested scenario explicitly requires them.
 
 1. Read [references/driver-generation.md](references/driver-generation.md) and `sdk` declarations for `IOS.input`, plus `ui` and `wait` as needed. For direct business calls, also read `bridge`.
 2. In Module mode, export only the entry methods the caller needs. In Inline mode, put the requested flow directly in the IIFE. One operation may compose multiple driver steps.
@@ -114,18 +113,7 @@ Use `globalThis.ObjC` or other Frida Gum APIs for runtime work not covered by en
 
 Read [references/direct-frida-generation.md](references/direct-frida-generation.md). Read `bridge` (`frida-objc-bridge`) for Objective-C APIs and `gum` for native Frida APIs; read both when needed.
 
-## SDK boundaries
-
-The SDK provides these globals:
-
-1. `ObjC`: native Frida Objective-C bridge for Objective-C Runtime-visible App, framework, and third-party APIs.
-2. `IOS`: reusable main-queue dispatch, UIKit query, input, and wait extensions.
-3. `Override`: action-scoped Objective-C method return substitution and temporary field assignment.
-4. `Probe.evidence`: action-scoped Objective-C chain, state, and UIKit UI evidence.
-
-Follow native Frida semantics. Do not claim access to pure Swift ABI symbols through `ObjC.classes`. Prefer encapsulated SDK capabilities when they preserve the requested semantics. Treat repeated iOS App-specific patterns as candidates for an explicitly iOS-compatible preset workflow, and repeated cross-App patterns as SDK extension candidates.
-
-Before delivery, verify that every referenced symbol comes from source or the SDK, required Objective-C classes and selectors are runtime-visible, and no unrequested evidence or interaction was added. For Inline, verify the result is one complete async IIFE with no imports or exports. For Module, verify named standard ES Module exports, matching declarations, no top-level side effects, and operation-scoped cleanup.
+Follow native Frida semantics. Resolve Objective-C classes and selectors from source and ensure they are runtime-visible; do not claim access to pure Swift ABI symbols through `ObjC.classes`.
 
 ## Composition example
 
