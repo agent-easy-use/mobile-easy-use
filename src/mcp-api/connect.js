@@ -120,7 +120,7 @@ export async function connect(owner, {
     connection.runtimeStatus = runtimeStatus;
     connection.compatibility = compatibility;
     connection.compatibilityWarning = compatibilityWarning;
-    const presetsSource = await owner.loadPresets();
+    const presetsSource = await owner.loadPresets(platform);
     if (presetsSource !== null) {
       await sdkScript.exports.loadPresetBundle(PRESETS_MODULE_PATH, presetsSource);
     }

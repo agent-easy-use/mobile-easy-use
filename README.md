@@ -57,6 +57,52 @@ When documentation is incomplete or the codebase is complex, the agent can combi
 
 Verified navigation, actions, and probes can be promoted into reusable presets. Future agents can repeat the workflow without rediscovering the same implementation details.
 
+### Presets directories and builds
+
+Use `to-android-presets` or `to-ios-presets` to generate reusable probes and declarations; verify on-device when a device is available, otherwise report them as unverified.
+The directory comes only from `.meu/config.json`. Initialization records the requested base directory, or this default when unspecified:
+
+```json
+{ "presets": { "directory": ".meu/presets" } }
+```
+
+Relative paths resolve from the target project root; start the MCP from that root. The platform suffix is automatic:
+
+```text
+.meu/presets/
+├── android/
+│   ├── page-state/probe.js
+│   ├── page-state/probe.d.ts
+│   ├── presets.entry.js
+│   └── presets.dist.js
+└── ios/                       # Same layout, independent implementation
+```
+
+`presets.entry.js` defines public exports; each feature's `probe.d.ts` describes its API.
+The script skills read the entry and corresponding feature declarations before generating equivalent code.
+Connect loads the selected platform's `presets.dist.js` as `/meu/presets.js`.
+A missing platform bundle is skipped, whether or not a base directory is configured. An existing empty, unreadable or invalid bundle fails explicitly.
+
+Run the platform skill build script from the target project root:
+
+```bash
+node <skill-directory>/scripts/build-presets.mjs
+```
+
+The skill maintains configuration, source directories and entry/declaration files. If a different base is requested
+and either platform has an existing `presets.dist.js` under the configured base, explain that the old capabilities
+will no longer load through the new base and obtain explicit confirmation before updating config and generating
+the new bundle. Old files are retained. Each platform skill includes its own standalone build script.
+The script only reads configuration (or the default path) and generates `presets.dist.js` from the existing entry.
+The script runs pinned esbuild-wasm through npm's cache to bundle JavaScript modules into one ESM file; first use needs
+registry access, with no manual install or changes to App dependencies.
+
+Temporary `probe.js` modules are executed directly through `call_function`.
+Builds replace artifacts atomically and preserve old files on failure. Build success does not replace device verification.
+When a device is available, disconnect and reconnect after changes, then execute the changed public functions.
+Without a device, complete generation and bundling, explicitly state that actual runtime behavior remains unverified, and recommend connecting a physical device for verification.
+A connect call alone reuses a healthy connection and its old bundle.
+
 ## More than UI automation
 
 Traditional UI automation mainly records what was tapped and what appeared on screen. Mobile Easy Use connects the interface to business state and runtime execution.
@@ -136,7 +182,7 @@ one-sentence `description`, `packageName`, `packageVersion`, and absolute local 
 relevant declarations and related types itself; declaration text is not sent through MCP.
 The Agent and MCP must share filesystem access. No device connection or local compilation
 is required. Frida Gum declarations are included as an npm production dependency, and
-project-specific `presets.d.ts` continues to be read locally.
+the project's presets entry and feature `probe.d.ts` files continue to be read locally.
 
 ### Coding guidance (optional)
 

@@ -57,6 +57,46 @@ Mobile Easy Use 不只提供“看见”的能力，也让 Agent 能够进行受
 
 经过验证的页面导航、业务操作和状态探测可以沉淀为 Preset。后续 Agent 无需重新探索，即可稳定复用同一套能力。
 
+### Presets 目录与构建
+
+Android、iOS 分别使用 `to-android-presets`、`to-ios-presets`。Skill 按用户诉求沉淀探查代码和声明；有设备时连接并真实执行验证，无设备时注明未实机验证。
+目录只根据 `.meu/config.json` 中的基础目录解析；初始化时写入用户指定目录，未指定则写入默认值：
+
+```json
+{ "presets": { "directory": ".meu/presets" } }
+```
+
+相对路径以目标项目根目录为基准；MCP 必须从该项目根目录启动。平台后缀自动添加：
+
+```text
+.meu/presets/
+├── android/
+│   ├── page-state/probe.js
+│   ├── page-state/probe.d.ts
+│   ├── presets.entry.js
+│   └── presets.dist.js
+└── ios/                       # 相同结构，独立实现
+```
+
+`presets.entry.js` 定义公开导出，各功能的 `probe.d.ts` 描述接口。to-script 查阅入口和对应功能声明，优先复用已有能力。
+connect 根据平台加载 `presets.dist.js`，运行时统一通过 `/meu/presets.js` 导入。
+无论是否配置基础目录，对应平台的产物不存在就跳过；已有产物为空、读取失败或加载失败时明确报错。
+
+在目标项目根目录执行对应 skill 的构建脚本：
+
+```bash
+node <skill目录>/scripts/build-presets.mjs
+```
+
+配置、源码目录及入口和声明文件由 skill 维护。用户指定新目录且旧配置目录下已有任一平台的 `presets.dist.js` 时，skill 提示旧能力将不再从新目录加载，得到明确确认后才更新配置并继续生成、打包；旧文件保留。
+每个平台的 skill 自带独立构建脚本。脚本只读取配置或默认路径，从已有入口生成 `presets.dist.js`，不修改配置或初始化文件。
+脚本通过 npm 缓存调用固定版本的 esbuild-wasm，
+将 JavaScript 模块打包为单文件 ESM；首次需要 npm 源可访问，无需手动安装或修改 App 的依赖。
+
+临时 `probe.js` 直接通过 `call_function` 执行。
+产物原子替换，构建失败保留旧文件；构建成功不能替代设备验证。
+有设备时，更新 presets 后断开并重新 connect，再执行变更的公开接口验收；无设备时仍可完成生成和打包，但必须说明真实运行效果尚不确定，并建议连接真机验证。单纯 connect 会复用健康连接及旧 bundle。
+
 ## 不只是 UI 自动化
 
 传统 UI 自动化主要记录“点了什么”和“页面长什么样”。Mobile Easy Use 同时连接 UI、业务状态和运行时执行过程。
@@ -133,7 +173,7 @@ npx -y @agent-easy-use/mobile-easy-use@0.1.0
 `gum`）、一句话 `description`、`packageName`、`packageVersion` 和本地绝对 `path`。Agent 自行搜索并读取任务
 涉及的声明及关联类型，MCP 不传输声明正文。Agent 和 MCP 需要共享文件系统访问权限，
 无需连接设备或进行本地编译。Frida Gum 声明作为 npm 生产依赖安装，项目自身的
-`presets.d.ts` 仍从本地读取。
+presets 入口和各功能的 `probe.d.ts` 仍从本地读取。
 
 ### 编码指导（可选）
 

@@ -146,3 +146,11 @@ await Override.run(definitions, () =>
 ```
 
 Override stays active through both checkpoints and the completion wait. Shared descriptions aggregate evidence from the same action execution; chain stays innermost to exclude snapshot collection. Checkpoints are sequential, not simultaneous. Observe methods other than those replaced by Override; same-method composition is not currently guaranteed.
+
+## Code generation constraints
+
+Generated code runs in Frida: use the provided SDK globals and Frida APIs, without Node.js
+built-ins or npm module resolution.
+
+Imports must resolve within the Frida runtime; adjacent Host files are not loaded automatically.
+Use relative source imports only when the code will be bundled before execution, as with presets.

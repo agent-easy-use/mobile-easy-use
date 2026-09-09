@@ -239,14 +239,19 @@ test('connect uses the complete target and Host endpoint', async () => {
 
 test('connect loads a built preset ES module when it exists', async () => {
   const manager = new FakeDeviceManager();
+  const loads = [];
   const connection = new GadgetConnection(manager, {
-    loadPresets: async () => 'built preset ES module',
+    loadPresets: async platform => {
+      loads.push(platform);
+      return 'built preset ES module';
+    },
   });
 
   await connection.connect(targetInput({ ip: '127.0.0.1' }));
 
+  assert.deepEqual(loads, ['android']);
   assert.deepEqual(manager.presetBundles, [{
-    modulePath: '/docs/mobile-easy-use/presets.js',
+    modulePath: '/meu/presets.js',
     source: 'built preset ES module',
   }]);
 });

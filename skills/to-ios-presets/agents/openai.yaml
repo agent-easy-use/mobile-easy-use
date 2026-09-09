@@ -1,0 +1,6 @@
+interface:
+  display_name: "To iOS Presets"
+  short_description: "Generate reusable iOS App probes and declarations"
+  default_prompt: "Use $to-ios-presets to generate reusable probes for this iOS App and verify them when a device is available."
+policy:
+  allow_implicit_invocation: false

@@ -1,18 +1,18 @@
 ---
-name: to-android-presets
-description: Generate reusable Android App probes and declarations in the configured presets directory, build the bundle, and verify on-device when a device is available.
+name: to-ios-presets
+description: Generate reusable iOS App probes and declarations in the configured presets directory, build the bundle, and verify on-device when a device is available.
 ---
 
-# To Android Presets
+# To iOS Presets
 
 Generate reusable probe code and declarations for the user's request. Use
-[to-android-script](../to-android-script/SKILL.md) for generation, and
-[to-android-run](../to-android-run/SKILL.md) for verification when a device is available.
+[to-ios-script](../to-ios-script/SKILL.md) for generation, and
+[to-ios-run](../to-ios-run/SKILL.md) for verification when a device is available.
 
 ## Directory
 
 1. **Location:** Read `presets.directory` from `<project-root>/.meu/config.json` and append
-   `android`. Relative paths resolve from the target project root, also used as the MCP
+   `ios`. Relative paths resolve from the target project root, also used as the MCP
    working directory. Always use the saved config to locate presets.
 2. **Initialization:** If the config file or `presets.directory` is missing, save the user's
    explicit base directory, or `.meu/presets` when unspecified. Preserve unrelated config fields.
@@ -25,7 +25,7 @@ Generate reusable probe code and declarations for the user's request. Use
 ## Source contract
 
 ```text
-<base-directory>/android/
+<base-directory>/ios/
 ├── page-state/
 │   ├── probe.js
 │   └── probe.d.ts
