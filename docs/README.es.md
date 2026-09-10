@@ -27,7 +27,7 @@ La información disponible depende de la plataforma y de la implementación de l
 
 ## Más que una solución de automatización de UI
 
-Mobile Easy Use cubre la interacción y verificación de la interfaz, y además permite entrar en la aplicación: observar el flujo de datos, aplicar hooks a métodos, sustituir temporalmente valores de retorno o campos e invocar métodos internos.
+Estas capacidades también permiten realizar la automatización de UI tradicional. Mobile Easy Use va más allá al permitir que los agentes observen y modifiquen lo que ocurre dentro de la aplicación, además de controlar y verificar la interfaz.
 
 | Capacidad | Automatización UI tradicional | Mobile Easy Use |
 | --- | :---: | :---: |

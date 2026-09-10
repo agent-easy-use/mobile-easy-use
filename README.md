@@ -6,7 +6,7 @@ Documentation: **English** · [简体中文](./docs/README.zh.md) · [Français]
 
 Compared with Web development, inspecting a mobile app's internal data, business state, and execution is harder. **“The data request succeeded—why didn't the list update?”** Questions like this depend on actual data, state, and timing that static source analysis alone often cannot explain.
 
-Mobile Easy Use lets AI agents explore running apps alongside source code through MCP: read objects and state, hook method calls, temporarily change runtime conditions, and interact with and inspect the UI. Development decisions can then draw on actual runtime results.
+Mobile Easy Use gives AI agents runtime access through MCP, connecting source code with actual app behavior so development decisions can rely on runtime evidence.
 
 https://github.com/user-attachments/assets/5dad374b-4618-42da-9a93-22a7c7e145bb
 
@@ -29,7 +29,7 @@ Available information depends on the platform and app implementation.
 
 ## Not another UI automation testing solution
 
-Mobile Easy Use covers UI interaction and verification, then goes further into the app: observe data flow, hook methods, temporarily override return values or fields, and invoke internal methods to check execution paths and behavior under different conditions.
+These capabilities can also perform traditional UI automation. Mobile Easy Use goes further by letting agents observe and change what happens inside the app, not just operate and verify the UI.
 
 | Capability | Traditional UI automation (UI-focused) | Mobile Easy Use |
 | --- | :---: | :---: |
