@@ -8,6 +8,8 @@
 
 Mobile Easy Use 通过 MCP 让 AI Agent 结合源码探查运行中的 App：读取对象与状态、Hook 方法调用、临时改变运行条件，并操作和检查 UI。让开发中的判断有真实运行结果可依。
 
+https://github.com/user-attachments/assets/5dad374b-4618-42da-9a93-22a7c7e145bb
+
 ## 探查 App 的状态与行为
 
 围绕一次操作，Agent 可以追踪从方法执行、数据变化到界面呈现的过程：

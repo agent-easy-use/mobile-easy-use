@@ -8,6 +8,8 @@ Compared with Web development, inspecting a mobile app's internal data, business
 
 Mobile Easy Use lets AI agents explore running apps alongside source code through MCP: read objects and state, hook method calls, temporarily change runtime conditions, and interact with and inspect the UI. Development decisions can then draw on actual runtime results.
 
+https://github.com/user-attachments/assets/5dad374b-4618-42da-9a93-22a7c7e145bb
+
 ## Explore app state and behavior
 
 Around a single action, agents can trace method execution, data changes, and what appears on screen:
