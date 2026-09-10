@@ -2,9 +2,9 @@
 
 **A tool for Android and iOS developers that gives AI agents runtime access to understand, explore, debug, and verify apps.**
 
-[中文文档](./README.zh.md)
+Documentation: **English** · [简体中文](./docs/README.zh.md) · [Français](./docs/README.fr.md) · [Русский](./docs/README.ru.md) · [Español](./docs/README.es.md) · [العربية](./docs/README.ar.md)
 
-Compared with Web development, inspecting a mobile app's internal data, business state, and execution is harder. *“The data request succeeded—why didn't the list update?”* Questions like this depend on actual data, state, and timing that static source analysis alone often cannot explain.
+Compared with Web development, inspecting a mobile app's internal data, business state, and execution is harder. **“The data request succeeded—why didn't the list update?”** Questions like this depend on actual data, state, and timing that static source analysis alone often cannot explain.
 
 Mobile Easy Use lets AI agents explore running apps alongside source code through MCP: read objects and state, hook method calls, temporarily change runtime conditions, and interact with and inspect the UI. Development decisions can then draw on actual runtime results.
 

@@ -14,8 +14,7 @@
     "sdk/dist",
     "sdk/android/index.d.ts",
     "sdk/ios/index.d.ts",
-    "README.md",
-    "README.zh.md"
+    "README.md"
   ],
   "bin": {
     "mobile-easy-use": "src/index.js"

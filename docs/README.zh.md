@@ -2,9 +2,9 @@
 
 **面向 Android / iOS 开发者，让 AI Agent 访问 App 运行时，理解、探查、调试和验证 App。**
 
-[English](./README.md)
+文档：[English](../README.md) · **简体中文** · [Français](./README.fr.md) · [Русский](./README.ru.md) · [Español](./README.es.md) · [العربية](./README.ar.md)
 
-相比 Web，移动 App 更难直接查看内部数据、业务状态和执行过程。*“数据请求成功了，列表为什么没有更新？”* 这类问题取决于实际数据、状态和执行时序，仅靠静态源码分析往往无法判断。
+相比 Web，移动 App 更难直接查看内部数据、业务状态和执行过程。**“数据请求成功了，列表为什么没有更新？”** 这类问题取决于实际数据、状态和执行时序，仅靠静态源码分析往往无法判断。
 
 Mobile Easy Use 通过 MCP 让 AI Agent 结合源码探查运行中的 App：读取对象与状态、Hook 方法调用、临时改变运行条件，并操作和检查 UI。让开发中的判断有真实运行结果可依。
 
@@ -126,10 +126,10 @@ Probe 会结合源码和已有 Presets 生成探查逻辑，通过 MCP 连接 Ap
 
 | 能力 | 何时使用 | Android / iOS Skill |
 | --- | --- | --- |
-| **Observable** | 可选的编码辅助，以极低侵入性复用或按需补充日志、UI 标识与运行时入口，让 App 更好地配合 Mobile Easy Use | [android-observable-code](./skills/android-observable-code/SKILL.md) / [ios-observable-code](./skills/ios-observable-code/SKILL.md) |
-| **Integrate** | 首次接入或维护调试集成，获取 Runtime 产物、配置工程，并确定兼容 MCP 版本；iOS 还包含 Runner 签名准备与修复 | [to-android-integrate](./skills/to-android-integrate/SKILL.md) / [to-ios-integrate](./skills/to-ios-integrate/SKILL.md) |
-| **Probe** | 用自然语言发起一次运行时调查，完成探查生成、执行及证据分析 | [to-android-probe](./skills/to-android-probe/SKILL.md) / [to-ios-probe](./skills/to-ios-probe/SKILL.md) |
-| **Presets** | 把常用页面导航、业务操作和状态读取沉淀为带类型声明的可复用能力，构建后供后续 Probe 使用 | [to-android-presets](./skills/to-android-presets/SKILL.md) / [to-ios-presets](./skills/to-ios-presets/SKILL.md) |
+| **Observable** | 可选的编码辅助，以极低侵入性复用或按需补充日志、UI 标识与运行时入口，让 App 更好地配合 Mobile Easy Use | [android-observable-code](../skills/android-observable-code/SKILL.md) / [ios-observable-code](../skills/ios-observable-code/SKILL.md) |
+| **Integrate** | 首次接入或维护调试集成，获取 Runtime 产物、配置工程，并确定兼容 MCP 版本；iOS 还包含 Runner 签名准备与修复 | [to-android-integrate](../skills/to-android-integrate/SKILL.md) / [to-ios-integrate](../skills/to-ios-integrate/SKILL.md) |
+| **Probe** | 用自然语言发起一次运行时调查，完成探查生成、执行及证据分析 | [to-android-probe](../skills/to-android-probe/SKILL.md) / [to-ios-probe](../skills/to-ios-probe/SKILL.md) |
+| **Presets** | 把常用页面导航、业务操作和状态读取沉淀为带类型声明的可复用能力，构建后供后续 Probe 使用 | [to-android-presets](../skills/to-android-presets/SKILL.md) / [to-ios-presets](../skills/to-ios-presets/SKILL.md) |
 
 Probe 内部组合对应平台的 `to-*-script` 和 `to-*-run`，分别负责生成与执行；日常使用从 Probe 入口提出问题即可。
 
@@ -166,7 +166,7 @@ Mobile Easy Use 的设计受到 **quickjs-android**、**xLua** 和 **Frida** 的
                                  方法 / 对象 / 状态 / 日志 / UI
 ```
 
-依赖版本见 [package.json](./package.json)，App 侧二进制版本及第三方声明见 [Android 第三方声明](./integration/android/mobile-easy-use/THIRD_PARTY_NOTICES.md) 和 [iOS 第三方声明](./integration/ios/THIRD_PARTY_NOTICES.md)。Runtime Release 与 MCP 的兼容关系由[兼容目录](./distribution/README.md)维护。
+依赖版本见 [package.json](../package.json)，App 侧二进制版本及第三方声明见 [Android 第三方声明](../integration/android/mobile-easy-use/THIRD_PARTY_NOTICES.md) 和 [iOS 第三方声明](../integration/ios/THIRD_PARTY_NOTICES.md)。Runtime Release 与 MCP 的兼容关系由[兼容目录](../distribution/README.md)维护。
 
 ## 本地开发
 
