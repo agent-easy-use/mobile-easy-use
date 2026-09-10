@@ -8,7 +8,9 @@
 
 Mobile Easy Use 通过 MCP 让 AI Agent 访问 App 运行时，将源码与 App 的实际行为联系起来，让开发判断有真实运行信息可依。
 
-[观看 iOS 运行时探查演示（58 秒）](https://github.com/agent-easy-use/mobile-easy-use/blob/master/ios-show.mp4)
+iOS 运行时探查演示（58 秒）
+
+https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
 ## 探查 App 的状态与行为
 
