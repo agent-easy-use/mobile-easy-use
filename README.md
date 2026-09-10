@@ -4,63 +4,55 @@
 
 [中文文档](./README.zh.md)
 
-Source code describes the implementation. The running app shows what actually happens. Mobile Easy Use exposes the mobile runtime through MCP so an AI agent can connect source code with method calls, business objects, state changes, logs, and UI to understand features, diagnose problems, and verify changes.
+Compared with Web development, inspecting a mobile app's internal data, business state, and execution is harder. The data request succeeded—why didn't the list update? Questions like this depend on actual data, state, and timing that static source analysis alone often cannot explain.
 
-Ask the questions that come up during development:
+Mobile Easy Use lets AI agents explore running apps alongside source code through MCP: read objects and state, hook method calls, temporarily change runtime conditions, and interact with and inspect the UI. Development decisions can then draw on actual runtime results.
 
-```text
-The data request succeeded. Why did the list not update?
-Inspect the relevant method calls, data state, and UI changes.
-```
+## Explore app state and behavior
 
-```text
-Verify this change to favorites. Do the business object and button state
-agree before and after the action?
-```
-
-## What runtime information is available
-
-Mobile Easy Use gives agents live app information to interpret alongside source code, understand behavior, diagnose problems, and verify changes:
+Around a single action, agents can trace method execution, data changes, and what appears on screen:
 
 | Runtime information | What it tells you |
 | --- | --- |
-| Method calls | Which methods an action triggers, their inputs and results, where calls originate, and which threads execute them |
-| Method timing | How long relevant methods take, providing clues to slow calls and waits |
-| Process memory | How process memory changes around method calls, providing clues for further memory investigations |
-| Business logs | Which business events occur during an action, how far execution progresses, and what clues point to a failure |
-| Business objects and state | Current data, configuration flags, counts, and business phases, including values that change after an action |
-| UI and control state | Whether controls exist, whether they are visible, where they appear, and their currently readable properties |
-| Window and element screenshots | The app's actual appearance, focused images of key elements, and visual changes before and after an action |
-| App resources | Resource identifiers and contents associated with Android controls and configuration, connecting source code with the running app |
-| Operation results and failure context | Whether an action completes, where it fails, and the state, logs, and images already collected |
+| Business objects and state | Current data, caches, configuration, and business state, including changes after an action |
+| Method calls | Which methods run, their arguments, return values, call stacks, and execution threads |
+| Execution time and memory changes | Method duration and process memory changes around calls |
+| Business logs | How far execution progresses and what clues point to a failure |
+| UI and control state | Control presence, visibility, position, and properties |
+| Window and element screenshots | Actual appearance and visual changes after an action |
+| App resources | Resource identifiers and contents associated with Android controls and configuration |
+| Operation results and failure context | Where an action fails and the state, logs, and images captured at that point |
 
-These observations can be combined around the same action to understand how method execution and data changes lead to what appears on screen. Available information depends on the platform and app implementation.
+Available information depends on the platform and app implementation.
 
 ## Not another UI automation testing solution
 
-Mobile Easy Use can perform UI automation testing and participate throughout the mobile development coding process. It exposes app method calls, logs, business objects, state changes, and UI to agents, giving them runtime evidence alongside source code while understanding requirements, writing code, and verifying changes.
+Mobile Easy Use covers UI interaction and verification, then goes further into the app: observe data flow, hook methods, temporarily override return values or fields, and invoke internal methods to check execution paths and behavior under different conditions.
 
-UI-focused automation testing primarily answers whether the interface and interactions behave as expected. Mobile Easy Use also answers how the app currently works, where to make a change, and whether implementation assumptions hold, bringing runtime information directly into development decisions.
-
-| Capability | Traditional UI automation | Mobile Easy Use |
+| Capability | Traditional UI automation (UI-focused) | Mobile Easy Use |
 | --- | :---: | :---: |
 | UI interactions: click, type, scroll, and more | ✓ | ✓ |
 | UI state: locate controls, read properties, and wait for state | ✓ | ✓ |
 | Capture screens and elements | ✓ | ✓ |
 | Observe business objects and state | — | ✓ |
-| Method observation: collect call chains, arguments, results, and stacks | — | ✓ |
+| Hook methods: collect call chains, arguments, results, and stacks | — | ✓ |
 | Measure execution time and process memory changes | — | ✓ |
-| Temporarily change runtime conditions: override method returns or fields, then restore them | — | ✓ |
+| Temporarily change runtime conditions: override method returns or fields | — | ✓ |
 | Invoke internal app methods | — | ✓ |
-| Correlate runtime results with source code | — | ✓ |
 
-These capabilities span every stage of coding:
+These capabilities bring runtime information into every stage of development:
 
-- **Before coding, understand the app and plan the change:** Explore target screens and business flows, inspect objects, configuration, and state, and observe actual call paths. Combine these observations with source code to decide where and how to implement the change.
-- **During coding, check assumptions and adjust the implementation:** Hook the logic under development to inspect data and execution branches. When needed, temporarily override dependency returns or configuration fields to check behavior under different conditions. After editing and running a new build, continue observing to check implementation decisions as the work progresses.
-- **After coding, verify behavior and preserve reusable capabilities:** Perform relevant interactions, compare business state and UI changes, confirm the intended outcome, and turn common actions and probes into reusable Presets.
+- **Before coding:** Inspect real state and call paths alongside source code to decide where and how to make a change.
+- **During coding:** Hook relevant logic and temporarily adjust runtime conditions to check assumptions and branch behavior.
+- **After coding:** Verify that business state and UI agree, and save common actions and probes as Presets.
 
-For example, when developing a configuration-controlled page, an agent can first read its configuration and hook the page entry point to understand the existing path. During coding, it can temporarily replace the configuration getter's return value to establish enabled and disabled conditions, checking each branch's state and UI. After removing the overrides, it can verify the full interaction with real configuration in the new build. This provides both runtime understanding and active scenario control to check the implementation.
+For example, ask your agent:
+
+```text
+Inspect this page controlled by a configuration flag: check its current
+configuration and actual call path, then temporarily toggle the flag
+and verify data and UI in both states. Restore it when finished.
+```
 
 ## Getting started
 
