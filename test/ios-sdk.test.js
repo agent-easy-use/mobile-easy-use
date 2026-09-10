@@ -125,7 +125,7 @@ test('IOS exposes runOnMainThread with value and failure propagation', async () 
 
   assert.deepEqual(
     Array.from(Object.keys(fixture.context.IOS).sort()),
-    ['input', 'runOnMainThread', 'screenshot', 'ui', 'wait'],
+    ['input', 'runOnMainThread', 'runtime', 'screenshot', 'ui', 'wait'],
   );
   assert.equal(typeof fixture.context.IOS.screenshot, 'function');
   assert.equal(await fixture.context.IOS.runOnMainThread(() => 42), 42);
@@ -142,6 +142,67 @@ test('IOS exposes runOnMainThread with value and failure propagation', async () 
   fixture.ObjC.available = false;
   assert.throws(
     () => fixture.context.IOS.runOnMainThread(() => {}),
+    /Objective-C runtime is unavailable/,
+  );
+});
+
+test('IOS.runtime.findClass resolves exact and suffix names with all selector requirements', async () => {
+  const fixture = createFixture();
+  const method = { implementation: {} };
+  const exact = { $className: 'Target', '- exact': method };
+  const swift = { $className: 'Feature.Target', '- exact': method, '+ shared': method };
+  fixture.ObjC.classes.Target = exact;
+  fixture.ObjC.classes['Feature.Target'] = swift;
+  fixture.ObjC.classes['Other.Filtered'] = { $className: 'Other.Filtered', '- first': method };
+  fixture.ObjC.classes['Feature.Filtered'] = {
+    $className: 'Feature.Filtered', '- first': method, '- second': method,
+  };
+  await loadSdk(fixture);
+
+  assert.equal(fixture.context.IOS.runtime.findClass('Target', ['- exact']), exact);
+  assert.equal(
+    fixture.context.IOS.runtime.findClass('Target', ['- exact', '+ shared']),
+    swift,
+  );
+  assert.equal(
+    fixture.context.IOS.runtime.findClass('Filtered', ['- first', '- second']),
+    fixture.ObjC.classes['Feature.Filtered'],
+  );
+  assert.equal(fixture.context.IOS.runtime.findClass('Missing'), null);
+  assert.equal(fixture.context.IOS.runtime.findClass('Target', ['- missing']), null);
+});
+
+test('IOS.runtime.findClass reports every remaining ambiguous Runtime class', async () => {
+  const fixture = createFixture();
+  const method = { implementation: {} };
+  fixture.ObjC.classes['Second.SharedTarget'] = { '- shared': method };
+  fixture.ObjC.classes['First.SharedTarget'] = { '- shared': method };
+  fixture.ObjC.classes['Ignored.SharedTarget'] = {};
+  await loadSdk(fixture);
+
+  assert.throws(
+    () => fixture.context.IOS.runtime.findClass('SharedTarget', ['- shared']),
+    error => error.message.includes('unable to determine a unique target')
+      && error.message.includes('First.SharedTarget')
+      && error.message.includes('Second.SharedTarget')
+      && !error.message.includes('Ignored.SharedTarget'),
+  );
+});
+
+test('IOS.runtime.findClass validates arguments and Objective-C availability', async () => {
+  const fixture = createFixture();
+  await loadSdk(fixture);
+
+  assert.throws(() => fixture.context.IOS.runtime.findClass(''), /className must be/);
+  assert.throws(() => fixture.context.IOS.runtime.findClass(' Target '), /className must be/);
+  assert.throws(() => fixture.context.IOS.runtime.findClass('Target', '- run'), /selectors must be an array/);
+  assert.throws(
+    () => fixture.context.IOS.runtime.findClass('Target', ['run']),
+    /Each selector must start/,
+  );
+  fixture.ObjC.available = false;
+  assert.throws(
+    () => fixture.context.IOS.runtime.findClass('Target'),
     /Objective-C runtime is unavailable/,
   );
 });

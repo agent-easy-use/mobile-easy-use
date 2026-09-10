@@ -25,8 +25,9 @@ then run the platform's `verify-evidence.mjs` with the returned `evidenceContrac
 | `probeCaptureStackOptions` | yes | yes | Omitted/false/default/custom stacks, real caller frames and composition with existing capture |
 | `probeCaptureStackConfig` | yes | yes | Invalid stack types/depths, pre-action rejection, rollback and reinstallation |
 | `probeCaptureStackLifecycle` | yes | yes | Recursive stacks, filtered calls, async rejection and cleanup |
+| `probeRuntimeTargetResolution` | — | yes | Short multi-module class target resolved internally by its selector |
 
-Totals: 19 Android exports and 17 iOS exports. Matrix exports contain several assertions/cases;
+Totals: 19 Android exports and 18 iOS exports. Matrix exports contain several assertions/cases;
 export counts are not assertion counts. For a cold-start run, start a fresh App process before each
 export and record its PID; assertions within that export share the same process.
 
@@ -70,6 +71,7 @@ manifest with the platform verifier. `state-runtime-contracts.mjs` checks the ac
 | `chain/probeClassMethodMatching` | iOS | `chain-method-match-class-v1` | Same checks for target/child class receivers; instance excluded; configured className stable |
 | `chain/probeChildInstanceMethodMatching` | iOS | `chain-method-match-child-instance-v1` | Inherited child target accepts child/grandchild instances; excludes parent sharing the IMP |
 | `chain/probeChildClassMethodMatching` | iOS | `chain-method-match-child-class-v1` | Same child-target checks for class methods |
+| `chain/probeRuntimeTargetResolution` | iOS | `chain-runtime-target-resolution-v1` | Short class name and selector resolve the unique full Runtime class before hooking |
 | `ui/probeUiStateEvidence` | Android, iOS | `ui-state-v1` | Generated main-thread text getter plus UI screenshots, one action and one aggregated manifest |
 | `chain/probeMethodOverloads` | Android | `chain-complete-overloads-v1` | Exact argumentTypes identify int/String overloads on enter/leave without capture |
 | `chain/probeCaptureScalars` | Android | `chain-complete-scalars-v1` | Exact signatures at both phases, int overload selection, and String overload exclusion |

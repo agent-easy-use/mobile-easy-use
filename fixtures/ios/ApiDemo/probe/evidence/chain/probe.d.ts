@@ -55,3 +55,5 @@ export declare function probeClassMethodMatching(): Promise<ChainEvidenceProbeRe
 /** Inherited child target includes descendants and excludes its parent sharing the IMP. */
 export declare function probeChildInstanceMethodMatching(): Promise<ChainEvidenceProbeResult>;
 export declare function probeChildClassMethodMatching(): Promise<ChainEvidenceProbeResult>;
+/** Resolve a short multi-module hook target internally with the method selector. */
+export declare function probeRuntimeTargetResolution(): Promise<ChainEvidenceProbeResult>;

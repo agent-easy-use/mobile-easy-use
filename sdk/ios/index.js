@@ -4,12 +4,14 @@ import { runOnMainThread } from './common/main-thread.js';
 import { IOSInput } from './input.js';
 import { Override } from './override/index.js';
 import { Probe } from './probe/index.js';
+import { IOSRuntime } from './runtime.js';
 import { screenshot } from './screenshot.js';
 import { findUiView } from './ui/index.js';
 import { waitForUi, waitUntil } from './wait.js';
 
 const IOS = Object.freeze({
   runOnMainThread,
+  runtime: IOSRuntime,
   screenshot,
   ui: Object.freeze({
     find: findUiView,

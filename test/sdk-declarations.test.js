@@ -109,6 +109,8 @@ test('iOS generation contract narrows actions and requires native override retur
     const input: IOSInputResult = scrolled;
     if (input.ok && input.action === 'scroll') { const x: number = input.startX; }
     const view = IOS.ui.find('submit');
+    const controller = IOS.runtime.findClass('AuthViewController', ['- submit', '- viewDidLoad']);
+    if (controller) { const runtimeName: string = controller.$className; }
     if (view) await IOS.input.click(view);
     const shot = await IOS.screenshot();
     if (shot.ok) {

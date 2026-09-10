@@ -250,6 +250,24 @@ declare global {
     until(predicate: () => boolean, options?: IOSWaitOptions): Promise<IOSWaitResult>;
   }
 
+  type IOSObjCSelector = `- ${string}` | `+ ${string}`;
+
+  interface IOSRuntimeApi {
+    /** Find an Objective-C class or a Swift class registered in the Objective-C Runtime.
+     * First checks className as an exact Runtime name, then checks Runtime names ending in
+     * `.${className}`. selectors is optional and is only needed to disambiguate when className may
+     * match classes from multiple modules. When provided, every selector must exist on a candidate;
+     * inherited methods are included. Returns null for no match and throws with all full Runtime
+     * names when multiple candidates remain.
+     * @example const controller = IOS.runtime.findClass('AuthViewController');
+     * @example const controller = IOS.runtime.findClass('AuthViewController', ['- submit']);
+     */
+    findClass(
+      className: string,
+      selectors?: readonly IOSObjCSelector[],
+    ): ObjCBridge.Object | null;
+  }
+
   interface IOSApi {
     /** Schedule work on the iOS main queue. Only the synchronous part before the first await
      * is guaranteed to run there; a returned Promise is adopted, not kept on the main queue.
@@ -257,6 +275,7 @@ declare global {
      * @example const label = await IOS.runOnMainThread(() => IOS.ui.find('form.submit')?.accessibilityLabel()?.toString() ?? null);
      */
     runOnMainThread<TResult>(work: () => TResult | Promise<TResult>): Promise<TResult>;
+    readonly runtime: IOSRuntimeApi;
     /** Capture the focused App Window, keyed element crops, or both, using the native UIView query.
      * Requires MEUScreenshot and Host file controller; image values are saved Host JPEG paths.
      * Missing/hidden/out-of-window targets can be omitted on success; check each requested key.
@@ -289,7 +308,7 @@ declare global {
   interface IOSOverrideDefinition<
     TValue extends IOSOverrideReturnValue = IOSOverrideReturnValue,
   > {
-    /** Objective-C class name or class wrapper. */
+    /** Objective-C Runtime class name resolved through IOS.runtime.findClass, or a class wrapper. */
     target: string | ObjCBridge.Object;
     /** Exact Objective-C instance or class selector, including its '- ' or '+ ' prefix. */
     selector: `- ${string}` | `+ ${string}`;
@@ -386,7 +405,8 @@ declare global {
   }
 
   interface IOSMethodHook {
-    /** Objective-C class name or class wrapper. Matches that class and subclasses using this IMP;
+    /** Objective-C Runtime class name resolved through IOS.runtime.findClass, or a class wrapper.
+     * Matches that class and subclasses using this IMP;
      * subclass overrides at other addresses require separate hooks. Events use the configured className.
      */
     target: string | ObjCBridge.Object;

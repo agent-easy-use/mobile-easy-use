@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A11F00000000000000000003 /* APIInputWindowFixture.m in Sources */ = {isa = PBXBuildFile; fileRef = A11F00000000000000000002 /* APIInputWindowFixture.m */; };
+		A12F00000000000000000003 /* APIFindClassSwiftFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = A12F00000000000000000002 /* APIFindClassSwiftFixture.swift */; };
 		16811BC96D20E97972D13D46 /* APISDKFixtureState.m in Sources */ = {isa = PBXBuildFile; fileRef = 1B74CF5A19C940A0DA24CB7D /* APISDKFixtureState.m */; };
 		1F63E229C161DEF6638CC1AE /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4523303CF9F797C0BF594ED0 /* UIKit.framework */; };
 		225BF5E0532642A8124C1D9A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 030C616B0B25C2B6FE6C573C /* Foundation.framework */; };
@@ -26,6 +27,7 @@
 /* Begin PBXFileReference section */
 		A11F00000000000000000001 /* APIInputWindowFixture.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = APIInputWindowFixture.h; sourceTree = "<group>"; };
 		A11F00000000000000000002 /* APIInputWindowFixture.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = APIInputWindowFixture.m; sourceTree = "<group>"; };
+		A12F00000000000000000002 /* APIFindClassSwiftFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIFindClassSwiftFixture.swift; sourceTree = "<group>"; };
 		030C616B0B25C2B6FE6C573C /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		0C029F718BFC05E1D3996F14 /* APIActivatingView.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = APIActivatingView.h; sourceTree = "<group>"; };
 		0E3F15E8167F478CEBF3BF85 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = "<group>"; };
@@ -136,6 +138,7 @@
 		D16FA4DE6B3367ECCCBC9AD7 /* State */ = {
 			isa = PBXGroup;
 			children = (
+				A12F00000000000000000002 /* APIFindClassSwiftFixture.swift */,
 				5E2CB7DAA7D5DF3AF95E9E20 /* APISDKFixtureState.h */,
 				1B74CF5A19C940A0DA24CB7D /* APISDKFixtureState.m */,
 				3BD80B8B5E85AB8A25F9D1FE /* APIMethodMatchFixture.h */,
@@ -288,6 +291,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B359ED74E34C1294C62C6AA9 /* APIAppDelegate.m in Sources */,
+				A12F00000000000000000003 /* APIFindClassSwiftFixture.swift in Sources */,
 				BF27CF0A3C1B82F8C795D68C /* APIController.m in Sources */,
 				16811BC96D20E97972D13D46 /* APISDKFixtureState.m in Sources */,
 				30A8ED43E4EA1DC12E473A20 /* APIActivatingView.m in Sources */,

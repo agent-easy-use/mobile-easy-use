@@ -65,6 +65,28 @@ test('iOS Override.run replaces matching returns and restores the IMP', async ()
   assert.equal(fixture.method.implementation, original);
 });
 
+test('iOS Override resolves a short string target through runtime class discovery', async () => {
+  const original = () => 'US';
+  const fixture = createFixture('- currentRegion', original);
+  const targetClass = fixture.ObjC.classes.RegionProvider;
+  delete fixture.ObjC.classes.RegionProvider;
+  targetClass.$className = 'MyApp.RegionProvider';
+  fixture.ObjC.classes['MyApp.RegionProvider'] = targetClass;
+  fixture.ObjC.classes['Other.RegionProvider'] = {
+    $className: 'Other.RegionProvider',
+    '- unrelated': { implementation: () => undefined },
+  };
+  const { Override } = await loadModule(overrideEntry, fixture);
+
+  const result = Override.run(
+    [{ target: 'RegionProvider', selector: '- currentRegion', withReturn: 'JP' }],
+    () => fixture.method.implementation(fixture.receiver, null),
+  );
+
+  assert.equal(result, 'JP');
+  assert.equal(fixture.method.implementation, original);
+});
+
 test('iOS Override.run marshals JavaScript booleans as native BOOL values', async () => {
   const original = () => 0;
   const fixture = createFixture('- isEnabled', original);
@@ -149,7 +171,7 @@ test('iOS Override.run restores earlier IMPs when later installation fails', asy
       ],
       () => { actionCalled = true; },
     ),
-    /Objective-C method not found/,
+    /Objective-C class not found/,
   );
   assert.equal(actionCalled, false);
   assert.equal(fixture.method.implementation, original);
@@ -190,6 +212,28 @@ test('iOS withChainEvidence requires method hooks in the new fourth argument', a
     ),
     /logTag must be a string, Set<string>, or undefined/,
   );
+});
+
+test('iOS chain evidence resolves a short string target through runtime class discovery', async () => {
+  const fixture = createFixture('- currentRegion', () => 'US');
+  const targetClass = fixture.ObjC.classes.RegionProvider;
+  delete fixture.ObjC.classes.RegionProvider;
+  targetClass.$className = 'MyApp.RegionProvider';
+  fixture.ObjC.classes['MyApp.RegionProvider'] = targetClass;
+  fixture.ObjC.classes['Other.RegionProvider'] = {
+    $className: 'Other.RegionProvider',
+    '- unrelated': { implementation: () => undefined },
+  };
+  const { withChainEvidence } = await loadModule(chainEntry, fixture);
+
+  const result = await withChainEvidence(
+    () => 'done',
+    'Read region',
+    undefined,
+    [{ target: 'RegionProvider', selector: '- currentRegion' }],
+  );
+
+  assert.equal(result, 'done');
 });
 
 test('iOS chain evidence streams static and dynamic NSLog TAGs without changing original logs', async () => {
@@ -279,7 +323,7 @@ test('iOS chain evidence rolls back the NSLog replacement when a method hook fai
       'Network',
       [{ target: 'RegionProvider', selector: '- missing' }],
     ),
-    /Objective-C method not found/,
+    /Objective-C class not found/,
   );
   assert.equal(actionCalled, false);
   assert.equal(fixture.isNSLogReplaced(), false);

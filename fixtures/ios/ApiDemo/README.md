@@ -5,16 +5,16 @@ It is not a product-flow sample and does not reuse HelloWorld state or screens.
 
 ## Coverage baseline
 
-The checked-in Module operations currently provide 72 actual-runtime probe exports:
+The checked-in Module operations currently provide 75 actual-runtime probe exports:
 
 | Capability | Operations |
 | --- | ---: |
-| Runtime status / `callFunction` | 2 |
+| Runtime status / `callFunction` / class discovery | 3 |
 | `IOS.ui.find` | 4 |
 | `IOS.input` | 18 |
 | `IOS.wait` | 8 |
-| `Override.run` | 12 |
-| State / UI / Chain Evidence | 26 |
+| `Override.run` | 13 |
+| State / UI / Chain Evidence | 27 |
 | Window / Driver-failure screenshots | 2 |
 
 `evalScript`, preset loading, connection concurrency, and detach/reconnect are transport-level

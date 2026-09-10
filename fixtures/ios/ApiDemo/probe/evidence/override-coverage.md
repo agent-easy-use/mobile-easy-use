@@ -8,6 +8,7 @@ These probes execute native App methods and inspect native state, rather than me
 | --- | --- | --- | --- |
 | Single method | `probeSingleOverride` | `probeInstanceOverride` | Replacement result, skipped original, restored native result and call count |
 | Method selection | `probeExactOverload` | `probeClassOverride` | Exact Java overload leaves another overload original; Objective-C class method restores |
+| Runtime target resolution | — | `probeRuntimeTargetResolution` | Short multi-module class name is filtered by selector; replacement and restoration use the resolved Runtime class |
 | Filter | `probeFilteredOverride` | `probeFilteredOverride` | Matching argument replaced; unmatched argument calls original once |
 | Async scope | `probeAsyncCleanup` | `probeAsyncCleanup` | Replacement remains through Promise completion, then original restored |
 | Callback contract | `probeMethodCallbacks` | `probeMethodCallbacks` | Native null return; factory receives receiver/arguments; false, non-boolean and throwing filter fall back; throwing factory falls back exactly once; restoration after every case |
@@ -20,7 +21,7 @@ These probes execute native App methods and inspect native state, rather than me
 | Reference scopes | — | `probeFieldReferenceScopes` | Surviving/empty references, null replacement and repeated scope cleanup |
 | Composition | `probeComposedOverride` | `probeComposedOverride` | Real input in baseline/override scopes; exact before/after values and original call counts; action runs once per group; three evidence types share each group description; native method restored |
 
-Totals: **11 Android exports, 12 iOS exports**. Each matrix probe contains several assertions.
+Totals: **11 Android exports, 13 iOS exports**. Each matrix probe contains several assertions.
 
 `probeComposedOverride` must produce exactly two evidence files, with distinct baseline/mock action descriptions.
 Run `node fixtures/<platform>/ApiDemo/probe/evidence/verify-evidence.mjs override-composition-v1 <evidence.json>`

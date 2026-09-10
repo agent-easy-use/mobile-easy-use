@@ -340,3 +340,31 @@ export async function probeClassMethodMatching() { return methodMatchScenario('c
 /** Inherited child target includes descendants and excludes its parent sharing the IMP. */
 export async function probeChildInstanceMethodMatching() { return methodMatchScenario('instance', true); }
 export async function probeChildClassMethodMatching() { return methodMatchScenario('class', true); }
+
+/** Resolve a short multi-module hook target internally with the method selector. */
+export async function probeRuntimeTargetResolution() {
+  return navigate(async () => {
+    const contract = 'chain-runtime-target-resolution-v1';
+    const runtimeName = 'APIFindClassModuleOne.APIFindClassAmbiguousFixture';
+    const instance = ObjC.classes[runtimeName].alloc().init();
+    try {
+      const value = await Probe.evidence.withChainEvidence(
+        () => Number(instance.onlyFirstValue()),
+        contract,
+        undefined,
+        [{
+          target: 'APIFindClassAmbiguousFixture',
+          selector: '- onlyFirstValue',
+          capture: {result: ({result}) => Number(result)},
+        }],
+      );
+      return {
+        passed: value === 41,
+        api: 'Probe.evidence.withChainEvidence(runtime target resolution)',
+        evidenceContract: contract,
+        result: {value},
+        oracle: {runtimeName, selector: '- onlyFirstValue', value: 41},
+      };
+    } finally { instance.release(); }
+  });
+}

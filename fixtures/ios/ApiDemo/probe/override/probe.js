@@ -78,6 +78,29 @@ export async function probeClassOverride() {
   });
 }
 
+/** Resolve a short multi-module target internally with the method selector. */
+export async function probeRuntimeTargetResolution() {
+  return navigate(() => {
+    const runtimeName = 'APIFindClassModuleOne.APIFindClassAmbiguousFixture';
+    const instance = ObjC.classes[runtimeName].alloc().init();
+    try {
+      const before = Number(instance.onlyFirstValue());
+      const inside = Override.run([{
+        target: 'APIFindClassAmbiguousFixture',
+        selector: '- onlyFirstValue',
+        withReturn: 99,
+      }], () => Number(instance.onlyFirstValue()));
+      const after = Number(instance.onlyFirstValue());
+      return {
+        passed: before === 41 && inside === 99 && after === 41,
+        api: 'Override.run(runtime target resolution)',
+        result: { before, inside, after },
+        oracle: { runtimeName, selector: '- onlyFirstValue', original: 41, replacement: 99 },
+      };
+    } finally { instance.release(); }
+  });
+}
+
 /** Apply an argument filter and allow an unmatched call through exactly once. */
 export async function probeFilteredOverride() {
   return navigate(() => {
@@ -285,7 +308,7 @@ export async function probeMethodFailures() {
     }
     const invalid = [
       ['missing-class', {...definition, target: 'MissingOverrideFixture'}, 'Objective-C class not found'],
-      ['missing-method', {...definition, selector: '- missing'}, 'Objective-C method not found'],
+      ['missing-method', {...definition, selector: '- missing'}, 'Objective-C class not found'],
       ['missing-return', {target: FIXTURE_CLASS, selector: '- single:'}, 'withReturn is required'],
       ['invalid-filter', {...definition, filter: true}, 'filter must be a function'],
       ['selector-prefix', {...definition, selector: 'single:'}, 'selector must start with'],

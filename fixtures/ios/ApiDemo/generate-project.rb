@@ -33,7 +33,7 @@ target.build_configurations.each do |configuration|
 end
 
 app_group = project.main_group.new_group('ApiDemo', 'ApiDemo')
-Dir.glob(File.join(root, 'ApiDemo', '**', '*.{h,m}')).sort.each do |source_path|
+Dir.glob(File.join(root, 'ApiDemo', '**', '*.{h,m,swift}')).sort.each do |source_path|
   relative = source_path.delete_prefix(File.join(root, 'ApiDemo') + '/')
   components = relative.split('/')
   file_name = components.pop
@@ -41,7 +41,7 @@ Dir.glob(File.join(root, 'ApiDemo', '**', '*.{h,m}')).sort.each do |source_path|
     current.groups.find { |child| child.display_name == component } || current.new_group(component, component)
   end
   reference = group.new_file(file_name)
-  target.add_file_references([reference]) if File.extname(file_name) == '.m'
+  target.add_file_references([reference]) if ['.m', '.swift'].include?(File.extname(file_name))
 end
 
 ['UIKit.framework', 'Foundation.framework'].each do |framework_name|
