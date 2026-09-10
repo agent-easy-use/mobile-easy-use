@@ -4,7 +4,7 @@
   "releases": {
     "0.1.0": {
       "minimumMcpVersion": "0.1.0",
-      "maximumMcpVersion": "0.1.1"
+      "maximumMcpVersion": "0.1.2"
     }
   }
 }

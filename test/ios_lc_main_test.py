@@ -66,6 +66,7 @@ class DlopenCompletionTest(unittest.TestCase):
         ]:
             with self.subTest(image=image_name, requested=requested):
                 target = MagicMock()
+                target.GetTriple.return_value = 'x86_64-apple-ios'
                 value = target.EvaluateExpression.return_value
                 value.GetError.return_value.Fail.return_value = False
                 value.GetError.return_value.GetCString.return_value = None
@@ -82,6 +83,7 @@ class DlopenCompletionTest(unittest.TestCase):
 
     def test_expression_failure_is_not_masked_by_mapped_images(self):
         target = MagicMock()
+        target.GetTriple.return_value = 'x86_64-apple-ios'
         value = target.EvaluateExpression.return_value
         value.GetError.return_value.Fail.return_value = True
         value.GetError.return_value.GetCString.return_value = "interrupted: SIGSTOP"

@@ -1,6 +1,6 @@
 {
   "name": "@agent-easy-use/mobile-easy-use",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Agent-oriented Android and iOS runtime automation through MCP.",
   "license": "MIT",
   "repository": {
