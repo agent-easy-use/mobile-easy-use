@@ -1,16 +1,16 @@
 ---
 name: ios-observable-code
-description: When writing or modifying iOS code, improve observability with minimal code changes. Reuse or add key-flow logs and stable UI identifiers so Mobile Easy Use can inspect runtime behavior, diagnose issues, and verify changes.
+description: When writing or modifying iOS code, add minimal logs, stable UI identifiers, and runtime visibility for inspection with Mobile Easy Use.
 ---
 
 # iOS Observable Code
 
-Keep observability changes small and local to the requested work. Reuse existing logs and identifiers; preserve behavior and avoid adding dependencies or observability layers.
+Keep changes local and preserve behavior. Reuse existing logs, identifiers, and runtime entry points; avoid new dependencies or observability layers.
 
 ## Key-flow logs
 
-- Add logs only at useful flow boundaries: entry, important branches, completion, and failure. For asynchronous work, log the actual outcome, not just task submission.
-- Prefer a stable literal `[TAG] ` prefix in the `NSLog` format string, with event names and relevant outcome values in the message:
+- Log key flow boundaries and outcomes, including asynchronous completion. Keep logs sparse, free of sensitive data, and enabled in the inspected build.
+- Use `NSLog` with a stable literal `[TAG] ` prefix, event, and relevant values:
 
   ```swift
   NSLog("[Form] completed count=%ld", results.count)
@@ -20,14 +20,18 @@ Keep observability changes small and local to the requested work. Reuse existing
   NSLog(@"[Form] completed count=%ld", (long)results.count);
   ```
 
-- Existing `NSLog` formats beginning with `[%@]` are also supported when the first argument is an NSString matching the TAG. Mobile Easy Use's log capture requires its iOS Runtime and does not capture Swift `print` or `os_log`.
-- Keep logs sparse and free of sensitive data. Ensure they remain enabled in the build used for inspection.
+- `[%@]` prefixes also work when the first argument is an NSString matching the TAG. Capture requires Mobile Easy Use's iOS Runtime; Swift `print` and `os_log` are not captured.
 
 ## UI identifiers
 
-- Give relevant UIKit controls and result views stable `accessibilityIdentifier` values, such as `form.submit`. Reuse existing identifiers; distinguish repeated elements within their parent scope. Preserve user-facing accessibility labels.
-- Current queries traverse UIViews. SwiftUI or virtual accessibility elements without a corresponding UIView are not addressable through these queries merely by adding an identifier.
+- Assign stable `accessibilityIdentifier` values, such as `form.submit`, to relevant UIKit controls and result views. Distinguish repeated elements within their parent and preserve accessibility labels.
+- Queries traverse UIViews; identifiers alone cannot expose SwiftUI or virtual accessibility elements without a UIView.
 
-## Method visibility
+## Swift runtime visibility
 
-Method-chain capture uses Objective-C runtime-visible methods. Prefer existing entry points. Only when method-level inspection is needed, consider a small, Objective-C-compatible Swift entry point with `@objc dynamic`; pure Swift methods are not covered by this hook API. Prefer logs when exposing a method would require broader changes.
+Method-chain capture requires Objective-C runtime visibility:
+
+- **Classes:** Prefer `NSObject` or UIKit subclasses. Use the runtime name, commonly `ModuleName.ClassName`; add `@objc(CustomName)` only for a fixed name. Class visibility does not expose all Swift methods.
+- **Methods:** Use `@objc dynamic` on methods to inspect: `@objc` exposes the selector; `dynamic` routes Swift calls through Objective-C dispatch for hooks. Parameter and return types must be Objective-C-compatible; `@objcMembers` does not replace `dynamic`.
+
+Prefer logs when exposing classes or methods requires broader changes.
