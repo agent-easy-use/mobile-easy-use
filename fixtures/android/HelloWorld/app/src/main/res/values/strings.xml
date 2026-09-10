@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">HelloWorld</string>
     <string name="app_logo">HelloWorld logo</string>
-    <string name="auth_title">Welcome to HelloWorld</string>
+    <string name="auth_title">Welcome to Mobile Easy Use</string>
     <string name="auth_subtitle">Explore, automate, and verify mobile apps</string>
     <string name="login">Log in</string>
     <string name="register">Sign up</string>

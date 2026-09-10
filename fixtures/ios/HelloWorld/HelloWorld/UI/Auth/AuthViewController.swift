@@ -85,7 +85,15 @@ final class AuthViewController: UIViewController {
         navigationController?.setNavigationBarHidden(true, animated: false)
         buildInterface()
         wireInteractions()
+        let dismissTap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        dismissTap.cancelsTouchesInView = false
+        dismissTap.delegate = self
+        view.addGestureRecognizer(dismissTap)
         updateMode(animated: false)
+    }
+
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
     }
 
     private func buildInterface() {
@@ -123,6 +131,7 @@ final class AuthViewController: UIViewController {
         titleLabel.font = .systemFont(ofSize: 29, weight: .bold)
         titleLabel.textColor = AppStyle.ink
         titleLabel.textAlignment = .center
+        titleLabel.numberOfLines = 0
 
         let subtitle = UILabel()
         subtitle.text = NSLocalizedString("auth.subtitle", comment: "Authentication page subtitle")
@@ -136,6 +145,7 @@ final class AuthViewController: UIViewController {
         header.spacing = 10
         header.setCustomSpacing(18, after: logo)
         content.addArrangedSubview(header)
+        titleLabel.widthAnchor.constraint(lessThanOrEqualTo: content.widthAnchor).isActive = true
         content.setCustomSpacing(28, after: header)
 
         let tabBackground = UIView()
@@ -338,6 +348,20 @@ final class AuthViewController: UIViewController {
         field.translatesAutoresizingMaskIntoConstraints = false
         field.heightAnchor.constraint(equalToConstant: 52).isActive = true
         return field
+    }
+}
+
+extension AuthViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        // Controls may receive touches through their internal labels or image views.
+        var touchedView = touch.view
+        while let current = touchedView {
+            if current is UIControl || current is UITextView {
+                return false
+            }
+            touchedView = current.superview
+        }
+        return true
     }
 }
 
