@@ -3,6 +3,9 @@ import UIKit
 final class AuthViewController: UIViewController {
     private var isRegisterMode = false
     private var acceptedTerms = false
+    private let scrollView = UIScrollView()
+    private var previousViewportSize = CGSize.zero
+    private var needsEditingReveal = false
 
     private let loginTab = AuthViewController.makeTab(
         title: NSLocalizedString("auth.login", comment: "Login tab"),
@@ -96,8 +99,29 @@ final class AuthViewController: UIViewController {
         view.endEditing(true)
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let viewportChanged = scrollView.bounds.size != previousViewportSize
+        previousViewportSize = scrollView.bounds.size
+        guard viewportChanged || needsEditingReveal else { return }
+        needsEditingReveal = false
+        guard let field = [nameField, accountField, passwordField, confirmationField]
+            .first(where: { $0.isFirstResponder }) else { return }
+
+        // Keep the active input and submit action above the keyboard together.
+        // On short screens the active input takes priority; the form remains scrollable.
+        let fieldRect = field.convert(field.bounds, to: scrollView).insetBy(dx: 0, dy: -12)
+        let submitRect = submitButton.convert(submitButton.bounds, to: scrollView).insetBy(dx: 0, dy: -12)
+        let editingRect = fieldRect.union(submitRect)
+        let availableHeight = scrollView.bounds.height
+            - scrollView.adjustedContentInset.top - scrollView.adjustedContentInset.bottom
+        scrollView.scrollRectToVisible(
+            editingRect.height <= availableHeight ? editingRect : fieldRect,
+            animated: false
+        )
+    }
+
     private func buildInterface() {
-        let scrollView = UIScrollView()
         scrollView.alwaysBounceVertical = true
         scrollView.keyboardDismissMode = .interactive
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -214,7 +238,7 @@ final class AuthViewController: UIViewController {
             scrollView.topAnchor.constraint(equalTo: view.topAnchor),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
             content.topAnchor.constraint(equalTo: contentGuide.topAnchor, constant: 44),
             content.leadingAnchor.constraint(equalTo: contentGuide.leadingAnchor, constant: 24),
             content.trailingAnchor.constraint(equalTo: contentGuide.trailingAnchor, constant: -24),
@@ -366,6 +390,11 @@ extension AuthViewController: UIGestureRecognizerDelegate {
 }
 
 extension AuthViewController: UITextFieldDelegate {
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        needsEditingReveal = true
+        view.setNeedsLayout()
+    }
+
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         switch textField {
         case nameField: accountField.becomeFirstResponder()
