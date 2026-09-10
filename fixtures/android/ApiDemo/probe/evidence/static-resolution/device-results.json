@@ -1,0 +1,167 @@
+{
+  "date": "2026-09-10",
+  "deviceId": "SED0221812009951",
+  "model": "HUAWEI JAD-AL50",
+  "runs": [
+    {
+      "args": [
+        "snapshot",
+        "java"
+      ],
+      "result": {
+        "status": "inconclusive",
+        "pid": 11271,
+        "androidVersion": "12",
+        "fridaVersion": "17.16.4",
+        "preparation": "snapshot",
+        "trigger": "java",
+        "entrypoint": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "entries": 0,
+        "maxDepth": 0,
+        "events": [],
+        "result": "original:probe",
+        "originalCalls": 1
+      },
+      "evidence": []
+    },
+    {
+      "args": [
+        "snapshot",
+        "reflection"
+      ],
+      "error": {
+        "message": "Failed to call function: Script is destroyed",
+        "stack": "Error: Failed to call function: Script is destroyed\nCaused by:\nError: Script is destroyed\n    at onScriptDestroyed (file:///Users/bytedance/IdeaProjects/mobile-easy-use/node_modules/frida/build/src/frida.js:78:30)"
+      },
+      "evidence": []
+    },
+    {
+      "args": [
+        "snapshot",
+        "bridge"
+      ],
+      "result": {
+        "status": "reproduced",
+        "pid": 12183,
+        "androidVersion": "12",
+        "fridaVersion": "17.16.4",
+        "preparation": "snapshot",
+        "trigger": "bridge",
+        "entrypoint": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "entries": 2,
+        "maxDepth": 2,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1
+          },
+          {
+            "phase": "enter",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ],
+        "result": "diagnostic:reentry-blocked",
+        "originalCalls": 0
+      },
+      "evidence": []
+    },
+    {
+      "args": [
+        "none",
+        "java"
+      ],
+      "result": {
+        "status": "inconclusive",
+        "pid": 12184,
+        "androidVersion": "12",
+        "fridaVersion": "17.16.4",
+        "preparation": "none",
+        "trigger": "java",
+        "entrypoint": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "entries": 0,
+        "maxDepth": 0,
+        "events": [],
+        "result": "original:probe",
+        "originalCalls": 1
+      },
+      "evidence": []
+    },
+    {
+      "args": [
+        "warm-target",
+        "java"
+      ],
+      "result": {
+        "status": "inconclusive",
+        "pid": 12185,
+        "androidVersion": "12",
+        "fridaVersion": "17.16.4",
+        "preparation": "warm-target",
+        "trigger": "java",
+        "entrypoint": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "entries": 0,
+        "maxDepth": 0,
+        "events": [],
+        "result": "original:probe",
+        "originalCalls": 1
+      },
+      "evidence": []
+    },
+    {
+      "args": [
+        "snapshot",
+        "bridge"
+      ],
+      "error": {
+        "message": "Failed to call function: Script is destroyed",
+        "stack": "Error: Failed to call function: Script is destroyed\nCaused by:\nError: Script is destroyed\n    at onScriptDestroyed (file:///Users/bytedance/IdeaProjects/mobile-easy-use/node_modules/frida/build/src/frida.js:78:30)"
+      },
+      "evidence": []
+    }
+  ],
+  "nativeComparison": {
+    "baseline": {
+      "entries": 2,
+      "originalCalls": 0,
+      "result": "diagnostic:reentry-blocked",
+      "decisions": [
+        "replacement",
+        "original",
+        "replacement"
+      ]
+    },
+    "diagnosticFix": {
+      "entries": 1,
+      "originalCalls": 1,
+      "result": "original:probe",
+      "decisions": [
+        "replacement",
+        "original",
+        "original"
+      ]
+    },
+    "entrypointBoth": "art_quick_resolution_trampoline",
+    "globalDeoptimization": false,
+    "rawEvidenceDirectory": "artifacts/login-hook-diagnosis"
+  }
+}

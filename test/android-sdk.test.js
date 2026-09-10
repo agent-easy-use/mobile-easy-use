@@ -22,6 +22,13 @@ async function loadAndroidModule(entryUrl, fixture) {
   };
   const entry = await getModule(entryUrl);
   await entry.link(async (specifier, referencingModule) => {
+    if (specifier === 'frida-java-bridge/lib/android.js') {
+      return new vm.SyntheticModule(['getAndroidApiLevel', 'getApi', 'getArtThreadFromEnv'], function () {
+        for (const name of ['getAndroidApiLevel', 'getApi', 'getArtThreadFromEnv']) {
+          this.setExport(name, () => { throw Error('Unexpected ART access in instance-method fixture'); });
+        }
+      }, { context: fixture.context });
+    }
     if (specifier === 'frida-java-bridge') {
       const bridgeId = 'fixture:frida-java-bridge';
       if (!modulePromises.has(bridgeId)) {

@@ -1,0 +1,2831 @@
+{
+  "date": "2026-09-10",
+  "device": "HUAWEI JAD-AL50",
+  "serial": "SED0221812009951",
+  "android": "12",
+  "architecture": "arm64",
+  "frida": "17.16.4",
+  "bridge": "7.0.12",
+  "sdkLoaded": false,
+  "bridgePatched": false,
+  "globalDeoptimization": false,
+  "runs": [
+    {
+      "file": "matrix-sdk-instance-none.json",
+      "options": {
+        "key": "sdk-instance",
+        "preparation": "none"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:08.762Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 303\nWaitTime: 305\nComplete\n",
+      "pid": 21204,
+      "result": {
+        "pid": 21204,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "key": "sdk-instance",
+          "preparation": "none"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.SdkFixtureState",
+        "method": "getInstance",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": null,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "com.agenteasyuse.mobileeasyuse.apidemo.state.SdkFixtureState",
+        "exception": null,
+        "expected": "com.agenteasyuse.mobileeasyuse.apidemo.state.SdkFixtureState",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-resolution-target-snapshot.json",
+      "options": {
+        "key": "resolution-target",
+        "preparation": "snapshot"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:14.299Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 276\nWaitTime: 278\nComplete\n",
+      "pid": 21357,
+      "result": {
+        "pid": 21357,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "key": "resolution-target",
+          "preparation": "snapshot"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticResolutionFixture",
+        "method": "target",
+        "types": [
+          "java.lang.String"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "guard",
+        "exception": null,
+        "expected": "original:probe",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-sdk-value-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "sdk-value"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:30.368Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 293\nWaitTime: 297\nComplete\n",
+      "pid": 21358,
+      "result": {
+        "pid": 21358,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "sdk-value"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.SdkFixtureState",
+        "method": "staticValue",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "static-original",
+        "exception": null,
+        "expected": "static-original",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-state-instance-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "state-instance"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:31.971Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 265\nWaitTime: 267\nComplete\n",
+      "pid": 21359,
+      "result": {
+        "pid": 21359,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "state-instance"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState",
+        "method": "getInstance",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": null,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState",
+        "exception": null,
+        "expected": "com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-chain-instance-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "chain-instance"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:33.372Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 265\nWaitTime: 267\nComplete\n",
+      "pid": 28514,
+      "result": {
+        "pid": 28514,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "chain-instance"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.ChainCaptureFixture",
+        "method": "getInstance",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": null,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "com.agenteasyuse.mobileeasyuse.apidemo.state.ChainCaptureFixture",
+        "exception": null,
+        "expected": "com.agenteasyuse.mobileeasyuse.apidemo.state.ChainCaptureFixture",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-controller-generation-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "controller-generation"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:34.796Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 264\nWaitTime: 266\nComplete\n",
+      "pid": 28515,
+      "result": {
+        "pid": 28515,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "controller-generation"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.control.ApiDemoController",
+        "method": "getGeneration",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": null,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "0",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-controller-activity-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "controller-activity"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:36.217Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 255\nWaitTime: 257\nComplete\n",
+      "pid": 28516,
+      "result": {
+        "pid": 28516,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "controller-activity"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.control.ApiDemoController",
+        "method": "getActivity",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": null,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "",
+        "exception": null,
+        "expected": "",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-ui-dp-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "ui-dp"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:37.616Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 263\nWaitTime: 265\nComplete\n",
+      "pid": 29063,
+      "result": {
+        "pid": 29063,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "ui-dp"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.ui.UiFactory",
+        "method": "dp",
+        "types": [
+          "android.content.Context",
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": null,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "34",
+        "exception": null,
+        "expected": "34",
+        "expectedCalls": 1,
+        "isMainThread": true,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-m0-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m0"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:39.007Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 272\nWaitTime: 274\nComplete\n",
+      "pid": 29131,
+      "result": {
+        "pid": 29131,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m0"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "12",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-m1-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m1"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:40.435Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 267\nWaitTime: 269\nComplete\n",
+      "pid": 29198,
+      "result": {
+        "pid": 29198,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m1"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "bool",
+        "types": [
+          "boolean"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "true",
+        "exception": null,
+        "expected": "true",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-m2-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m2"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:41.872Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 258\nWaitTime: 260\nComplete\n",
+      "pid": 29271,
+      "result": {
+        "pid": 29271,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m2"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "wide",
+        "types": [
+          "long"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "10000000007",
+        "exception": null,
+        "expected": "10000000007",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-m3-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m3"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:43.251Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 263\nWaitTime: 265\nComplete\n",
+      "pid": 29385,
+      "result": {
+        "pid": 29385,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m3"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "consume",
+        "types": [
+          "java.lang.String"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": null,
+        "exception": null,
+        "expected": null,
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-m4-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m4"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:44.663Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 261\nWaitTime: 264\nComplete\n",
+      "pid": 29452,
+      "result": {
+        "pid": 29452,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m4"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "overloaded",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "int:5",
+        "exception": null,
+        "expected": "int:5",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-m5-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m5"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:46.059Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 265\nWaitTime: 269\nComplete\n",
+      "pid": 29521,
+      "result": {
+        "pid": 29521,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m5"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "overloaded",
+        "types": [
+          "java.lang.String"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "string:probe",
+        "exception": null,
+        "expected": "string:probe",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-m6-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m6"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:47.470Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 273\nWaitTime: 275\nComplete\n",
+      "pid": 29588,
+      "result": {
+        "pid": 29588,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m6"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "locked",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "12",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-m7-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m7"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:48.893Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 268\nWaitTime: 270\nComplete\n",
+      "pid": 29656,
+      "result": {
+        "pid": 29656,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m7"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "recursive",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 3,
+        "maxDepth": 3,
+        "guarded": false,
+        "originalReturns": 3,
+        "originalCalls": 3,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "3",
+        "exception": null,
+        "expected": "3",
+        "expectedCalls": 3,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": 2
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": 1
+          },
+          {
+            "phase": "enter",
+            "depth": 3,
+            "argument": 0
+          },
+          {
+            "phase": "leave",
+            "depth": 3
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-m8-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m8"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:50.314Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 270\nWaitTime: 271\nComplete\n",
+      "pid": 29727,
+      "result": {
+        "pid": 29727,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m8"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "fail",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 0,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": null,
+        "exception": "Error: java.lang.IllegalStateException: STATIC_MATRIX_EXPECTED",
+        "expected": null,
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-m9-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m9"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:51.725Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 263\nWaitTime: 265\nComplete\n",
+      "pid": 29796,
+      "result": {
+        "pid": 29796,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m9"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture$Plain",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "12",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-initial-m10-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m10"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:06:53.138Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 264\nWaitTime: 268\nComplete\n",
+      "pid": 29864,
+      "result": {
+        "pid": 29864,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m10"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture$Initialized",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "12",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-snapshot-sdk-value-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "sdk-value"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:02.211Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 256\nWaitTime: 259\nComplete\n",
+      "pid": 29932,
+      "result": {
+        "pid": 29932,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "sdk-value"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.SdkFixtureState",
+        "method": "staticValue",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "guard",
+        "exception": null,
+        "expected": "static-original",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-snapshot-m0-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m0"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:03.667Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 263\nWaitTime: 266\nComplete\n",
+      "pid": 29988,
+      "result": {
+        "pid": 29988,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m0"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-snapshot-m1-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m1"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:05.071Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 260\nWaitTime: 261\nComplete\n",
+      "pid": 29989,
+      "result": {
+        "pid": 29989,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m1"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "bool",
+        "types": [
+          "boolean"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "false",
+        "exception": null,
+        "expected": "true",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-snapshot-m2-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m2"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:06.468Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 263\nWaitTime: 265\nComplete\n",
+      "pid": 29990,
+      "result": {
+        "pid": 29990,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m2"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "wide",
+        "types": [
+          "long"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "10000000007",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-snapshot-m3-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m3"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:07.865Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 265\nWaitTime: 267\nComplete\n",
+      "pid": 29991,
+      "result": {
+        "pid": 29991,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m3"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "consume",
+        "types": [
+          "java.lang.String"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": null,
+        "exception": null,
+        "expected": null,
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-snapshot-m4-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m4"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:09.287Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 257\nWaitTime: 261\nComplete\n",
+      "pid": 29992,
+      "result": {
+        "pid": 29992,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m4"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "overloaded",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "guard",
+        "exception": null,
+        "expected": "int:5",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-snapshot-m5-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m5"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:10.677Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 269\nWaitTime: 271\nComplete\n",
+      "pid": 30371,
+      "result": {
+        "pid": 30371,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m5"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "overloaded",
+        "types": [
+          "java.lang.String"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "guard",
+        "exception": null,
+        "expected": "string:probe",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-snapshot-m6-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m6"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:12.101Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 268\nWaitTime: 270\nComplete\n",
+      "pid": 30437,
+      "result": {
+        "pid": 30437,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m6"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "locked",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-snapshot-m7-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m7"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:13.522Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 265\nWaitTime: 267\nComplete\n",
+      "pid": 30505,
+      "result": {
+        "pid": 30505,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m7"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "recursive",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 5,
+        "maxDepth": 5,
+        "guarded": true,
+        "originalReturns": 4,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "3",
+        "expectedCalls": 3,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": 2
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": 2
+          },
+          {
+            "phase": "enter",
+            "depth": 3,
+            "argument": 2
+          },
+          {
+            "phase": "enter",
+            "depth": 4,
+            "argument": 2
+          },
+          {
+            "phase": "enter",
+            "depth": 5,
+            "argument": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 5
+          },
+          {
+            "phase": "leave",
+            "depth": 4
+          },
+          {
+            "phase": "leave",
+            "depth": 3
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-snapshot-m8-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m8"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:14.935Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 259\nWaitTime: 262\nComplete\n",
+      "pid": 30576,
+      "result": {
+        "pid": 30576,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m8"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "fail",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "guard",
+        "exception": null,
+        "expected": null,
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-snapshot-m9-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m9"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:16.338Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 262\nWaitTime: 264\nComplete\n",
+      "pid": 30645,
+      "result": {
+        "pid": 30645,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m9"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture$Plain",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "12",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-snapshot-m10-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m10"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:17.737Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 279\nWaitTime: 282\nComplete\n",
+      "pid": 30714,
+      "result": {
+        "pid": 30714,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m10"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture$Initialized",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "12",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-java-m0-none-java-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m0",
+        "trigger": "java"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:46.026Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 262\nWaitTime: 265\nComplete\n",
+      "pid": 30790,
+      "result": {
+        "pid": 30790,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m0",
+          "trigger": "java"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "12",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-java-m0-snapshot-java-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m0",
+        "trigger": "java"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:47.501Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 272\nWaitTime: 274\nComplete\n",
+      "pid": 30840,
+      "result": {
+        "pid": 30840,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m0",
+          "trigger": "java"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-java-m1-snapshot-java-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m1",
+        "trigger": "java"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:07:48.899Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 48\nComplete\n",
+      "error": "Error: Command failed: adb -s SED0221812009951 shell pidof com.agenteasyuse.mobileeasyuse.apidemo"
+    },
+    {
+      "file": "matrix-verify-m0-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m0"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:08:41.559Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 276\nWaitTime: 277\nComplete\n",
+      "pid": 30842,
+      "result": {
+        "pid": 30842,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m0"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "12",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-verify-m0-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m0"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:08:42.937Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 261\nWaitTime: 263\nComplete\n",
+      "pid": 30843,
+      "result": {
+        "pid": 30843,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m0"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-verify-m0-snapshot-java-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m0",
+        "trigger": "java"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:08:44.336Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 262\nWaitTime: 265\nComplete\n",
+      "pid": 30844,
+      "result": {
+        "pid": 30844,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m0",
+          "trigger": "java"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-verify-sdk-value-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "sdk-value"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:08:45.740Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 270\nWaitTime: 272\nComplete\n",
+      "pid": 31064,
+      "result": {
+        "pid": 31064,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "sdk-value"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.SdkFixtureState",
+        "method": "staticValue",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "static-original",
+        "exception": null,
+        "expected": "static-original",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-verify-sdk-value-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "sdk-value"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:08:47.152Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 262\nWaitTime: 265\nComplete\n",
+      "pid": 31065,
+      "result": {
+        "pid": 31065,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "sdk-value"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.SdkFixtureState",
+        "method": "staticValue",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "guard",
+        "exception": null,
+        "expected": "static-original",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-verify-m9-initialize-wrapper-original-worker.json",
+      "options": {
+        "preparation": "initialize",
+        "key": "m9"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:08:48.551Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 268\nWaitTime: 269\nComplete\n",
+      "pid": 31066,
+      "result": {
+        "pid": 31066,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "initialize",
+          "key": "m9"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture$Plain",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-verify-m10-initialize-wrapper-original-worker.json",
+      "options": {
+        "preparation": "initialize",
+        "key": "m10"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:08:49.972Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 256\nWaitTime: 258\nComplete\n",
+      "pid": 31475,
+      "result": {
+        "pid": 31475,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "initialize",
+          "key": "m10"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture$Initialized",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-verify-m0-warm-wrapper-original-worker.json",
+      "options": {
+        "preparation": "warm",
+        "key": "m0"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:08:51.369Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 266\nWaitTime: 268\nComplete\n",
+      "pid": 31542,
+      "result": {
+        "pid": 31542,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "warm",
+          "key": "m0"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 1,
+        "warmResult": "12",
+        "value": "0",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-verify-m0-snapshot-wrapper-constant-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m0",
+        "behavior": "constant"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:08:52.759Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 267\nWaitTime: 268\nComplete\n",
+      "pid": 31610,
+      "result": {
+        "pid": 31610,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m0",
+          "behavior": "constant"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 0,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 0,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-verify-m0-snapshot-wrapper-original-main.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m0",
+        "thread": "main"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:08:54.165Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 262\nWaitTime: 263\nComplete\n",
+      "pid": 31678,
+      "result": {
+        "pid": 31678,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m0",
+          "thread": "main"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": true,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-repeat-m0-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "m0"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:09:50.029Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 293\nWaitTime: 295\nComplete\n",
+      "pid": 31745,
+      "result": {
+        "pid": 31745,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "m0"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "12",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-repeat-m0-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "m0"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:09:51.551Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 277\nWaitTime: 279\nComplete\n",
+      "pid": 31802,
+      "result": {
+        "pid": 31802,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "m0"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.StaticHookMatrixFixture",
+        "method": "integer",
+        "types": [
+          "int"
+        ],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "0",
+        "exception": null,
+        "expected": "12",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-repeat-sdk-value-none-wrapper-original-worker.json",
+      "options": {
+        "preparation": "none",
+        "key": "sdk-value"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:09:52.991Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 271\nWaitTime: 274\nComplete\n",
+      "pid": 31803,
+      "result": {
+        "pid": 31803,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "none",
+          "key": "sdk-value"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.SdkFixtureState",
+        "method": "staticValue",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22320",
+          "symbol": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge"
+        },
+        "status": "normal",
+        "entries": 1,
+        "maxDepth": 1,
+        "guarded": false,
+        "originalReturns": 1,
+        "originalCalls": 1,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "static-original",
+        "exception": null,
+        "expected": "static-original",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    },
+    {
+      "file": "matrix-repeat-sdk-value-snapshot-wrapper-original-worker.json",
+      "options": {
+        "preparation": "snapshot",
+        "key": "sdk-value"
+      },
+      "bundle": "agent-static-matrix.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:09:54.448Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nTotalTime: 282\nWaitTime: 285\nComplete\n",
+      "pid": 31804,
+      "result": {
+        "pid": 31804,
+        "fridaVersion": "17.16.4",
+        "bridgeVersion": "7.0.12",
+        "runtime": "QJS",
+        "options": {
+          "preparation": "snapshot",
+          "key": "sdk-value"
+        },
+        "className": "com.agenteasyuse.mobileeasyuse.apidemo.state.SdkFixtureState",
+        "method": "staticValue",
+        "types": [],
+        "savedEntry": {
+          "address": "0x7d7ea22070",
+          "symbol": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline"
+        },
+        "status": "reentry",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "originalReturns": 1,
+        "originalCalls": 0,
+        "baseline": 0,
+        "warmResult": null,
+        "value": "guard",
+        "exception": null,
+        "expected": "static-original",
+        "expectedCalls": 1,
+        "isMainThread": false,
+        "events": [
+          {
+            "phase": "enter",
+            "depth": 1,
+            "argument": null
+          },
+          {
+            "phase": "enter",
+            "depth": 2,
+            "argument": null
+          },
+          {
+            "phase": "leave",
+            "depth": 2
+          },
+          {
+            "phase": "leave",
+            "depth": 1
+          }
+        ]
+      }
+    }
+  ]
+}

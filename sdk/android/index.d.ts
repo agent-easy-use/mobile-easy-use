@@ -449,6 +449,8 @@ declare global {
      * Installation errors roll back and throw before action. Action results/errors are preserved.
      * Overrides are process-wide while active, including unrelated threads; use filter to narrow scope.
      * Already-hooked overloads (including chain evidence/other overrides) are rejected.
+     * On ARM Android 11+, static-hook setup initializes the declaring class and completes ART visibility;
+     * if the ART symbol is unavailable, setup warns and continues without this preparation. Class initialization may run App code.
      * @example const result = Override.run([{ target: 'com.example.Flags', method: 'isEnabled', withReturn: true }], () => Java.use('com.example.Flags').isEnabled());
      */
     run<TResult>(
@@ -521,6 +523,8 @@ declare global {
      * Supports multiple TAGs per call; at most one log-capture scope may be active (including nesting).
      * Hooks observe all matching process calls, including unrelated concurrent work; use filter.
      * Already-hooked Java overloads are rejected. Setup errors roll back and reject before action.
+     * On ARM Android 11+, static-hook setup initializes the declaring class and completes ART visibility;
+     * if the ART symbol is unavailable, setup warns and continues without this preparation. Class initialization may run App code.
      * Callbacks execute on intercepted threads and must be synchronous. Empty hooks plus no TAG capture nothing.
      * @param action Trigger the action and await its required completion before returning.
      * @param actionDescription Non-empty sole aggregation key within the operation; unique per action

@@ -1,0 +1,1060 @@
+{
+  "environment": {
+    "device": "HUAWEI JAD-AL50",
+    "android": "12",
+    "arch": "arm64",
+    "frida": "17.16.4",
+    "bridge": "7.0.12"
+  },
+  "entryComparison": [
+    {
+      "startedAt": "2026-09-10T03:35:11.929Z",
+      "pid": 6165,
+      "options": {
+        "key": "integer",
+        "preparation": "snapshot",
+        "flush": false,
+        "guard": true,
+        "count": 1
+      },
+      "result": {
+        "pid": 6165,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "preparation": "snapshot",
+          "flush": false,
+          "guard": true,
+          "count": 1
+        },
+        "methodType": 2,
+        "preparationResult": null,
+        "savedEntry": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline",
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "completed": 1,
+        "originalCalls": 0,
+        "lastValue": "0",
+        "expected": "12",
+        "passed": false
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:35:27.861Z",
+      "pid": 6166,
+      "options": {
+        "key": "integer",
+        "preparation": "snapshot",
+        "flush": true,
+        "guard": true,
+        "count": 100
+      },
+      "result": {
+        "pid": 6166,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "preparation": "snapshot",
+          "flush": true,
+          "guard": true,
+          "count": 100
+        },
+        "methodType": 2,
+        "preparationResult": "flushed",
+        "savedEntry": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge",
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    }
+  ],
+  "rawBridge": [
+    {
+      "startedAt": "2026-09-10T03:29:51.499Z",
+      "pid": 3420,
+      "options": {
+        "key": "integer",
+        "trigger": "wrapper",
+        "count": 100,
+        "guard": true,
+        "preparation": "snapshot",
+        "flush": true
+      },
+      "result": {
+        "pid": 3420,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "trigger": "wrapper",
+          "count": 100,
+          "guard": true,
+          "preparation": "snapshot",
+          "flush": true
+        },
+        "methodType": 2,
+        "preparationResult": "flushed",
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:29:56.398Z",
+      "pid": 3421,
+      "options": {
+        "key": "integer",
+        "trigger": "java",
+        "count": 100,
+        "guard": true,
+        "preparation": "snapshot",
+        "flush": true
+      },
+      "result": {
+        "pid": 3421,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "trigger": "java",
+          "count": 100,
+          "guard": true,
+          "preparation": "snapshot",
+          "flush": true
+        },
+        "methodType": 2,
+        "preparationResult": "flushed",
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:30:01.301Z",
+      "pid": 3422,
+      "options": {
+        "key": "locked",
+        "trigger": "wrapper",
+        "count": 100,
+        "guard": true,
+        "preparation": "snapshot",
+        "flush": true
+      },
+      "result": {
+        "pid": 3422,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "locked",
+          "trigger": "wrapper",
+          "count": 100,
+          "guard": true,
+          "preparation": "snapshot",
+          "flush": true
+        },
+        "methodType": 2,
+        "preparationResult": "flushed",
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:30:06.236Z",
+      "pid": 4665,
+      "options": {
+        "key": "locked",
+        "trigger": "java",
+        "count": 100,
+        "guard": true,
+        "preparation": "snapshot",
+        "flush": true
+      },
+      "result": {
+        "pid": 4665,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "locked",
+          "trigger": "java",
+          "count": 100,
+          "guard": true,
+          "preparation": "snapshot",
+          "flush": true
+        },
+        "methodType": 2,
+        "preparationResult": "flushed",
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:30:11.190Z",
+      "pid": 4666,
+      "options": {
+        "key": "staticValue",
+        "trigger": "wrapper",
+        "count": 100,
+        "guard": true,
+        "preparation": "snapshot",
+        "flush": true
+      },
+      "result": {
+        "pid": 4666,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "staticValue",
+          "trigger": "wrapper",
+          "count": 100,
+          "guard": true,
+          "preparation": "snapshot",
+          "flush": true
+        },
+        "methodType": 2,
+        "preparationResult": "flushed",
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "static-original",
+        "expected": "static-original",
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:30:16.136Z",
+      "pid": 4667,
+      "options": {
+        "key": "overloaded",
+        "trigger": "wrapper",
+        "count": 100,
+        "guard": true,
+        "preparation": "snapshot",
+        "flush": true
+      },
+      "result": {
+        "pid": 4667,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "overloaded",
+          "trigger": "wrapper",
+          "count": 100,
+          "guard": true,
+          "preparation": "snapshot",
+          "flush": true
+        },
+        "methodType": 2,
+        "preparationResult": "flushed",
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "int:5",
+        "expected": "int:5",
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:30:21.058Z",
+      "pid": 4885,
+      "options": {
+        "key": "overloaded",
+        "trigger": "java",
+        "count": 100,
+        "guard": true,
+        "preparation": "snapshot",
+        "flush": true
+      },
+      "result": {
+        "pid": 4885,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "overloaded",
+          "trigger": "java",
+          "count": 100,
+          "guard": true,
+          "preparation": "snapshot",
+          "flush": true
+        },
+        "methodType": 2,
+        "preparationResult": "flushed",
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "int:5",
+        "expected": "int:5",
+        "passed": true
+      }
+    }
+  ],
+  "sdk": [
+    {
+      "startedAt": "2026-09-10T03:33:56.594Z",
+      "pid": 5398,
+      "options": {
+        "api": "override",
+        "key": "integer",
+        "trigger": "java"
+      },
+      "result": {
+        "pid": 5398,
+        "options": {
+          "api": "override",
+          "key": "integer",
+          "trigger": "java"
+        },
+        "entries": 100,
+        "originalCalls": 100,
+        "completed": 100,
+        "errors": 0,
+        "lastValue": "12",
+        "seen": [
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ]
+        ],
+        "cleaned": true,
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:34:01.519Z",
+      "pid": 5595,
+      "options": {
+        "api": "override",
+        "key": "recursive",
+        "trigger": "java"
+      },
+      "result": {
+        "pid": 5595,
+        "options": {
+          "api": "override",
+          "key": "recursive",
+          "trigger": "java"
+        },
+        "entries": 300,
+        "originalCalls": 300,
+        "completed": 100,
+        "errors": 0,
+        "lastValue": "3",
+        "seen": [
+          [
+            "2"
+          ],
+          [
+            "1"
+          ],
+          [
+            "0"
+          ],
+          [
+            "2"
+          ],
+          [
+            "1"
+          ],
+          [
+            "0"
+          ],
+          [
+            "2"
+          ],
+          [
+            "1"
+          ],
+          [
+            "0"
+          ],
+          [
+            "2"
+          ],
+          [
+            "1"
+          ],
+          [
+            "0"
+          ]
+        ],
+        "cleaned": true,
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:34:06.537Z",
+      "pid": 5596,
+      "options": {
+        "api": "override",
+        "key": "fail",
+        "trigger": "java",
+        "mode": "filter"
+      },
+      "result": {
+        "pid": 5596,
+        "options": {
+          "api": "override",
+          "key": "fail",
+          "trigger": "java",
+          "mode": "filter"
+        },
+        "entries": 100,
+        "originalCalls": 100,
+        "completed": 100,
+        "errors": 100,
+        "seen": [
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "cleaned": true,
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:34:11.601Z",
+      "pid": 5597,
+      "options": {
+        "api": "override",
+        "key": "integer",
+        "trigger": "wrapper",
+        "mode": "filter"
+      },
+      "result": {
+        "pid": 5597,
+        "options": {
+          "api": "override",
+          "key": "integer",
+          "trigger": "wrapper",
+          "mode": "filter"
+        },
+        "entries": 100,
+        "originalCalls": 100,
+        "completed": 100,
+        "errors": 0,
+        "lastValue": "12",
+        "seen": [
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ]
+        ],
+        "cleaned": true,
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:34:16.488Z",
+      "pid": 5788,
+      "options": {
+        "api": "chain",
+        "key": "integer",
+        "trigger": "java"
+      },
+      "result": {
+        "pid": 5788,
+        "options": {
+          "api": "chain",
+          "key": "integer",
+          "trigger": "java"
+        },
+        "entries": 100,
+        "originalCalls": 100,
+        "completed": 100,
+        "errors": 0,
+        "lastValue": "12",
+        "seen": [
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ]
+        ],
+        "cleaned": true,
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:34:21.599Z",
+      "pid": 5789,
+      "options": {
+        "api": "chain",
+        "key": "recursive",
+        "trigger": "java"
+      },
+      "result": {
+        "pid": 5789,
+        "options": {
+          "api": "chain",
+          "key": "recursive",
+          "trigger": "java"
+        },
+        "entries": 300,
+        "originalCalls": 300,
+        "completed": 100,
+        "errors": 0,
+        "lastValue": "3",
+        "seen": [
+          [
+            "2"
+          ],
+          [
+            "1"
+          ],
+          [
+            "0"
+          ],
+          [
+            "2"
+          ],
+          [
+            "1"
+          ],
+          [
+            "0"
+          ],
+          [
+            "2"
+          ],
+          [
+            "1"
+          ],
+          [
+            "0"
+          ],
+          [
+            "2"
+          ],
+          [
+            "1"
+          ],
+          [
+            "0"
+          ]
+        ],
+        "cleaned": true,
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:34:26.910Z",
+      "pid": 5790,
+      "options": {
+        "api": "chain",
+        "key": "fail",
+        "trigger": "java"
+      },
+      "result": {
+        "pid": 5790,
+        "options": {
+          "api": "chain",
+          "key": "fail",
+          "trigger": "java"
+        },
+        "entries": 100,
+        "originalCalls": 100,
+        "completed": 100,
+        "errors": 100,
+        "seen": [
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          [],
+          []
+        ],
+        "cleaned": true,
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:34:32.167Z",
+      "pid": 5953,
+      "options": {
+        "api": "chain",
+        "key": "integer",
+        "trigger": "wrapper",
+        "mode": "filter"
+      },
+      "result": {
+        "pid": 5953,
+        "options": {
+          "api": "chain",
+          "key": "integer",
+          "trigger": "wrapper",
+          "mode": "filter"
+        },
+        "entries": 100,
+        "originalCalls": 100,
+        "completed": 100,
+        "errors": 0,
+        "lastValue": "12",
+        "seen": [
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ]
+        ],
+        "cleaned": true,
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:34:37.089Z",
+      "pid": 5954,
+      "options": {
+        "api": "override",
+        "key": "integer",
+        "trigger": "wrapper",
+        "mode": "callback-error"
+      },
+      "result": {
+        "pid": 5954,
+        "options": {
+          "api": "override",
+          "key": "integer",
+          "trigger": "wrapper",
+          "mode": "callback-error"
+        },
+        "entries": 100,
+        "originalCalls": 100,
+        "completed": 100,
+        "errors": 0,
+        "lastValue": "12",
+        "seen": [
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ]
+        ],
+        "cleaned": true,
+        "passed": true
+      }
+    }
+  ],
+  "mainThreadBoundary": [
+    {
+      "startedAt": "2026-09-10T03:36:12.225Z",
+      "pid": 6333,
+      "options": {
+        "key": "integer",
+        "preparation": "snapshot",
+        "flush": false,
+        "guard": true,
+        "count": 100,
+        "trigger": "java",
+        "thread": "main"
+      },
+      "result": {
+        "pid": 6333,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "preparation": "snapshot",
+          "flush": false,
+          "guard": true,
+          "count": 100,
+          "trigger": "java",
+          "thread": "main"
+        },
+        "methodType": 2,
+        "preparationResult": null,
+        "savedEntry": "0x7d7ea22070 libart.so!art_quick_resolution_trampoline",
+        "entries": 0,
+        "maxDepth": 0,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": false
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:36:46.785Z",
+      "pid": 6334,
+      "options": {
+        "key": "integer",
+        "preparation": "snapshot",
+        "flush": true,
+        "guard": true,
+        "count": 100,
+        "trigger": "java",
+        "thread": "main"
+      },
+      "result": {
+        "pid": 6334,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "preparation": "snapshot",
+          "flush": true,
+          "guard": true,
+          "count": 100,
+          "trigger": "java",
+          "thread": "main"
+        },
+        "methodType": 2,
+        "preparationResult": "flushed",
+        "savedEntry": "0x7d7ea22320 libart.so!art_quick_to_interpreter_bridge",
+        "entries": 0,
+        "maxDepth": 0,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": false
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:32:42.848Z",
+      "pid": 5066,
+      "options": {
+        "api": "override",
+        "key": "integer",
+        "trigger": "wrapper",
+        "thread": "main"
+      },
+      "result": {
+        "pid": 5066,
+        "options": {
+          "api": "override",
+          "key": "integer",
+          "trigger": "wrapper",
+          "thread": "main"
+        },
+        "entries": 100,
+        "originalCalls": 100,
+        "completed": 100,
+        "errors": 0,
+        "lastValue": "12",
+        "seen": [
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ],
+          [
+            "5"
+          ]
+        ],
+        "cleaned": true,
+        "passed": true
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:34:50.554Z",
+      "pid": 5955,
+      "options": {
+        "api": "override",
+        "key": "integer",
+        "trigger": "java",
+        "thread": "main",
+        "flushHooks": true
+      },
+      "result": {
+        "pid": 5955,
+        "options": {
+          "api": "override",
+          "key": "integer",
+          "trigger": "java",
+          "thread": "main",
+          "flushHooks": true
+        },
+        "entries": 0,
+        "originalCalls": 100,
+        "completed": 100,
+        "errors": 0,
+        "lastValue": "12",
+        "seen": [],
+        "cleaned": true,
+        "passed": false
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:35:03.817Z",
+      "pid": 6164,
+      "options": {
+        "api": "override",
+        "key": "integer",
+        "trigger": "java",
+        "thread": "main",
+        "traps": true
+      },
+      "result": {
+        "pid": 6164,
+        "options": {
+          "api": "override",
+          "key": "integer",
+          "trigger": "java",
+          "thread": "main",
+          "traps": true
+        },
+        "entries": 0,
+        "originalCalls": 100,
+        "completed": 100,
+        "errors": 0,
+        "lastValue": "12",
+        "seen": [],
+        "cleaned": true,
+        "passed": false
+      }
+    },
+    {
+      "startedAt": "2026-09-10T03:35:38.553Z",
+      "pid": 6332,
+      "options": {
+        "api": "chain",
+        "key": "integer",
+        "trigger": "java",
+        "actionThread": "main"
+      },
+      "result": {
+        "pid": 6332,
+        "options": {
+          "api": "chain",
+          "key": "integer",
+          "trigger": "java",
+          "actionThread": "main"
+        },
+        "entries": 0,
+        "originalCalls": 100,
+        "completed": 100,
+        "errors": 0,
+        "lastValue": "12",
+        "seen": [],
+        "cleaned": true,
+        "passed": false
+      }
+    }
+  ]
+}

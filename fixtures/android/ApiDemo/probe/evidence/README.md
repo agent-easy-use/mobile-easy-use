@@ -1,5 +1,14 @@
 # Chain capture coverage
 
+For the unresolved static-method reentry investigation, use the separate
+[cold-process reproduction](static-resolution/README.md). It is diagnostic coverage, not a
+passing suite case; its reentry reproduction and native branch comparison were verified on
+Android 12 arm64. Hook bypass and native crashes remain separate open issues.
+
+The [19-method static comparison](static-matrix/README.md) includes normal controls and
+47 completed cold-process runs. It demonstrates that reentry depends on preparation and
+the original-call entry state; static methods do not invariably fail.
+
 Run each named export in the platform's `ApiDemo/probe/evidence/chain/probe.js` serially through
 MCP `call_function`. Require the independent App oracle, return to Main, and exactly one manifest;
 then run the platform's `verify-evidence.mjs` with the returned `evidenceContract` and file path.

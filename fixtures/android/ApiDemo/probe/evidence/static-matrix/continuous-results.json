@@ -1,0 +1,614 @@
+{
+  "date": "2026-09-10",
+  "purpose": "Verify static original-call reentry is not inevitable, with the same Hook installed across 100 calls.",
+  "device": "HUAWEI JAD-AL50 / Android 12 arm64",
+  "bridge": "official unmodified 7.0.12",
+  "sdkLoaded": false,
+  "agentSource": "artifacts/login-hook-diagnosis/vanilla-audit/agent-static-continuous.js",
+  "normalOriginalCalls": 1200,
+  "javaTrigger": {
+    "originalCalls": 100,
+    "hookEntries": 22,
+    "maxDepth": 1,
+    "classification": "partial-hook-bypass"
+  },
+  "runs": [
+    {
+      "file": "continuous-integer-overload-this-none-wrapper.json",
+      "options": {
+        "key": "integer",
+        "style": "overload-this",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:16:25.365Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3031\nComplete\n",
+      "pid": 31806,
+      "result": {
+        "pid": 31806,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "style": "overload-this",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    },
+    {
+      "file": "continuous-integer-overload-class-none-wrapper.json",
+      "options": {
+        "key": "integer",
+        "style": "overload-class",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:16:30.273Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3035\nComplete\n",
+      "pid": 32300,
+      "result": {
+        "pid": 32300,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "style": "overload-class",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    },
+    {
+      "file": "continuous-integer-this-method-none-wrapper.json",
+      "options": {
+        "key": "integer",
+        "style": "this-method",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:16:35.178Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3032\nComplete\n",
+      "pid": 32301,
+      "result": {
+        "pid": 32301,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "style": "this-method",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    },
+    {
+      "file": "continuous-integer-class-method-none-wrapper.json",
+      "options": {
+        "key": "integer",
+        "style": "class-method",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:16:40.028Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3033\nComplete\n",
+      "pid": 32302,
+      "result": {
+        "pid": 32302,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "style": "class-method",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    },
+    {
+      "file": "continuous-locked-overload-this-none-wrapper.json",
+      "options": {
+        "key": "locked",
+        "style": "overload-this",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:16:44.938Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3031\nComplete\n",
+      "pid": 32303,
+      "result": {
+        "pid": 32303,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "locked",
+          "style": "overload-this",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    },
+    {
+      "file": "continuous-locked-overload-class-none-wrapper.json",
+      "options": {
+        "key": "locked",
+        "style": "overload-class",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:16:49.817Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3028\nComplete\n",
+      "pid": 1335,
+      "result": {
+        "pid": 1335,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "locked",
+          "style": "overload-class",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    },
+    {
+      "file": "continuous-locked-this-method-none-wrapper.json",
+      "options": {
+        "key": "locked",
+        "style": "this-method",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:16:54.730Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3030\nComplete\n",
+      "pid": 1352,
+      "result": {
+        "pid": 1352,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "locked",
+          "style": "this-method",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    },
+    {
+      "file": "continuous-locked-class-method-none-wrapper.json",
+      "options": {
+        "key": "locked",
+        "style": "class-method",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:16:59.641Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3033\nComplete\n",
+      "pid": 1355,
+      "result": {
+        "pid": 1355,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "locked",
+          "style": "class-method",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": true
+      }
+    },
+    {
+      "file": "continuous-staticValue-overload-this-none-wrapper.json",
+      "options": {
+        "key": "staticValue",
+        "style": "overload-this",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:17:04.531Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3031\nComplete\n",
+      "pid": 1829,
+      "result": {
+        "pid": 1829,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "staticValue",
+          "style": "overload-this",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "static-original",
+        "expected": "static-original",
+        "passed": true
+      }
+    },
+    {
+      "file": "continuous-staticValue-overload-class-none-wrapper.json",
+      "options": {
+        "key": "staticValue",
+        "style": "overload-class",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:17:09.462Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3030\nComplete\n",
+      "pid": 1831,
+      "result": {
+        "pid": 1831,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "staticValue",
+          "style": "overload-class",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "static-original",
+        "expected": "static-original",
+        "passed": true
+      }
+    },
+    {
+      "file": "continuous-staticValue-this-method-none-wrapper.json",
+      "options": {
+        "key": "staticValue",
+        "style": "this-method",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:17:14.390Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3034\nComplete\n",
+      "pid": 1875,
+      "result": {
+        "pid": 1875,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "staticValue",
+          "style": "this-method",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "static-original",
+        "expected": "static-original",
+        "passed": true
+      }
+    },
+    {
+      "file": "continuous-staticValue-class-method-none-wrapper.json",
+      "options": {
+        "key": "staticValue",
+        "style": "class-method",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:17:19.313Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3034\nComplete\n",
+      "pid": 2362,
+      "result": {
+        "pid": 2362,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "staticValue",
+          "style": "class-method",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 100,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "static-original",
+        "expected": "static-original",
+        "passed": true
+      }
+    },
+    {
+      "file": "continuous-integer-overload-this-none-java.json",
+      "options": {
+        "key": "integer",
+        "style": "overload-this",
+        "trigger": "java",
+        "count": 100,
+        "guard": false,
+        "preparation": "none"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:17:24.191Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3034\nComplete\n",
+      "pid": 2363,
+      "result": {
+        "pid": 2363,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "style": "overload-this",
+          "trigger": "java",
+          "count": 100,
+          "guard": false,
+          "preparation": "none"
+        },
+        "methodType": 2,
+        "entries": 22,
+        "maxDepth": 1,
+        "guarded": false,
+        "completed": 100,
+        "originalCalls": 100,
+        "lastValue": "12",
+        "expected": "12",
+        "passed": false
+      }
+    },
+    {
+      "file": "continuous-integer-overload-this-snapshot-wrapper.json",
+      "options": {
+        "key": "integer",
+        "style": "overload-this",
+        "count": 1,
+        "guard": true,
+        "preparation": "snapshot"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:18:20.027Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3037\nComplete\n",
+      "pid": 2364,
+      "result": {
+        "pid": 2364,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "style": "overload-this",
+          "count": 1,
+          "guard": true,
+          "preparation": "snapshot"
+        },
+        "methodType": 2,
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "completed": 1,
+        "originalCalls": 0,
+        "lastValue": "0",
+        "expected": "12",
+        "passed": false
+      }
+    },
+    {
+      "file": "continuous-integer-overload-class-snapshot-wrapper.json",
+      "options": {
+        "key": "integer",
+        "style": "overload-class",
+        "count": 1,
+        "guard": true,
+        "preparation": "snapshot"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:18:24.841Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3027\nComplete\n",
+      "pid": 2684,
+      "result": {
+        "pid": 2684,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "style": "overload-class",
+          "count": 1,
+          "guard": true,
+          "preparation": "snapshot"
+        },
+        "methodType": 2,
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "completed": 1,
+        "originalCalls": 0,
+        "lastValue": "0",
+        "expected": "12",
+        "passed": false
+      }
+    },
+    {
+      "file": "continuous-integer-this-method-snapshot-wrapper.json",
+      "options": {
+        "key": "integer",
+        "style": "this-method",
+        "count": 1,
+        "guard": true,
+        "preparation": "snapshot"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:18:29.693Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3038\nComplete\n",
+      "pid": 2693,
+      "result": {
+        "pid": 2693,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "style": "this-method",
+          "count": 1,
+          "guard": true,
+          "preparation": "snapshot"
+        },
+        "methodType": 2,
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "completed": 1,
+        "originalCalls": 0,
+        "lastValue": "0",
+        "expected": "12",
+        "passed": false
+      }
+    },
+    {
+      "file": "continuous-integer-class-method-snapshot-wrapper.json",
+      "options": {
+        "key": "integer",
+        "style": "class-method",
+        "count": 1,
+        "guard": true,
+        "preparation": "snapshot"
+      },
+      "bundle": "agent-static-continuous.dist.js",
+      "events": [],
+      "startedAt": "2026-09-10T03:18:34.582Z",
+      "start": "Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity }\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.MainActivity\nWaitTime: 3037\nComplete\n",
+      "pid": 2694,
+      "result": {
+        "pid": 2694,
+        "fridaVersion": "17.16.4",
+        "options": {
+          "key": "integer",
+          "style": "class-method",
+          "count": 1,
+          "guard": true,
+          "preparation": "snapshot"
+        },
+        "methodType": 2,
+        "entries": 2,
+        "maxDepth": 2,
+        "guarded": true,
+        "completed": 1,
+        "originalCalls": 0,
+        "lastValue": "0",
+        "expected": "12",
+        "passed": false
+      }
+    }
+  ]
+}

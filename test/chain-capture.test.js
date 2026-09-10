@@ -111,6 +111,13 @@ async function fixture(platform, { memoryFailure = false, clockFailure = false, 
   }
   const entry = await load(new URL(`../sdk/${platform}/probe/evidence/chain.js`, import.meta.url));
   await entry.link(async (specifier, parent) => {
+    if (specifier === 'frida-java-bridge/lib/android.js') {
+      return new vm.SyntheticModule(['getAndroidApiLevel', 'getApi', 'getArtThreadFromEnv'], function () {
+        for (const name of ['getAndroidApiLevel', 'getApi', 'getArtThreadFromEnv']) {
+          this.setExport(name, () => { throw Error('Unexpected ART access in instance-method fixture'); });
+        }
+      }, { context });
+    }
     if (specifier.startsWith('frida-')) {
       return new vm.SyntheticModule(['default'], function () { this.setExport('default', platform === 'android' ? Java : ObjC); }, { context });
     }

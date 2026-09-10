@@ -1,6 +1,7 @@
 import Java from 'frida-java-bridge';
 import { errorMessage, safeConsole, safeEmit } from '../common/reporting.js';
 import { installField } from './fields.js';
+import { prepareStaticHook } from '../common/static-hook.js';
 
 function methodName(targetClass, method, overload) {
   const className = targetClass?.$className;
@@ -66,6 +67,7 @@ function installDefinition(definition) {
         if (overload.implementation !== null && overload.implementation !== undefined) {
           throw new Error(`Java overload already has an implementation: ${methodName(targetClass, method, overload)}`);
         }
+        prepareStaticHook(overload);
         const original = overload;
         const name = methodName(targetClass, method, overload);
         overload.implementation = function (...rawArgs) {
