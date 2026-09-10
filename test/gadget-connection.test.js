@@ -7,11 +7,12 @@ import test from 'node:test';
 import { GadgetConnection as BaseGadgetConnection } from '../src/mcp-api/api.js';
 import { IOSSigningError } from '../src/mcp-api/ios-signing.js';
 import { CompatibilityError } from '../src/compatibility.js';
+import { MCP_VERSION } from '../src/package-info.js';
 
 const testCatalog = Object.freeze({
   schemaVersion: 1,
   latestReleaseVersion: '0.1.0',
-  releases: { '0.1.0': { minimumMcpVersion: '0.1.0', maximumMcpVersion: '0.1.0' } },
+  releases: { '0.1.0': { minimumMcpVersion: '0.1.0', maximumMcpVersion: MCP_VERSION } },
 });
 
 function GadgetConnection(deviceManager, options = {}) {
@@ -229,9 +230,9 @@ test('connect uses the complete target and Host endpoint', async () => {
       releaseVersion: '0.1.0',
     },
     compatibility: {
-      releaseVersion: '0.1.0', mcpVersion: '0.1.0',
-      minimumMcpVersion: '0.1.0', maximumMcpVersion: '0.1.0',
-      mcpCommand: 'npx -y @agent-easy-use/mobile-easy-use@0.1.0',
+      releaseVersion: '0.1.0', mcpVersion: MCP_VERSION,
+      minimumMcpVersion: '0.1.0', maximumMcpVersion: MCP_VERSION,
+      mcpCommand: `npx -y @agent-easy-use/mobile-easy-use@${MCP_VERSION}`,
       compatible: true, upgradeRecommendation: null,
     },
   });
