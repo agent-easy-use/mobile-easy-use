@@ -112,4 +112,4 @@ If no physical device is available, report Runner signing as pending.
 
 ## Finish
 
-Report the Release version, integration and runner cache paths, compatible MCP range, exact version-pinned MCP command, App target, selected configuration, integration method, changed files, embed command, and signing result (verified team, pending, or not applicable). For requested App/runtime verification, read [references/validation.md](references/validation.md) completely and follow it.
+Report the Release version, integration and runner cache paths, compatible MCP range, exact version-pinned `mcpCommand`, App target, selected configuration, integration method, changed files, embed command, and signing result (verified team, pending, or not applicable). Show `mcpCommand` to the user and ask whether to configure this MCP Server in their Agent. Configure it only with user authorization. For requested App/runtime verification, read [references/validation.md](references/validation.md) completely and follow it.

@@ -31,7 +31,7 @@ Use `MEU_HOME` when the user or environment needs a cache root other than `~/.me
 4. Add the returned `repositoryPath` as a project-level Maven repository. Derive the portable path from `MEU_HOME`, or from the current user's home plus `.meu`, in the target Gradle settings. Read [references/gradle.md](references/gradle.md) and use the examples matching the project's Gradle DSL and repository layout.
 5. Use Automatic startup. Scope `com.agenteasyuse:mobile-easy-use:<returned version>` to the selected debuggable variant with `debugImplementation(...)`, or the matching variant-aware configuration such as `internalDebugImplementation(...)`. Pin the returned Release version in the project's existing version-management location.
 6. The AAR manifest provider `com.agenteasyuse.mobileeasyuse.internal.MobileEasyUseInitProvider` calls `MobileEasyUse.initialize()` before `Application.onCreate()`. The variant dependency completes the startup integration.
-7. Report the Release version, compatible MCP range, exact version-pinned MCP command, cache path, target module, variant, changed files, dependency configuration, and Automatic startup. Ask whether the user wants to verify the integration.
+7. Report the Release version, compatible MCP range, exact version-pinned `mcpCommand`, cache path, target module, variant, changed files, dependency configuration, and Automatic startup. Show `mcpCommand` to the user and ask whether to configure this MCP Server in their Agent. Configure it only with user authorization. Ask whether the user wants to verify the integration.
 
 ## Manual startup
 
