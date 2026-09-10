@@ -177,7 +177,3 @@ npm pack --dry-run
 ```
 
 npm 包名：`@agent-easy-use/mobile-easy-use`。
-
-## 反馈
-
-完成首次探查后，欢迎[分享你调查的问题和接入过程中遇到的卡点](https://github.com/agent-easy-use/mobile-easy-use/issues/new?template=first-probe.yml)。如果 Mobile Easy Use 对你的开发有帮助，可以 Star 收藏项目。
