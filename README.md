@@ -185,3 +185,7 @@ npm pack --dry-run
 ```
 
 npm package: `@agent-easy-use/mobile-easy-use`.
+
+## Feedback
+
+Tried your first probe? [Share what you investigated and where you got stuck](https://github.com/agent-easy-use/mobile-easy-use/issues/new?template=first-probe.yml). If Mobile Easy Use is useful for your work, star the repository to bookmark it.
