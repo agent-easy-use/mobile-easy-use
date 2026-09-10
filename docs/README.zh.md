@@ -8,7 +8,7 @@
 
 Mobile Easy Use 通过 MCP 让 AI Agent 访问 App 运行时，将源码与 App 的实际行为联系起来，让开发判断有真实运行信息可依。
 
-https://github.com/user-attachments/assets/5dad374b-4618-42da-9a93-22a7c7e145bb
+[观看 iOS 运行时探查演示（58 秒）](https://github.com/agent-easy-use/mobile-easy-use/blob/master/ios-show.mp4)
 
 ## 探查 App 的状态与行为
 
@@ -177,3 +177,7 @@ npm pack --dry-run
 ```
 
 npm 包名：`@agent-easy-use/mobile-easy-use`。
+
+## 反馈
+
+完成首次探查后，欢迎[分享你调查的问题和接入过程中遇到的卡点](https://github.com/agent-easy-use/mobile-easy-use/issues/new?template=first-probe.yml)。如果 Mobile Easy Use 对你的开发有帮助，可以 Star 收藏项目。

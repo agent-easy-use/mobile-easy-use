@@ -8,7 +8,7 @@ Compared with Web development, inspecting a mobile app's internal data, business
 
 Mobile Easy Use gives AI agents runtime access through MCP, connecting source code with actual app behavior so development decisions can rely on runtime evidence.
 
-https://github.com/user-attachments/assets/5dad374b-4618-42da-9a93-22a7c7e145bb
+[Watch the iOS runtime investigation demo (58 seconds)](https://github.com/agent-easy-use/mobile-easy-use/blob/master/ios-show.mp4)
 
 ## Explore app state and behavior
 
@@ -185,3 +185,7 @@ npm pack --dry-run
 ```
 
 npm package: `@agent-easy-use/mobile-easy-use`.
+
+## Feedback
+
+Tried your first probe? [Share what you investigated and where you got stuck](https://github.com/agent-easy-use/mobile-easy-use/issues/new?template=first-probe.yml). If Mobile Easy Use is useful for your work, star the repository to bookmark it.
