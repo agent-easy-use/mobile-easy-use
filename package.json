@@ -6,6 +6,8 @@
   "files": [
     "src",
     "sdk/dist",
+    "sdk/android/index.d.ts",
+    "sdk/ios/index.d.ts",
     "templates",
     "README.md",
     "README.zh.md"
@@ -27,7 +29,10 @@
   "dependencies": {
     "frida": "17.16.4",
     "frida-java-bridge": "^7.0.12",
-    "frida-objc-bridge": "8.0.6"
+    "frida-objc-bridge": "8.0.6",
+    "jpeg-js": "0.4.4",
+    "pixelmatch": "7.2.0",
+    "pngjs": "7.0.0"
   },
   "engines": {
     "node": ">=20"
