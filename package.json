@@ -28,7 +28,7 @@
     "prestart": "npm run build",
     "start": "node src/index.js",
     "pretest": "npm run build",
-    "test": "node --experimental-vm-modules --test"
+    "test": "node --experimental-vm-modules --test test/*.test.js"
   },
   "dependencies": {
     "@types/frida-gum": "18.7.2",

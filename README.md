@@ -1,6 +1,6 @@
 # Mobile Easy Use
 
-**A tool for Android and iOS developers that gives AI agents runtime access to understand, explore, debug, and verify apps.**
+**A tool for Android and iOS developers that gives AI agents runtime access to understand, explore, debug, and run automated UI tests for apps.**
 
 Documentation: **English** · [简体中文](./docs/README.zh.md) · [Français](./docs/README.fr.md) · [Русский](./docs/README.ru.md) · [Español](./docs/README.es.md) · [العربية](./docs/README.ar.md)
 
@@ -27,20 +27,66 @@ Agents can connect what users see with what happens inside the app to understand
 
 Available information depends on the platform and app implementation.
 
-## Not another UI automation testing solution
+## UI automation testing: native objects, UI, and screenshots
 
-These capabilities can also perform traditional UI automation. Mobile Easy Use goes further by letting agents observe and change what happens inside the app, not just operate and verify the UI.
+**UI automation testing is a core capability of Mobile Easy Use.** Agents can click, type, and scroll, then use `expect` in the same test to verify native business objects, UI state, and screenshots. This connects internal data with control behavior and actual appearance. Hooks, runtime overrides, and internal method calls also help set up test scenarios and investigate failures.
 
 | Capability | Traditional UI automation (UI-focused) | Mobile Easy Use |
 | --- | :---: | :---: |
 | UI interactions: click, type, scroll, and more | ✓ | ✓ |
 | UI state: locate controls, read properties, and wait for state | ✓ | ✓ |
 | Capture screens and elements | ✓ | ✓ |
-| Observe business objects and state | — | ✓ |
+| Assert native business objects and state | — | ✓ |
 | Hook methods: collect call chains, arguments, results, and stacks | — | ✓ |
 | Measure execution time and process memory changes | — | ✓ |
 | Temporarily change runtime conditions: override method returns or fields | — | ✓ |
 | Invoke internal app methods | — | ✓ |
+
+### Example: verify native objects, UI, and screenshots after a click
+
+On the Android ApiDemo **UI → Class names and subclasses** page, the counter starts at 0. After clicking `FIRST`, the native business object's counter should be 1, the button should display `FIRST:1`, and its appearance should match a reviewed screenshot baseline.
+
+This test runs inside the app runtime using the SDK-provided `Test`, `AndroidExp`, `Java`, and `R`. Before running it, open that page in its initial state and pass `baselinePath`, an absolute local path to an existing, reviewed screenshot of the button after the click.
+
+```javascript
+export async function testButton(baselinePath) {
+  const suite = Test.create();
+  const { describe, test, expect } = suite;
+  const button = R.id.api_ui_class_first;
+
+  describe('Counter button', () => {
+    test('updates native state, UI, and appearance', async () => {
+      expect((await AndroidExp.input.click(button)).ok).toBe(true);
+
+      // Native object expect: read the real Java business object and verify its state.
+      const count = await AndroidExp.runOnMainThread(() => {
+        const state = Java.use(
+          'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
+        ).getInstance();
+        return Number(state.getClickCount());
+      });
+      expect(count).toBe(1);
+
+      // UI expect: check visibility, enabled state, and text from the native View.
+      await expect(button).toBeVisible();
+      await expect(button).toBeEnabled();
+      await expect(button).toSatisfy(view => String(view.getText()) === 'FIRST:1');
+
+      // Screenshot expect: compare the button capture with the reviewed baseline.
+      const shot = await AndroidExp.screenshot({ targets: { button } });
+      expect(shot.ok).toBe(true);
+      await expect(shot.targets.button).toHaveScreenshot(baselinePath, {
+        maxDiffPixelRatio: 0.01,
+      });
+    });
+  });
+  return suite.run();
+}
+```
+
+`expect` connects business state, UI properties, and visual results for the same action in one test. UI and screenshot assertions require `await`; screenshot comparison uses an existing baseline, allowing up to 1% differing pixels here. iOS supports the same assertions, with `IOS` for actions and the Objective-C bridge for native object access.
+
+### Bring runtime capabilities into the development process
 
 These capabilities bring runtime information into every stage of development:
 

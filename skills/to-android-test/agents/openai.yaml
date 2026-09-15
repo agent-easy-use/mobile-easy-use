@@ -1,0 +1,4 @@
+interface:
+  display_name: "To Android Test"
+  short_description: "Run Android tests from natural-language requests"
+  default_prompt: "Use $to-android-test to run the tests described in my request, searching the directory recursively, and summarize the results."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "To Android Test Script"
+  short_description: "Generate Android test modules"
+  default_prompt: "Use $to-android-test-script to write Android test module files using the SDK Test runner."
