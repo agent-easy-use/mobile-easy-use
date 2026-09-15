@@ -569,6 +569,7 @@ declare global {
      * Use expect(target); baselinePath must be an absolute Host path to an existing PNG/JPEG.
      * Handles platform thread dispatch internally. No baseline updates or diff images.
      * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
+     * On mismatch, AssertionError actual/expected contain the captured/baseline Host paths.
      * Capture, missing-image, file/decoding/transport errors propagate, including under .not.
      * @example await Test.create().expect('button').toHaveElementScreenShot('/absolute/baseline.png');
      */
@@ -580,6 +581,7 @@ declare global {
      * Use expect(); baselinePath must be an absolute Host path to an existing PNG/JPEG.
      * Handles platform thread dispatch internally. No baseline updates or diff images.
      * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
+     * On mismatch, AssertionError actual/expected contain the captured/baseline Host paths.
      * Capture, missing-image, file/decoding/transport errors propagate, including under .not.
      * @example await Test.create().expect().toHaveWindowScreenShot('/absolute/baseline.png');
      */

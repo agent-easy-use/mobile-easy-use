@@ -8,6 +8,7 @@ import { PNG } from 'pngjs';
 import { compareScreenshot } from '../src/mcp-api/compare-screenshot.js';
 import { handleControllerMessage } from '../src/mcp-api/controller.js';
 import { AssertionError, createExpect } from '../sdk/common/test/expect.js';
+import { create } from '../sdk/common/test/index.js';
 
 async function images(context) {
   const directory = await mkdtemp(join(tmpdir(), 'meu-screenshot-test-'));
@@ -125,6 +126,8 @@ for (const matcher of ['toHaveElementScreenShot', 'toHaveWindowScreenShot']) {
       assert.ok(error instanceof AssertionError);
       assert.match(error.message, /search page: Screenshot difference ratio 1; allowed 0/);
       assert.equal(error.matcher, matcher);
+      assert.equal(error.actual, JSON.stringify(actual));
+      assert.equal(error.expected, JSON.stringify(baseline));
       return true;
     });
     await assert.rejects(expect(target).not[matcher](actual), AssertionError);
@@ -135,6 +138,27 @@ for (const matcher of ['toHaveElementScreenShot', 'toHaveWindowScreenShot']) {
       assert.deepEqual(options, matcher === 'toHaveElementScreenShot'
         ? { includeWindow: false, targets: { element: target } }
         : { includeWindow: true });
+    }
+    // Exercise the real runner report, including negation and dimension mismatches.
+    const wrongSize = await write('wrong-size.png', 8, 4, [0, 0, 0, 255]);
+    const suite = create(undefined, undefined, undefined, async () => captureResult);
+    suite.describe('visual', () => {
+      suite.test('pixels differ', () => suite.expect(target)[matcher](baseline));
+      suite.test('unexpected match', () => suite.expect(target).not[matcher](actual));
+      suite.test('dimensions differ', () => suite.expect(target)[matcher](wrongSize));
+    });
+    for (const [name, expectedPath] of [
+      ['pixels differ', baseline], ['unexpected match', actual], ['dimensions differ', wrongSize],
+    ]) {
+      const report = JSON.parse(JSON.stringify(await suite.run({ describe: 'visual', test: name })));
+      assert.equal(report.ok, false);
+      assert.equal(report.failed, 1);
+      const failure = report.tests[0].errors[0];
+      assert.equal(failure.phase, 'test');
+      assert.equal(failure.matcher, matcher);
+      assert.equal(JSON.parse(failure.actual), actual);
+      assert.equal(JSON.parse(failure.expected), expectedPath);
+      if (name === 'dimensions differ') assert.match(failure.message, /size .* differs/);
     }
     const requestCount = requests.length;
     captureResult = { ok: false, error: { message: 'capture failed' } };

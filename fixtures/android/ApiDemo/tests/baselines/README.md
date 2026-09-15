@@ -20,3 +20,11 @@
 
 2026-09-15：以此固定文件为基准，重新进入场景并独立截图，`runVisualTest` 通过（1/1），
 `maxDiffPixelRatio=0`。比较使用 SDK 默认颜色阈值 0.2，忽略抗锯齿差异。
+
+## 首页窗口基准
+
+[查看 home-window.jpg](home-window.jpg)。2026-09-15 通过 SDK 单独采集并目视检查：ApiDemo 首页，菜单布局稳定，未进入场景。设备、主题和字体配置同上。
+
+- 图片尺寸：1228 × 2700 像素。
+- SHA-256：`035e5ce0659f59e7c394973a10041c42dc70ff974689f050a0dbfbe948b857bb`。
+- [window-screenshot.js](../window-screenshot.js) 使用独立的新截图验证首页匹配、进入 UI 后不匹配；测试不更新此基准。

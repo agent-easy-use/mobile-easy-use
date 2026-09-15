@@ -80,9 +80,9 @@ export function createExpect(findUiView, runOnMainThread, checkUiState, screensh
     },
   };
   function assertions(actual, message, negate = false) {
-    function check(matches, name, expected, detail = message) {
+    function check(matches, name, expected, detail = message, observation = actual) {
       if (typeof matches !== 'boolean') throw new TypeError(`${name} must produce a boolean result`);
-      if (matches === negate) throw new AssertionError(name, actual, expected, negate, detail);
+      if (matches === negate) throw new AssertionError(name, observation, expected, negate, detail);
     }
     const methods = Object.fromEntries(Object.entries(matchers).map(([name, compare]) => [
       name, expected => check(compare(actual, expected), name, expected),
@@ -103,7 +103,7 @@ export function createExpect(findUiView, runOnMainThread, checkUiState, screensh
       });
       if (!ok) throw new Error(responsePayload.error.message);
       const detail = [message, responsePayload.message].filter(Boolean).join(': ');
-      check(responsePayload.matches, name, baselinePath, detail);
+      check(responsePayload.matches, name, baselinePath, detail, actualPath);
     }
     methods.toHaveElementScreenShot = async (baselinePath, options = {}) => {
       if (actual == null) throw new TypeError('toHaveElementScreenShot requires a UI target');
