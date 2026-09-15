@@ -12,14 +12,6 @@ https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
 ## Explorar el estado y el comportamiento de la aplicación
 
-```mermaid
-flowchart LR
-    explore["Explorar: código y runtime"] --> code["Programar: implementar o ajustar"]
-    code --> run["Ejecutar: repetir el escenario"]
-    run --> observe["Observar: llamadas, estado e interfaz"]
-    observe -->|Seguir programando| code
-```
-
 Las observaciones guían al agente durante el ciclo de desarrollo:
 
 - **Investigación y preparación**: relacionar el código con las llamadas, los datos y el estado de la aplicación en ejecución para entender su comportamiento real.
@@ -46,21 +38,14 @@ El agente puede inspeccionar la siguiente información, según la plataforma y l
 | Logs de negocio | Hasta dónde avanzó la ejecución y qué indicios explican un fallo |
 | Estado de la interfaz | Existencia, visibilidad, posición y propiedades de los controles |
 | Capturas de pantalla | Apariencia real y cambios visuales después de una acción |
-| Recursos de la aplicación | Identificadores y contenidos de recursos Android |
-| Resultados y contexto del fallo | Paso del fallo, estado, logs e imágenes recopiladas |
 
-## También para pruebas UI automatizadas
+## Pruebas UI automatizadas mejoradas
 
-Las mismas capacidades permiten pruebas UI más profundas: hacer clic, escribir y desplazarse, y verificar **la interfaz, las capturas y el estado de negocio nativo** en una misma prueba. Al actualizar una lista, comprueba tanto lo mostrado como los datos internos. Los cambios temporales preparan las condiciones de prueba; las observaciones ayudan a explicar los fallos.
+Además de las acciones UI y las capturas, verifica directamente el estado de negocio interno, modifica temporalmente el comportamiento en ejecución para preparar escenarios y analiza llamadas reales y cambios de estado para diagnosticar fallos.
 
-Comparación con pruebas centradas en interacciones y aserciones de interfaz:
-
-| Tarea | Pruebas centradas en UI | Mobile Easy Use |
-| --- | --- | --- |
-| Verificar el resultado | Comprobar textos, controles y capturas | Comprobar también objetos nativos, caché y estado de negocio tras la misma acción |
-| Verificar estados intermedios | Esperar cambios visibles | Leer el estado interno y comprobar transiciones: cargando, pendiente o completado |
-| Preparar un escenario | Usar pasos de UI y datos disponibles | Sustituir también campos o retornos de métodos temporalmente para activar una rama |
-| Analizar un fallo | Revisar aserciones, capturas y logs disponibles | Relacionar también llamadas, argumentos, retornos y cambios de estado para explicar el fallo |
+1. **Verificaciones más profundas**: comprueba la interfaz, las capturas y el estado de negocio nativo en conjunto. Tras actualizar una lista, verifica tanto el contenido mostrado como los datos internos y la caché.
+2. **Mayor control de los escenarios**: sustituye temporalmente campos o retornos de métodos para provocar datos vacíos, fallos o ramas de configuración específicas.
+3. **Fallos más fáciles de explicar**: relaciona llamadas reales, argumentos, retornos y cambios de estado. Si una lista no se actualiza, determina si los datos se guardaron o si falló la actualización de la interfaz.
 
 ### Ejemplo: un clic, tres niveles de verificación
 

@@ -12,14 +12,6 @@ https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
 ## Explore app state and behavior
 
-```mermaid
-flowchart LR
-    explore["Explore: source and runtime"] --> code["Code: implement or adjust"]
-    code --> run["Run: replay the scenario"]
-    run --> observe["Observe: calls, state, and UI"]
-    observe -->|Continue coding| code
-```
-
 Runtime observations guide the agent through the coding loop:
 
 - **Research and before coding:** Read source alongside calls, data, and state in the running app to understand how it actually works.
@@ -46,21 +38,14 @@ The agent can inspect the following information, depending on the platform and a
 | Business logs | How far execution progresses and what clues point to a failure |
 | UI and control state | Control presence, visibility, position, and properties |
 | Window and element screenshots | Actual appearance and visual changes after an action |
-| App resources | Resource identifiers and contents associated with Android controls and configuration |
-| Operation results and failure context | Where an action fails and the state, logs, and images captured at that point |
 
-## Also used for UI automation testing
+## Enhanced UI automation testing
 
-The same runtime capabilities enable deeper UI automation: click, type, and scroll, then verify **UI state, screenshots, and native business state** in one test. After refreshing a list, for example, check both the displayed content and the underlying data. Temporary overrides help establish test conditions; call and state evidence help explain failures.
+Build on UI actions and screenshot checks to assert internal business state, temporarily override runtime behavior to set up scenarios, and trace actual calls and state changes to diagnose failures.
 
-The comparison below covers testing centered on UI interactions and interface assertions:
-
-| Testing task | UI-focused testing | Mobile Easy Use |
-| --- | --- | --- |
-| Verify an operation | Check visible text, controls, and screenshots | Also assert native objects, caches, and business state after the same operation |
-| Test intermediate state | Wait for changes exposed through the UI | Read internal state to check transitions such as loading, pending, or completed |
-| Set up a scenario | Reach the state through UI steps and available test data | Also temporarily override fields or method returns to exercise specific branches |
-| Investigate a failure | Inspect failed assertions, screenshots, and available logs | Also trace method calls, arguments, return values, and state changes to explain the failure |
+1. **Deeper assertions:** Verify UI, screenshots, and native business state together. After refreshing a list, check both the displayed content and the underlying data and cache.
+2. **More control over scenarios:** Temporarily override fields or method returns to exercise empty data, failures, or specific configuration branches.
+3. **Clearer failure diagnosis:** Connect actual method calls, arguments, return values, and state changes. When a list fails to update, determine whether data was stored or the UI failed to refresh.
 
 ### Example: one click, business state, UI, and screenshot checks
 

@@ -12,14 +12,6 @@ https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
 ## Explorer l'état et le comportement de l'application
 
-```mermaid
-flowchart LR
-    explore["Explorer : code et runtime"] --> code["Coder : implémenter ou ajuster"]
-    code --> run["Exécuter : rejouer le scénario"]
-    run --> observe["Observer : appels, état et interface"]
-    observe -->|Continuer à coder| code
-```
-
 Les observations guident l’agent tout au long du cycle de développement :
 
 - **Recherche et préparation** : rapprocher le code des appels, données et états de l’application en cours d’exécution pour comprendre son comportement réel.
@@ -46,21 +38,14 @@ L’agent peut examiner les informations suivantes, selon la plateforme et l’i
 | Journaux métier | Étape atteinte et indices expliquant un échec |
 | État de l'interface | Présence, visibilité, position et propriétés des contrôles |
 | Captures d'écran | Apparence réelle et changements visuels après une action |
-| Ressources de l'application | Identifiants et contenus des ressources Android |
-| Résultats et contexte d'échec | Étape de l'échec, état, journaux et images collectés |
 
-## Également pour les tests UI automatisés
+## Tests UI automatisés enrichis
 
-Les mêmes capacités permettent des tests UI plus approfondis : cliquer, saisir et faire défiler, puis vérifier **l'interface, les captures et l'état métier natif** dans un même test. Après une actualisation, vérifiez à la fois la liste affichée et les données internes. Les remplacements temporaires préparent les conditions du test ; les observations expliquent les échecs.
+Au-delà des actions UI et des captures, vérifiez directement l’état métier interne, modifiez temporairement le comportement à l’exécution pour préparer des scénarios et analysez les appels réels et les changements d’état pour diagnostiquer les échecs.
 
-Comparaison avec des tests centrés sur les interactions et les assertions d'interface :
-
-| Tâche | Tests centrés sur l'UI | Mobile Easy Use |
-| --- | --- | --- |
-| Vérifier le résultat | Contrôler textes, éléments et captures | Vérifier aussi les objets natifs, le cache et l'état métier après la même action |
-| Vérifier les états intermédiaires | Attendre les changements visibles | Lire l'état interne et vérifier les transitions : chargement, attente, fin |
-| Préparer un scénario | Utiliser les étapes UI et les données disponibles | Remplacer aussi temporairement des champs ou des retours de méthodes pour déclencher une branche |
-| Analyser un échec | Examiner assertions, captures et journaux disponibles | Relier aussi appels, arguments, retours et changements d'état pour expliquer l'échec |
+1. **Des vérifications plus approfondies** : vérifiez ensemble l’interface, les captures et l’état métier natif. Après une actualisation, contrôlez la liste affichée ainsi que les données internes et le cache.
+2. **Des scénarios mieux maîtrisés** : remplacez temporairement des champs ou des retours de méthodes pour déclencher des données vides, des échecs ou des branches de configuration spécifiques.
+3. **Des échecs plus faciles à expliquer** : reliez les appels réels, arguments, retours et changements d’état. Si une liste ne se met pas à jour, déterminez si les données ont été enregistrées ou si l’interface ne s’est pas actualisée.
 
 ### Exemple : un clic, trois niveaux de vérification
 
