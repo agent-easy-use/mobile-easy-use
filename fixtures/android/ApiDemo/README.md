@@ -19,3 +19,7 @@ The normal test package is `com.agenteasyuse.mobileeasyuse.apidemo`. The manual 
 probes live under `probe/` as `probe.js`/`probe.d.ts` Module pairs. Execute exactly one exported probe
 at a time through an agent using `skills/to-android-run`; this project has no standalone probe runner.
 The screenshot probes cover a Window plus visible-element crop and a terminal Driver failure image.
+
+## 自动化 Test 套件
+
+主要流程的预期断言、分组执行和 Test API 用例见 [tests](tests/)。

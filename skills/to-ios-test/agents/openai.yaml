@@ -1,0 +1,4 @@
+interface:
+  display_name: "To iOS Test"
+  short_description: "Run iOS tests from natural-language requests"
+  default_prompt: "Use $to-ios-test to run the tests described in my request, searching the directory recursively, and summarize the results."

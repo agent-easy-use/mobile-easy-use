@@ -98,3 +98,7 @@ xcodebuild \
 The Release App must contain no `MobileEasyUse.dylib`, `MobileEasyUseRuntime.dylib`,
 `MobileEasyUseRuntime.config`,
 `mobile_easy_use_*`, `MEUInput`, or `MEUUIQuery` artifacts/symbols.
+
+## 自动化 Test 套件
+
+主要流程的预期断言、分组执行和 Test API 用例见 [tests](tests/)。

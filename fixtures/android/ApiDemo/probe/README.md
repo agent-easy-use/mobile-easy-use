@@ -123,3 +123,7 @@ button. Check that the returned JPEG paths exist; the standalone hidden target m
 have no crop. These are device operations through the real SDK/native bridge, not
 the JVM/JavaScript fixtures under `test/`. Rebuild and install ApiDemo plus its
 native integration, and run the matching SDK bundle before validating changes.
+
+## 自动化 Test 套件
+
+主要流程的预期断言、分组执行和 Test API 用例见 [tests](../tests/)。

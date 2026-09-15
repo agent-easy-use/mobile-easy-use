@@ -1,0 +1,4 @@
+interface:
+  display_name: "To iOS Test Script"
+  short_description: "Generate iOS test modules"
+  default_prompt: "Use $to-ios-test-script to write iOS test module files using the SDK Test runner."
