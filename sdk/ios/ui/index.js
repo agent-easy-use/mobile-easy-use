@@ -45,8 +45,7 @@ function nativeQueryClass() {
     throw new Error('Objective-C runtime is unavailable');
   }
   const query = ObjC.classes[NATIVE_QUERY_CLASS];
-  if (!query || typeof query.findUIView_ !== 'function'
-    || typeof query.stateForUIViewPath_ !== 'function') {
+  if (!query || typeof query.findUIView_ !== 'function') {
     throw new Error(
       `${NATIVE_QUERY_CLASS}.findUIView: is unavailable; `
       + 'load MobileEasyUse.dylib after LLDB attaches',
@@ -70,11 +69,6 @@ function nativePath(path) {
   const result = ObjC.classes.NSMutableArray.array();
   path.forEach((step) => result.addObject_(step));
   return result;
-}
-
-function stateForUiView(target) {
-  const path = normalizeUiPath(target);
-  return nativeQueryClass().stateForUIViewPath_(nativePath(path));
 }
 
 function readString(object, methodName) {
@@ -141,7 +135,6 @@ function inspectUiViewNow(view) {
 
 export {
   findUiView,
-  stateForUiView,
   inspectUiViewNow,
   requireUiPath,
   viewIsVisibleNow,

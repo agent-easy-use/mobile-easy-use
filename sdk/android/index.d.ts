@@ -72,6 +72,8 @@ declare global {
     readonly [uiKey: string]: AndroidUiPath;
   }
 
+  type AndroidUiState = 'exists' | 'visible' | 'hidden' | 'focused' | 'enabled';
+
   interface AndroidUiApi {
     /**
      * Find a View by resource ID from the focused Window root. The returned Wrapper uses the
@@ -87,6 +89,12 @@ declare global {
      * Java object results returned by its methods use the same lazy runtime-wrapper promotion.
      */
     find(path: AndroidUiPath): Java.Wrapper | null;
+    /** Resolve and check once on the main thread; no polling. Missing targets return false for every state.
+     * exists means a View was resolved; hidden requires an existing, geometrically invisible View.
+     * visible checks attachment, visibility, ancestor alpha > 0.01 and clipped visible display bounds,
+     * not occlusion or masks. focused/enabled use isFocused()/isEnabled(). Lookup/getter errors reject.
+     */
+    checkUiState(target: number | AndroidUiPath, state: AndroidUiState): Promise<boolean>;
   }
 
   type AndroidScreenshotTarget = number | AndroidUiPath | Java.Wrapper;
@@ -253,7 +261,7 @@ declare global {
     intervalMs?: number;
   }
 
-  type AndroidUiWaitState = 'exist' | 'visible' | 'gone';
+  type AndroidUiWaitState = AndroidUiState;
   type AndroidWaitErrorCode = 'TIMEOUT' | 'INVALID_ARGUMENT';
 
   interface AndroidWaitError {
@@ -274,7 +282,10 @@ declare global {
   type AndroidWaitResult = AndroidWaitSuccess | AndroidWaitFailure;
 
   interface AndroidWaitApi {
-    /** Wait for a resource in the focused Window root to reach the requested UI state. */
+    /** Poll ui.checkUiState with wait.until. hidden requires an existing, invisible View.
+     * No focused Window resolves as missing. Geometry matches expect, not pixel-level visibility.
+     * Lookup errors, including invalid targets, retry until TIMEOUT with lastCheckError.
+     */
     ui(
       resourceId: number,
       state: AndroidUiWaitState,
@@ -288,15 +299,10 @@ declare global {
       options?: AndroidWaitOptions,
     ): Promise<AndroidWaitResult>;
 
-    /** Wait for this View instance to reach the requested UI state. */
-    ui(
-      view: Java.Wrapper,
-      state: AndroidUiWaitState,
-      options?: AndroidWaitOptions,
-    ): Promise<AndroidWaitResult>;
-
-    /** Poll a synchronous boolean predicate until it returns true. */
-    until(predicate: () => boolean, options?: AndroidWaitOptions): Promise<AndroidWaitResult>;
+    /** Poll a sync/async boolean predicate sequentially until true. Errors retry until timeout.
+     * Invalid return types fail with INVALID_ARGUMENT. Timeout does not cancel an in-flight predicate.
+     */
+    until(predicate: () => boolean | Promise<boolean>, options?: AndroidWaitOptions): Promise<AndroidWaitResult>;
   }
 
   interface AndroidExpApi {
@@ -487,4 +493,133 @@ declare global {
   /** Action-scoped chain, state, and UI evidence capture. */
   const Probe: Readonly<ProbeApi>;
 
+  const Test: Readonly<AndroidTestApi>;
+
+  type AndroidTestCallback = () => unknown;
+  type AndroidTestJsonValue = null | boolean | number | string
+    | readonly AndroidTestJsonValue[] | { readonly [key: string]: AndroidTestJsonValue };
+
+  /** Mismatches throw or reject with AssertionError.
+   * Await async matchers; none poll. .not inverts comparison results, never input or observation errors.
+   */
+  interface AndroidTestMatchers {
+    readonly not: AndroidTestMatchers;
+    /** Compare using Object.is; native wrappers use JavaScript reference identity. */
+    toBe(expected: unknown): void;
+    /** Structural comparison for acyclic plain JSON objects, arrays and primitive values.
+     * Object key order is ignored; array order matters. Only own enumerable string keys are compared.
+     * Native objects, Date, Map, Set and cyclic graphs are unsupported; inputs are not validated.
+     */
+    toEqual(expected: AndroidTestJsonValue): void;
+    /** Numeric comparisons require finite numbers on both sides; no coercion. */
+    toBeGreaterThan(expected: number): void;
+    toBeGreaterThanOrEqual(expected: number): void;
+    toBeLessThan(expected: number): void;
+    toBeLessThanOrEqual(expected: number): void;
+    /** Requires a string observation; matching never changes the supplied RegExp.lastIndex. */
+    toMatch(expected: RegExp): void;
+    /** String substring or array membership (not deep equality). */
+    toContain(expected: unknown): void;
+    /** Target exists. UI state assertions resolve via AndroidExp.ui.find once on the main thread.
+     * Targets: resource ID or UI path.
+     * Missing targets fail all five positive UI state assertions, including toBeHidden.
+     */
+    toExist(): Promise<void>;
+    /** Attached, not hidden, cumulative ancestor alpha > 0.01, with nonempty clipped screen bounds.
+     * Uses getGlobalVisibleRect and the window's visible display frame.
+     * Excludes occlusion, masks and presentation-layer animation geometry.
+     */
+    toBeVisible(): Promise<void>;
+    /** UI target exists but is not geometrically visible. Missing is not hidden. */
+    toBeHidden(): Promise<void>;
+    /** Target itself has input focus via isFocused(). Not accessibility focus. */
+    toBeFocused(): Promise<void>;
+    /** Native isEnabled(), not necessarily clickable. */
+    toBeEnabled(): Promise<void>;
+    /** Resolve once and invoke a read-only predicate on the main thread; await its boolean result.
+     * After await, native UI access must explicitly use AndroidExp.runOnMainThread.
+     * Missing targets and non-boolean results are errors.
+     */
+    toSatisfy(predicate: (view: Java.Wrapper) => boolean | Promise<boolean>): Promise<void>;
+    /** Compare existing PNG/JPEG files on Host. Actual and baseline must be absolute Host paths.
+     * No capture, baseline updates or diff images. Color threshold is 0.2; anti-alias differences are ignored.
+     * Size mismatch fails; file/decoding/transport errors propagate.
+     */
+    toHaveScreenshot(baselinePath: string, options?: {
+      /** Allowed differing pixel ratio in [0, 1], inclusive. Defaults to 0. */
+      maxDiffPixelRatio?: number;
+    }): Promise<void>;
+  }
+
+  interface AndroidTestExpect {
+    /** Create matchers for an actual value or UI target; message prefixes assertion failures. */
+    (actual: unknown, message?: string): AndroidTestMatchers;
+  }
+
+  type AndroidTestSelection = { describe?: undefined; test?: undefined }
+    | { describe: string; test?: string };
+
+  interface AndroidTestReference {
+    describe: string;
+    test: string;
+  }
+
+  interface AndroidTestFailure {
+    phase: 'beforeEach' | 'test' | 'afterEach';
+    name: string;
+    message: string;
+    stack: string;
+    matcher?: string;
+    /** Display strings, not native object references. */
+    actual?: string;
+    expected?: string;
+  }
+
+  interface AndroidTestResult extends AndroidTestReference {
+    status: 'passed' | 'failed' | 'notRun';
+    durationMs: number;
+    errors: AndroidTestFailure[];
+  }
+
+  interface AndroidTestReport {
+    ok: boolean;
+    total: number;
+    passed: number;
+    failed: number;
+    notRun: number;
+    tests: AndroidTestResult[];
+  }
+
+  interface AndroidTestCollection {
+    /** Register a non-nested group with a unique name; callback must be synchronous registration only.
+     * An uncaught registration error discards the group.
+     */
+    describe(name: string, register: () => void): void;
+    /** Register inside describe with a unique name; return or await all asynchronous work.
+     * Return values do not determine success. Throw, reject or use expect to fail.
+     */
+    test(name: string, callback: AndroidTestCallback): void;
+    /** Group-local hooks run in declaration order before every selected test. */
+    beforeEach(callback: AndroidTestCallback): void;
+    /** All cleanup hooks are attempted in declaration order, even after setup/body failure.
+     * Cleanup must tolerate partial setup. Cleanup failures fail the test without replacing earlier errors.
+     */
+    afterEach(callback: AndroidTestCallback): void;
+    readonly expect: AndroidTestExpect;
+    /** List registered test names in declaration order. */
+    list(): AndroidTestReference[];
+    /** Run all with no selection or {}; otherwise select a describe or a describe+test pair.
+     * Invalid selections or no matching tests reject. Runs serially; after failure, remaining tests are notRun.
+     * While running, registration and concurrent/nested runs across collections are rejected.
+     * Test failures resolve with a report; check report.ok. Collections can run again after completion.
+     */
+    run(selection?: AndroidTestSelection): Promise<AndroidTestReport>;
+  }
+
+  interface AndroidTestApi {
+    /** Create an independent test collection.
+     * @example const { describe, test, beforeEach, afterEach, expect, run } = Test.create();
+     */
+    create(): AndroidTestCollection;
+  }
 }

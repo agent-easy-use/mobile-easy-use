@@ -6,6 +6,7 @@ import { inputIntoTarget } from './input/input.js';
 import { screenshot } from './screenshot.js';
 import { waitForUi, waitUntil } from './wait.js';
 import { findUiView, getRootViews } from './ui.js';
+import { checkUiState } from './ui-state.js';
 
 export const AndroidExp = {
   runOnMainThread,
@@ -15,6 +16,7 @@ export const AndroidExp = {
   },
   ui: {
     find: findUiView,
+    checkUiState,
   },
   input: {
     click: inputClick,
