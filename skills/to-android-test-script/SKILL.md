@@ -29,13 +29,11 @@ Use `beforeEach`/`afterEach` for shared state preparation and restoration; clean
 
 ## 3. Expect
 
-Compare Driver results, UI state, or Direct Frida observations with explicit expectations using the collection's `expect`. Check the App outcome as well as action delivery.
+Assert the App outcome, not just action delivery:
 
-- Await asynchronous matchers; they do not poll, so wait for eventual state first.
-- Fail through assertions or propagated errors. Returning `false` or `{ passed: false }` does not fail a test.
-- For `toHaveScreenshot`, capture the actual image and supply a separately reviewed, absolute Host baseline path. Never update the baseline inside the test.
-
-Evidence can support diagnosis; assertions determine pass or fail.
+- Prefer UI assertions for observable control state; use `toSatisfy` for native UI properties. Await assertions and wait for eventual state first.
+- Use `toHaveScreenshot` when appearance matters, comparing a fresh capture with a separately reviewed baseline. Never update the baseline in the test.
+- Use ordinary value assertions for business data, action results, or observations UI and screenshots cannot express.
 
 ## 4. Direct Frida
 
