@@ -33,8 +33,8 @@ A resource id resolves only inside the root whose Window has `hasWindowFocus()`.
 Use wait instead of a fixed sleep when a step triggers an asynchronous transition:
 
 ```javascript
-AndroidExp.wait.ui(resourceIdOrView, 'exist' | 'visible' | 'gone', options)
-AndroidExp.wait.until(() => boolean, options)
+AndroidExp.wait.ui(resourceIdOrPath, 'exists' | 'visible' | 'hidden' | 'focused' | 'enabled', options)
+AndroidExp.wait.until(predicate, options)
 ```
 
 When the Driver decides a failed result is terminal, capture the current App Window before returning:
@@ -54,8 +54,6 @@ if (!ready.ok) {
 Do not capture exploratory or retryable failures. Use the final failure image with the structured
 error to distinguish a wrong target, unexpected page, overlay, incomplete navigation, or timeout.
 Preserve the original failure when screenshot capture also fails.
-
-Use `ui` for View presence or visibility. It re-resolves resource ids in the focused Window root on every check. Use `until` for Activity, Fragment, or business state; its predicate must be synchronous and return boolean.
 
 Both APIs default to `{ timeoutMs: 5000, intervalMs: 100 }`. Override only when the scenario requires different timing.
 

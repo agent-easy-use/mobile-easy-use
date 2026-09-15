@@ -35,8 +35,8 @@ Each input result resolves after the SDK's 1000 ms settle interval; still wait f
 Use wait instead of a fixed sleep when a step triggers an asynchronous transition:
 
 ```javascript
-IOS.wait.ui(target, 'exist' | 'visible' | 'gone', options)
-IOS.wait.until(() => boolean, options)
+IOS.wait.ui(identifierOrPath, 'exists' | 'visible' | 'hidden' | 'focused' | 'enabled', options)
+IOS.wait.until(predicate, options)
 ```
 
 When the Driver decides a failed result is terminal, capture the current App Window before returning:
@@ -56,8 +56,6 @@ if (!ready.ok) {
 Do not capture exploratory or retryable failures. Use the final failure image with the structured
 error to distinguish a wrong target, unexpected page, overlay, incomplete navigation, or timeout.
 Preserve the original failure when screenshot capture also fails.
-
-Use `ui` for native View presence or visibility. It re-resolves the target on every check. In the current contract, `gone` means not visible and does not prove that the View no longer exists. Use `until` for ViewController, model, session, or other business state; its predicate must synchronously return a boolean and must not return a Promise.
 
 Both APIs default to `{ timeoutMs: 5000, intervalMs: 100 }`. Override only when the scenario requires different timing. Treat `TIMEOUT` and `INVALID_ARGUMENT` as failed results and stop the flow.
 
