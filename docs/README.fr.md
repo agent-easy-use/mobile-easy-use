@@ -12,7 +12,31 @@ https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
 ## Explorer l'état et le comportement de l'application
 
-Pour une même action, l'agent peut relier l'exécution des méthodes, les changements de données et le résultat affiché :
+```mermaid
+flowchart LR
+    explore["Explorer : code et runtime"] --> code["Coder : implémenter ou ajuster"]
+    code --> run["Exécuter : rejouer le scénario"]
+    run --> observe["Observer : appels, état et interface"]
+    observe -->|Continuer à coder| code
+```
+
+Les observations guident l’agent tout au long du cycle de développement :
+
+- **Recherche et préparation** : rapprocher le code des appels, données et états de l’application en cours d’exécution pour comprendre son comportement réel.
+- **Validation d’une approche technique** : modifier temporairement la configuration, des champs ou des retours de méthodes dans l’application en cours d’exécution, vérifier les hypothèses, puis restaurer les valeurs.
+- **Diagnostic** : reproduire le problème dans l’application et relier les appels réels, les changements d’état et l’interface pour localiser l’échec.
+- **Après modification** : exécuter l’application modifiée et rejouer le scénario pour vérifier le résultat réel. Les attentes confirmées peuvent devenir des tests de régression.
+
+Par exemple, demandez à l'agent :
+
+```text
+Examine cette page contrôlée par un paramètre : vérifie la configuration
+et le chemin d'exécution, puis change temporairement le paramètre pour
+observer les données et l'interface dans les deux cas. Restaure-le ensuite.
+Évalue l'approche à partir des preuves et précise ce qui reste à vérifier.
+```
+
+L’agent peut examiner les informations suivantes, selon la plateforme et l’implémentation de l’application :
 
 | Information d'exécution | Ce qu'elle révèle |
 | --- | --- |
@@ -24,24 +48,6 @@ Pour une même action, l'agent peut relier l'exécution des méthodes, les chang
 | Captures d'écran | Apparence réelle et changements visuels après une action |
 | Ressources de l'application | Identifiants et contenus des ressources Android |
 | Résultats et contexte d'échec | Étape de l'échec, état, journaux et images collectés |
-
-Les informations disponibles dépendent de la plateforme et de l'implémentation de l'application.
-
-Ces observations accompagnent l'agent tout au long du développement :
-
-- **Recherche et préparation** : relier les appels, les données et l'état réels au code source pour comprendre l'implémentation.
-- **Validation d'une approche technique** : modifier temporairement la configuration, des champs ou des valeurs de retour pour vérifier les hypothèses, puis les restaurer.
-- **Diagnostic** : relier les appels, l'état métier et l'interface pour localiser le problème.
-- **Après modification** : rejouer le scénario pour vérifier le résultat. Les attentes confirmées peuvent devenir des tests de régression.
-
-Par exemple, demandez à l'agent :
-
-```text
-Examine cette page contrôlée par un paramètre : vérifie la configuration
-et le chemin d'exécution, puis change temporairement le paramètre pour
-observer les données et l'interface dans les deux cas. Restaure-le ensuite.
-Évalue l'approche à partir des preuves et précise ce qui reste à vérifier.
-```
 
 ## Également pour les tests UI automatisés
 

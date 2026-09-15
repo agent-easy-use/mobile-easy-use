@@ -12,7 +12,31 @@ https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
 ## Explorar el estado y el comportamiento de la aplicación
 
-En torno a una misma acción, el agente puede conectar la ejecución de métodos y los cambios de datos con lo que aparece en pantalla:
+```mermaid
+flowchart LR
+    explore["Explorar: código y runtime"] --> code["Programar: implementar o ajustar"]
+    code --> run["Ejecutar: repetir el escenario"]
+    run --> observe["Observar: llamadas, estado e interfaz"]
+    observe -->|Seguir programando| code
+```
+
+Las observaciones guían al agente durante el ciclo de desarrollo:
+
+- **Investigación y preparación**: relacionar el código con las llamadas, los datos y el estado de la aplicación en ejecución para entender su comportamiento real.
+- **Validación de una propuesta técnica**: cambiar temporalmente configuración, campos o retornos de métodos en la aplicación en ejecución, comprobar hipótesis y restaurar los valores.
+- **Diagnóstico**: reproducir el problema en la aplicación y relacionar llamadas reales, cambios de estado e interfaz para localizar el fallo.
+- **Después de programar**: ejecutar la aplicación modificada y repetir el escenario para verificar el resultado real. Las expectativas confirmadas pueden convertirse en pruebas de regresión.
+
+Por ejemplo, pide al agente:
+
+```text
+Examina esta página controlada por una opción: comprueba la configuración
+y la ruta de ejecución, cambia temporalmente la opción y verifica los datos
+y la interfaz en ambos estados. Restáurala al terminar.
+Evalúa la propuesta con las evidencias e indica qué queda sin verificar.
+```
+
+El agente puede inspeccionar la siguiente información, según la plataforma y la implementación de la aplicación:
 
 | Información del runtime | Qué permite conocer |
 | --- | --- |
@@ -24,24 +48,6 @@ En torno a una misma acción, el agente puede conectar la ejecución de métodos
 | Capturas de pantalla | Apariencia real y cambios visuales después de una acción |
 | Recursos de la aplicación | Identificadores y contenidos de recursos Android |
 | Resultados y contexto del fallo | Paso del fallo, estado, logs e imágenes recopiladas |
-
-La información disponible depende de la plataforma y de la implementación de la aplicación.
-
-Estas observaciones acompañan al agente durante el desarrollo:
-
-- **Investigación y preparación**: relacionar llamadas, datos y estados reales con el código para entender la implementación.
-- **Validación de una propuesta técnica**: cambiar temporalmente configuración, campos o valores de retorno para comprobar hipótesis y restaurarlos al terminar.
-- **Diagnóstico**: relacionar llamadas, estado de negocio e interfaz para localizar el problema.
-- **Después de programar**: repetir el escenario para verificar el cambio. Las expectativas confirmadas pueden convertirse en pruebas de regresión.
-
-Por ejemplo, pide al agente:
-
-```text
-Examina esta página controlada por una opción: comprueba la configuración
-y la ruta de ejecución, cambia temporalmente la opción y verifica los datos
-y la interfaz en ambos estados. Restáurala al terminar.
-Evalúa la propuesta con las evidencias e indica qué queda sin verificar.
-```
 
 ## También para pruebas UI automatizadas
 

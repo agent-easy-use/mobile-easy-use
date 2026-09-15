@@ -12,7 +12,31 @@ https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
 ## Explore app state and behavior
 
-Agents can connect what users see with what happens inside the app to understand its behavior and investigate problems:
+```mermaid
+flowchart LR
+    explore["Explore: source and runtime"] --> code["Code: implement or adjust"]
+    code --> run["Run: replay the scenario"]
+    run --> observe["Observe: calls, state, and UI"]
+    observe -->|Continue coding| code
+```
+
+Runtime observations guide the agent through the coding loop:
+
+- **Research and before coding:** Read source alongside calls, data, and state in the running app to understand how it actually works.
+- **Validate a technical approach:** Temporarily change configuration, fields, or method returns in the running app to check assumptions, then restore them.
+- **Investigate problems:** Reproduce the issue in the app and connect actual calls, state changes, and UI behavior to locate the failure.
+- **After coding:** Run the updated app and replay the scenario to verify the result. Confirmed expectations can become regression tests.
+
+For example, ask the agent to validate an approach:
+
+```text
+Inspect this page controlled by a configuration flag: check its current
+configuration and actual call path, then temporarily toggle the flag
+and verify data and UI in both states. Restore it when finished.
+Use the evidence to assess the approach and identify what remains unverified.
+```
+
+The agent can inspect the following information, depending on the platform and app implementation:
 
 | Runtime information | What it tells you |
 | --- | --- |
@@ -24,24 +48,6 @@ Agents can connect what users see with what happens inside the app to understand
 | Window and element screenshots | Actual appearance and visual changes after an action |
 | App resources | Resource identifiers and contents associated with Android controls and configuration |
 | Operation results and failure context | Where an action fails and the state, logs, and images captured at that point |
-
-Available information depends on the platform and app implementation.
-
-These observations support the agent throughout the coding loop:
-
-- **Research and before coding:** Trace actual calls, data, and state alongside source code to understand the implementation.
-- **Validate a technical approach:** Temporarily change configuration, fields, or method returns to test key assumptions, then restore them.
-- **Investigate problems:** Connect call chains, business state, and UI behavior to locate the failure.
-- **After coding:** Rerun the original scenario to check the change. Confirmed expectations can become regression tests.
-
-For example, ask the agent to validate an approach:
-
-```text
-Inspect this page controlled by a configuration flag: check its current
-configuration and actual call path, then temporarily toggle the flag
-and verify data and UI in both states. Restore it when finished.
-Use the evidence to assess the approach and identify what remains unverified.
-```
 
 ## Also used for UI automation testing
 
