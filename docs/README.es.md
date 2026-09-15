@@ -4,11 +4,11 @@
 
 Documentación: [English](../README.md) · [简体中文](./README.zh.md) · [Français](./README.fr.md) · [Русский](./README.ru.md) · **Español** · [العربية](./README.ar.md)
 
-Mobile Easy Use expone estas capacidades mediante MCP para que los agentes de IA interactúen directamente con una aplicación en ejecución desde su entorno de desarrollo.
+Mobile Easy Use expone estas capacidades mediante MCP para que los agentes de IA interactúen directamente con una aplicación en ejecución.
 
 https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
-## Por qué programar con IA requiere explorar el runtime
+## Por qué importa explorar el runtime al programar con IA
 
 En proyectos complejos, el comportamiento depende de los datos, la configuración, la caché y el orden de las llamadas en ejecución. El código explica la implementación; explorar el runtime revela qué rama se ejecutó, en qué estado están los objetos y dónde ocurrió el fallo. Juntos aportan evidencias para las decisiones del agente.
 
@@ -49,6 +49,8 @@ Mobile Easy Use también puede utilizarse como una herramienta de pruebas UI aut
 ```text
 Usa to-android-test-script para generar una prueba de ApiDemo: pulsa FIRST y verifica que el contador sea 1, el botón muestre FIRST:1 y su captura coincida con la referencia.
 ```
+
+Esto genera un archivo de prueba JavaScript, que luego puedes ejecutar con `to-android-test`.
 
 Ejecuta desde la página **UI → Class names and subclasses** en su estado inicial, con una captura de referencia revisada posterior al clic en `baselines/first-clicked.jpg`, relativa al archivo de prueba.
 

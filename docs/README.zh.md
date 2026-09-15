@@ -4,11 +4,11 @@
 
 文档：[English](../README.md) · **简体中文** · [Français](./README.fr.md) · [Русский](./README.ru.md) · [Español](./README.es.md) · [العربية](./README.ar.md)
 
-Mobile Easy Use 通过 MCP 提供这些能力，让 AI Agent 在编码环境中直接与运行中的 App 交互。
+Mobile Easy Use 通过 MCP 提供这些能力，让 AI Agent 直接与运行中的 App 交互。
 
 https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
-## 为什么 AI 编码需要运行时探查
+## 为什么运行时探查在 AI 编码中很重要
 
 复杂项目的实际行为取决于运行时数据、配置、缓存和调用时序。源码帮助理解实现，运行时探查则确认当前场景实际走了哪个分支、对象处于什么状态、问题发生在哪里，让 Agent 的编码判断有实际依据。
 
@@ -49,6 +49,8 @@ Mobile Easy Use 也可以用作增强版 UI 自动化测试工具。基于对 Ap
 ```text
 使用 to-android-test-script 生成 ApiDemo 测试：点击 FIRST，验证计数为 1、按钮显示 FIRST:1，截图符合基准。
 ```
+
+这会生成一个 JS 测试文件，随后可通过 `to-android-test` 运行。
 
 从 **UI → Class names and subclasses** 初始页面运行；准备已审核的点击后基准图 `baselines/first-clicked.jpg`，路径相对于用例文件。
 

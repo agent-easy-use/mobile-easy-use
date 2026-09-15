@@ -4,11 +4,11 @@
 
 Documentation: **English** · [简体中文](./docs/README.zh.md) · [Français](./docs/README.fr.md) · [Русский](./docs/README.ru.md) · [Español](./docs/README.es.md) · [العربية](./docs/README.ar.md)
 
-Mobile Easy Use exposes these capabilities through MCP, so AI agents can interact directly with a running app from their coding environment.
+Mobile Easy Use exposes these capabilities through MCP, so AI agents can interact directly with a running app.
 
 https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
-## Why AI coding needs runtime exploration
+## Why runtime exploration matters in AI coding
 
 In complex projects, app behavior depends on runtime data, configuration, caches, and call timing. Source code explains the implementation; runtime exploration reveals which branch actually ran, what state objects are in, and where a failure occurred. Together, they give the agent evidence for coding decisions.
 
@@ -49,6 +49,8 @@ Mobile Easy Use can also serve as an enhanced UI automation testing tool. Its ac
 ```text
 Use to-android-test-script to generate an ApiDemo test: click FIRST and verify that the counter is 1, the button shows FIRST:1, and its screenshot matches the baseline.
 ```
+
+This generates a JavaScript test file, which you can then run with `to-android-test`.
 
 Run from the initial **UI → Class names and subclasses** page, with a reviewed post-click baseline at `baselines/first-clicked.jpg`, relative to the test file.
 
