@@ -1,5 +1,6 @@
 package com.agenteasyuse.mobileeasyuse.apidemo.ui;
 
+import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -8,6 +9,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.agenteasyuse.mobileeasyuse.apidemo.R;
+import com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState;
 import com.agenteasyuse.mobileeasyuse.apidemo.state.SdkFixtureState;
 
 import java.util.LinkedHashMap;
@@ -24,6 +26,7 @@ public final class UiActivity extends CapabilityActivity {
     protected void defineScenarios(LinkedHashMap<String, String> target) {
         target.put("resource_id", "Resource ID and Java action");
         target.put("path", "ID, text, tag and descendant path");
+        target.put("class", "Class names and subclasses");
         target.put("visibility", "Hidden, gone, disabled and zero-size Views");
         target.put("runtime_wrapper", "Concrete runtime View wrapper");
     }
@@ -33,6 +36,7 @@ public final class UiActivity extends CapabilityActivity {
         switch (scenario) {
             case "resource_id": return resourceFixture();
             case "path": return pathFixture();
+            case "class": return classFixture();
             case "visibility": return visibilityFixture();
             case "runtime_wrapper": return runtimeWrapperFixture();
             default: throw new IllegalArgumentException("Unknown UI scenario: " + scenario);
@@ -80,6 +84,40 @@ public final class UiActivity extends CapabilityActivity {
         ScrollView scroll = new ScrollView(this);
         scroll.addView(content);
         return scroll;
+    }
+
+    public static final class ClassButton extends Button {
+        public ClassButton(Context context) { super(context); }
+    }
+
+    private Button classButton(String title, int id) {
+        Button button = new ClassButton(this);
+        button.setId(id);
+        button.setTag(title);
+        button.setText(title);
+        button.setAllCaps(false);
+        button.setMinHeight(UiFactory.dp(this, 52));
+        button.setOnClickListener(view -> {
+            ApiDemoState.getInstance().incrementClick();
+            button.setText(title + ":" + ApiDemoState.getInstance().getClickCount());
+        });
+        return button;
+    }
+
+    private View classFixture() {
+        LinearLayout content = UiFactory.column(this);
+        LinearLayout scope = UiFactory.card(this);
+        scope.setId(R.id.api_ui_class_scope);
+        LinearLayout branch = new LinearLayout(this);
+        branch.addView(classButton("FIRST", R.id.api_ui_class_first));
+        scope.addView(branch);
+        scope.addView(classButton("SECOND", R.id.api_ui_class_second));
+        content.addView(scope);
+        content.addView(UiFactory.button(this, "OUTSIDE", R.id.api_ui_class_outside));
+        Button hidden = classButton("HIDDEN", R.id.api_ui_class_hidden);
+        hidden.setVisibility(View.INVISIBLE);
+        content.addView(hidden);
+        return content;
     }
 
     private View visibilityFixture() {

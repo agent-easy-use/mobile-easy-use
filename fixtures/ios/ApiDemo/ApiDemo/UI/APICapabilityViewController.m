@@ -5,6 +5,11 @@
 #import "../Control/APIController.h"
 #import "../State/APISDKFixtureState.h"
 
+@interface APIClassButton : UIButton
+@end
+@implementation APIClassButton
+@end
+
 @interface APICapabilityViewController ()
 @property(nonatomic, copy) NSString *category;
 @property(nonatomic, copy) NSString *scenario;
@@ -44,7 +49,7 @@
 }
 
 - (NSArray<NSString *> *)scenarioKeys {
-    if ([self.category isEqualToString:@"ui"]) return @[@"path", @"visibility", @"window"];
+    if ([self.category isEqualToString:@"ui"]) return @[@"path", @"class", @"visibility", @"window"];
     if ([self.category isEqualToString:@"input"]) return @[@"click", @"text", @"focus_switch", @"vertical_scroll", @"horizontal_scroll", @"errors", @"long_press", @"geometry", @"windows"];
     if ([self.category isEqualToString:@"wait"]) return @[@"immediate", @"delayed_visible", @"delayed_gone", @"attach_detach", @"resize", @"timeout"];
     return @[@"method_log", @"state_evidence", @"ui_evidence", @"chain_evidence"];
@@ -166,6 +171,17 @@
     self.fixtures[key] = view;
 }
 
+- (APIClassButton *)classButtonWithTitle:(NSString *)title identifier:(NSString *)identifier {
+    APIClassButton *button = [[APIClassButton alloc] init];
+    [button setTitle:title forState:UIControlStateNormal];
+    button.backgroundColor = UIColor.systemBlueColor;
+    button.accessibilityIdentifier = identifier;
+    button.accessibilityLabel = title;
+    button.accessibilityValue = @"count:0";
+    [button addTarget:self action:@selector(classClickFixture:) forControlEvents:UIControlEventTouchUpInside];
+    return button;
+}
+
 - (void)buildUiScenario {
     if ([self.scenario isEqualToString:@"path"]) {
         UIView *parent = [[UIView alloc] init];
@@ -189,6 +205,21 @@
         outside.accessibilityLabel = @"API_FIXED_LABEL";
         [self pinView:outside inContainer:self.fixtureContainer top:240 height:48];
         [self recordFixture:outside key:@"outside"];
+    } else if ([self.scenario isEqualToString:@"class"]) {
+        UIView *scope = [[UIView alloc] init];
+        scope.accessibilityIdentifier = @"api.ui.class.scope";
+        [self pinView:scope inContainer:self.fixtureContainer top:16 height:150];
+        UIView *branch = [[UIView alloc] init];
+        [self pinView:branch inContainer:scope top:0 height:60];
+        [self pinView:[self classButtonWithTitle:@"FIRST" identifier:@"api.ui.class.first"]
+         inContainer:branch top:0 height:48];
+        [self pinView:[self classButtonWithTitle:@"SECOND" identifier:@"api.ui.class.second"]
+         inContainer:scope top:80 height:48];
+        [self pinView:[self buttonWithTitle:@"OUTSIDE" identifier:@"api.ui.class.outside"]
+         inContainer:self.fixtureContainer top:190 height:48];
+        APIClassButton *hidden = [self classButtonWithTitle:@"HIDDEN" identifier:@"api.ui.class.hidden"];
+        hidden.hidden = YES;
+        [self pinView:hidden inContainer:self.fixtureContainer top:260 height:48];
     } else if ([self.scenario isEqualToString:@"visibility"]) {
         UILabel *visible = [self labelWithText:@"Visible" identifier:@"api.ui.visible"];
         visible.accessibilityLabel = @"visible fixture";
@@ -389,6 +420,12 @@
 - (void)clickFixture:(UIButton *)sender {
     NSInteger count = [[APISDKFixtureState sharedState] increment];
     sender.accessibilityValue = [NSString stringWithFormat:@"count:%ld", (long)count];
+}
+
+- (void)classClickFixture:(UIButton *)sender {
+    [self clickFixture:sender];
+    [sender setTitle:[NSString stringWithFormat:@"%@:%ld", sender.accessibilityLabel,
+                     (long)APISDKFixtureState.sharedState.counter] forState:UIControlStateNormal];
 }
 
 - (void)textChanged:(UITextField *)sender {

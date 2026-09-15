@@ -123,10 +123,87 @@ export async function probeRuntimeWrapper() {
   };
   });
 }
+const CLASS_BUTTON = 'com.agenteasyuse.mobileeasyuse.apidemo.ui.UiActivity$ClassButton';
+
+/** Exercise real Java class lookup, subclass matching, DFS order and mixed paths. */
+export async function probeFindByClass() {
+  return navigate('class', () => AndroidExp.runOnMainThread(() => {
+    const scope = `id::${R.id.api_ui_class_scope}`;
+    const paths = {
+      exact: [`class::${CLASS_BUTTON}`],
+      subclass: [scope, 'class::android.widget.Button'],
+      ancestor: [scope, 'class::android.widget.TextView'],
+      mixed: [scope, `class::${CLASS_BUTTON}`, 'tag::FIRST'],
+      self: [`id::${R.id.api_ui_class_first}`, 'class::android.widget.Button'],
+    };
+    const result = Object.fromEntries(Object.entries(paths).map(([key, path]) =>
+      [key, viewSnapshot(AndroidExp.ui.find(path))]));
+    return { passed: Object.values(result).every(view => view?.id === R.id.api_ui_class_first
+      && view.className === CLASS_BUTTON && view.shown), api: 'AndroidExp.ui.find(class path)', result,
+    oracle: { id: R.id.api_ui_class_first, className: CLASS_BUTTON } };
+  }));
+}
+
+/** Check class-path misses, scope, no backtracking and hidden native Views. */
+export async function probeClassPathBoundaries() {
+  return navigate('class', () => AndroidExp.runOnMainThread(() => {
+    const scope = `id::${R.id.api_ui_class_scope}`;
+    const paths = {
+      missing: [scope, 'class::missing.ClassButton'],
+      caseSensitive: [scope, `class::${CLASS_BUTTON.toLowerCase()}`],
+      shortName: [scope, 'class::ClassButton'],
+      baseIsNotSubclass: [`id::${R.id.api_ui_class_outside}`, `class::${CLASS_BUTTON}`],
+      noBacktracking: [scope, 'class::android.widget.Button', 'tag::SECOND'],
+      noEscape: [scope, `class::${CLASS_BUTTON}`, `id::${R.id.api_ui_class_outside}`],
+    };
+    const misses = Object.fromEntries(Object.entries(paths).map(([key, path]) =>
+      [key, AndroidExp.ui.find(path) === null]));
+    const hidden = viewSnapshot(AndroidExp.ui.find([
+      `id::${R.id.api_ui_class_hidden}`, `class::${CLASS_BUTTON}`,
+    ]));
+    let rejectsEmpty = false;
+    try { AndroidExp.ui.find(['class::']); } catch (error) { rejectsEmpty = /Invalid UI path/.test(error.message); }
+    return { passed: Object.values(misses).every(Boolean) && rejectsEmpty
+      && hidden?.id === R.id.api_ui_class_hidden && hidden.attached && !hidden.shown,
+    api: 'AndroidExp.ui.find(class path boundaries)', result: { misses, hidden, rejectsEmpty },
+    oracle: { allMiss: true, hiddenId: R.id.api_ui_class_hidden, shown: false, rejectsEmpty: true } };
+  }));
+}
+
+/** Click the first subclass via its base class and verify real state, screenshots and evidence. */
+export async function probeClassActions() {
+  return navigate('class', async () => {
+    const path = [`id::${R.id.api_ui_class_scope}`, 'class::android.widget.Button'];
+    const readState = () => AndroidExp.runOnMainThread(() => ({
+      clickCount: Number(Java.use('com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState').getInstance().getClickCount()),
+      first: String(AndroidExp.ui.find(R.id.api_ui_class_first).getText()),
+      second: String(AndroidExp.ui.find(R.id.api_ui_class_second).getText()),
+      outside: String(AndroidExp.ui.find(R.id.api_ui_class_outside).getText()),
+    }));
+    const before = await readState();
+    const ready = await AndroidExp.wait.ui(path, 'visible');
+    if (!ready.ok) return { passed: false, api: 'AndroidExp.wait.ui(class path)', result: ready, oracle: before };
+    const click = await Probe.evidence.withUiEvidence(() => Probe.evidence.withStateEvidence(
+      () => AndroidExp.input.click(path), 'class-ui-v1', { state: readState }), 'class-ui-v1', { first: path });
+    const after = await readState();
+    const screenshot = await AndroidExp.screenshot({ includeWindow: true, targets: {
+      first: path,
+      hidden: [`id::${R.id.api_ui_class_hidden}`, `class::${CLASS_BUTTON}`],
+    } });
+    return { passed: click.ok === true && before.clickCount === 0 && before.first === 'FIRST'
+      && before.second === 'SECOND' && before.outside === 'OUTSIDE'
+      && after.clickCount === 1 && after.first === 'FIRST:1' && after.second === 'SECOND' && after.outside === 'OUTSIDE'
+      && screenshot.ok === true && Boolean(screenshot.window) && Boolean(screenshot.targets.first)
+      && !screenshot.targets.hidden, api: 'class path wait/input/screenshot/evidence',
+    evidenceContract: 'class-ui-v1', result: { click, screenshot }, oracle: { before, after } };
+  });
+}
+
 const CONTROLLER_CLASS = 'com.agenteasyuse.mobileeasyuse.apidemo.control.ApiDemoController';
 const SCENARIO_LABELS = {
   resource_id: 'Resource ID and Java action',
   path: 'ID, text, tag and descendant path',
+  class: 'Class names and subclasses',
   visibility: 'Hidden, gone, disabled and zero-size Views',
   runtime_wrapper: 'Concrete runtime View wrapper',
 };

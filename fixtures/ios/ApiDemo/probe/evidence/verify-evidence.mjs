@@ -1,5 +1,5 @@
 import { verifyOverrideComposition } from './override-composition-contract.mjs';
-import { verifyUiState } from './ui-state-contract.mjs';
+import { verifyUiState, verifyClassUi } from './ui-state-contract.mjs';
 import { verifyStateRuntime, verifyMethodMatching } from './state-runtime-contracts.mjs';
 import { verifyChainContext } from './chain-context-contracts.mjs';
 import { verifyCompleteCapture } from './chain-capture-contracts.mjs';
@@ -119,6 +119,7 @@ function verifyRuntimeTargetResolution(document) {
 }
 
 function verifyEvidence(contract, document) {
+  if (contract === 'class-ui-v1') return verifyClassUi('ios', document);
   if (contract === 'override-composition-v1') return verifyOverrideComposition('ios', document);
   if (contract === 'ui-state-v1') return verifyUiState('ios', document);
   if (contract.startsWith('state-runtime-')) return verifyStateRuntime(contract, document);

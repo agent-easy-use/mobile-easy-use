@@ -70,3 +70,30 @@ and aggregates it with UI screenshots for the same action (`ui-state-v1`); it do
 
 See the [Override coverage matrix](evidence/override-coverage.md) for method callbacks,
 selection, failure cleanup, field types, object lifetimes, and per-case native assertions.
+
+## Class-path device cases
+
+The UI class scenario uses a real custom button subclass. Its first match is nested
+one level deeper than the second match, with a plain base-class button outside the
+scope and a hidden subclass instance.
+
+Run these exports from `ui/probe.js` separately through `to-ios-run`:
+
+| Export | Native oracle |
+| --- | --- |
+| `probeFindByClass` | Exact runtime class, superclass matching, DFS order, mixed steps, root inclusion |
+| `probeClassPathBoundaries` | Unknown/case-mismatched names, base is not subclass, no backtracking, subtree scope, hidden View, empty-name rejection |
+| `probeClassActions` | Class-path wait and click; native counter 0 → 1; first button FIRST → FIRST:1; sibling/outside unchanged; real window/crop screenshots |
+
+All operations must return `result.passed === true` and return to the main menu.
+The action case also returns `class-ui-v1` Evidence. Verify its manifest:
+
+```bash
+node fixtures/ios/ApiDemo/probe/evidence/verify-evidence.mjs class-ui-v1 <evidencePath>
+```
+
+The verifier requires before/after native state and screenshots of the exact custom
+button. Check that the returned JPEG paths exist; the standalone hidden target must
+have no crop. These are device operations through the real SDK/native bridge, not
+the JVM/JavaScript fixtures under `test/`. Rebuild and install ApiDemo plus its
+native integration, and run the matching SDK bundle before validating changes.

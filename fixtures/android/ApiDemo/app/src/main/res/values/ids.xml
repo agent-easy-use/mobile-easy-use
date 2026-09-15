@@ -39,6 +39,11 @@
     <item name="api_ui_disabled" type="id" />
     <item name="api_ui_zero_size" type="id" />
     <item name="api_ui_custom_view" type="id" />
+    <item name="api_ui_class_scope" type="id" />
+    <item name="api_ui_class_first" type="id" />
+    <item name="api_ui_class_second" type="id" />
+    <item name="api_ui_class_outside" type="id" />
+    <item name="api_ui_class_hidden" type="id" />
     <item name="api_java_action_single" type="id" />
     <item name="api_resource_root" type="id" />
     <item name="api_resource_title" type="id" />
