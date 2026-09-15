@@ -1,6 +1,6 @@
 # Mobile Easy Use
 
-**面向 Android / iOS 开发者，让 AI Agent 访问 App 运行时，理解、探查、调试和验证 App。**
+**面向 Android / iOS 开发者，让 AI Agent 访问 App 运行时，理解、探查、调试 App，并执行 UI 自动化测试。**
 
 文档：[English](../README.md) · **简体中文** · [Français](./README.fr.md) · [Русский](./README.ru.md) · [Español](./README.es.md) · [العربية](./README.ar.md)
 
@@ -27,20 +27,66 @@ Agent 可以将用户看到的界面表现与 App 内部的实际运行情况联
 
 具体可获取的信息取决于平台和 App 的实现。
 
-## 不是另一个 UI 自动化测试方案
+## UI 自动化测试：从原生对象到界面与截图
 
-这些能力同样可以完成传统的 UI 自动化。但 Mobile Easy Use 更进一步，让 Agent 不仅能操作和验证 UI，还能观察和改变 App 内部的实际运行情况。
+**UI 自动化测试是 Mobile Easy Use 的重要功能之一。** Agent 可以执行点击、输入、滚动等操作，并在同一个测试用例中用 `expect` 验证原生业务对象、UI 状态和截图，让内部数据、控件表现与实际画面相互印证。结合 Hook、运行时条件调整和内部方法调用，还可以构造测试场景、定位失败原因。
 
 | 能力 | 传统 UI 自动化（以界面为中心） | Mobile Easy Use |
 | --- | :---: | :---: |
 | UI 交互：点击、输入、滚动等 | ✓ | ✓ |
 | UI 状态：控件查找、属性读取与状态等待 | ✓ | ✓ |
 | 页面与元素截图 | ✓ | ✓ |
-| 观察业务对象和状态 | — | ✓ |
+| 原生业务对象与状态断言 | — | ✓ |
 | Hook 方法：获取调用链、参数、返回值与调用栈 | — | ✓ |
 | 获取执行耗时和内存变化 | — | ✓ |
 | 临时改变运行条件：替换方法返回值或字段值 | — | ✓ |
 | 主动调用 App 内部方法 | — | ✓ |
+
+### 案例：点击后，同时验证原生对象、UI 和截图
+
+以 Android ApiDemo 的 UI → Class names and subclasses 页面为例：初始计数为 0，点击 `FIRST` 按钮后，原生业务对象中的计数应为 1，按钮应显示 `FIRST:1`，外观应与已审核的截图基线一致。
+
+下面的测试在 App 运行时执行，使用 SDK 提供的 `Test`、`AndroidExp`、`Java` 和 `R`。运行前进入上述初始页面，并传入本机已有的、点击后按钮截图基线的绝对路径 `baselinePath`。
+
+```javascript
+export async function testButton(baselinePath) {
+  const suite = Test.create();
+  const { describe, test, expect } = suite;
+  const button = R.id.api_ui_class_first;
+
+  describe('Counter button', () => {
+    test('updates native state, UI, and appearance', async () => {
+      expect((await AndroidExp.input.click(button)).ok).toBe(true);
+
+      // 原生对象 expect：读取真实 Java 业务对象，验证点击后的状态。
+      const count = await AndroidExp.runOnMainThread(() => {
+        const state = Java.use(
+          'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
+        ).getInstance();
+        return Number(state.getClickCount());
+      });
+      expect(count).toBe(1);
+
+      // UI expect：验证控件可见、可用，并通过原生 View 读取文本。
+      await expect(button).toBeVisible();
+      await expect(button).toBeEnabled();
+      await expect(button).toSatisfy(view => String(view.getText()) === 'FIRST:1');
+
+      // 截图 expect：将按钮截图与已审核基线比较。
+      await expect(button).toHaveElementScreenShot(baselinePath, {
+        maxDiffPixelRatio: 0.01,
+      });
+    });
+  });
+  return suite.run();
+}
+```
+
+`expect` 将同一次操作的业务状态、UI 属性和视觉结果串在一个用例里。UI 与截图断言需要 `await`；截图比较使用已有基线，示例允许最多 1% 的像素差异。iOS 同样支持这些断言，操作和原生对象读取分别使用 `IOS` 与 Objective-C 桥接。
+
+窗口截图使用 `await expect().toHaveWindowScreenShot(windowBaselinePath)`；两种断言都会在内部采集当前截图，再与基线比较。
+
+### 将运行时能力用于整个开发过程
 
 这些能力让运行时信息参与整个开发过程：
 

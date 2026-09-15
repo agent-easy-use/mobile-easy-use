@@ -9,7 +9,7 @@ import { Override } from './override/index.js';
 import { Probe } from './probe/index.js';
 import { checkUiStateNow } from './exp/ui-state.js';
 
-const Test = { create: () => createTest(findUiView, runOnMainThread, checkUiStateNow) };
+const Test = { create: () => createTest(findUiView, runOnMainThread, checkUiStateNow, options => AndroidExp.screenshot(options)) };
 
 globalThis.Java = Java;
 globalThis.R = R;

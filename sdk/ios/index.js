@@ -11,7 +11,7 @@ import { checkUiState, checkUiStateNow } from './ui/state.js';
 import { findUiView } from './ui/index.js';
 import { waitForUi, waitUntil } from './wait.js';
 
-const Test = { create: () => createTest(findUiView, runOnMainThread, checkUiStateNow) };
+const Test = { create: () => createTest(findUiView, runOnMainThread, checkUiStateNow, screenshot) };
 
 const IOS = Object.freeze({
   runOnMainThread,

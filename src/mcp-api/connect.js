@@ -44,6 +44,7 @@ export async function connect(owner, {
           appId,
           runtimePort: connection.runtimePort,
         });
+        await connection.sdkScript.exports.collectGarbage();
         return connectionStatus(owner);
       } catch (error) {
         await closeConnection(owner, connection);
@@ -130,6 +131,7 @@ export async function connect(owner, {
         ? await IOSRunner.start(owner, connection, appId)
         : await owner.startIOSRunner(owner, connection, appId);
     }
+    await sdkScript.exports.collectGarbage();
     owner.currentConnection = connection;
     owner.state = 'connected';
     session.detached.connect((reason, crash) => {

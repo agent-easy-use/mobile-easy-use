@@ -83,50 +83,73 @@ test('screenshot comparison rejects invalid options, paths and corrupt files', a
   }
 });
 
-test('toHaveScreenshot round-trips through Controller and preserves errors under not', async context => {
-  const { directory, write } = await images(context);
-  const actual = await write('actual.png', 4, 4, [0, 0, 0, 255]);
-  const baseline = await write('baseline.png', 4, 4, [255, 255, 255, 255]);
-  const receivers = new Map();
-  const requests = [];
-  const originalSend = Object.getOwnPropertyDescriptor(globalThis, 'send');
-  const originalRecv = Object.getOwnPropertyDescriptor(globalThis, 'recv');
-  context.after(() => {
-    for (const [name, descriptor] of [['send', originalSend], ['recv', originalRecv]]) {
-      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
-      else delete globalThis[name];
+for (const matcher of ['toHaveElementScreenShot', 'toHaveWindowScreenShot']) {
+  test(`${matcher} captures before comparing and preserves errors under not`, async context => {
+    const { directory, write } = await images(context);
+    const actual = await write('actual.png', 4, 4, [0, 0, 0, 255]);
+    const baseline = await write('baseline.png', 4, 4, [255, 255, 255, 255]);
+    const receivers = new Map();
+    const requests = [];
+    const originalSend = Object.getOwnPropertyDescriptor(globalThis, 'send');
+    const originalRecv = Object.getOwnPropertyDescriptor(globalThis, 'recv');
+    context.after(() => {
+      for (const [name, descriptor] of [['send', originalSend], ['recv', originalRecv]]) {
+        if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+        else delete globalThis[name];
+      }
+    });
+    globalThis.recv = (type, callback) => receivers.set(type, callback);
+    globalThis.send = event => {
+      requests.push(event.payload);
+      const script = { post(message) {
+        const callback = receivers.get(message.type);
+        receivers.delete(message.type);
+        callback(message);
+      } };
+      return handleControllerMessage(script, { type: 'send', payload: event }, null, {});
+    };
+    const captures = [];
+    const target = matcher === 'toHaveElementScreenShot' ? 123 : undefined;
+    let captureResult = { ok: true, window: actual, targets: { element: actual } };
+    const expect = createExpect(undefined, undefined, undefined, async options => {
+      captures.push(options);
+      return captureResult;
+    });
+    await expect(target)[matcher](actual);
+    await expect(target).not[matcher](baseline);
+    await expect(target)[matcher](baseline, { maxDiffPixelRatio: 1 });
+    assert.deepEqual(requests.at(-1).payload, { actualPath: actual, baselinePath: baseline,
+      options: { maxDiffPixelRatio: 1 } });
+    assert.equal(requests.at(-1).action, 'screenshot.compare');
+    await assert.rejects(expect(target, 'search page')[matcher](baseline), error => {
+      assert.ok(error instanceof AssertionError);
+      assert.match(error.message, /search page: Screenshot difference ratio 1; allowed 0/);
+      assert.equal(error.matcher, matcher);
+      return true;
+    });
+    await assert.rejects(expect(target).not[matcher](actual), AssertionError);
+    await assert.rejects(expect(target).not[matcher](join(directory, 'missing.png')), /ENOENT/);
+    await assert.rejects(expect(target).not[matcher](actual, { maxDiffPixelRatio: 2 }), /\[0, 1\]/);
+    assert.equal(captures.length, 7);
+    for (const options of captures) {
+      assert.deepEqual(options, matcher === 'toHaveElementScreenShot'
+        ? { includeWindow: false, targets: { element: target } }
+        : { includeWindow: true });
     }
+    const requestCount = requests.length;
+    captureResult = { ok: false, error: { message: 'capture failed' } };
+    await assert.rejects(expect(target).not[matcher](actual), /capture failed/);
+    captureResult = { ok: true, targets: {} };
+    await assert.rejects(expect(target).not[matcher](actual), /requested image/);
+    assert.equal(requests.length, requestCount);
+    await assert.rejects(expect(matcher === 'toHaveElementScreenShot' ? undefined : 123)[matcher](actual), TypeError);
+    captureResult = { ok: true, window: actual, targets: { element: actual } };
+    globalThis.send = event => receivers.get(`mobile-easy-use.controller.response.${event.payload.requestId}`)({
+      payload: { ok: true, responsePayload: { matches: 'true' } },
+    });
+    await assert.rejects(expect(target).not[matcher](actual), /boolean/);
+    globalThis.send = () => { throw new Error('transport failed'); };
+    await assert.rejects(expect(target).not[matcher](actual), /transport failed/);
   });
-  globalThis.recv = (type, callback) => receivers.set(type, callback);
-  globalThis.send = event => {
-    requests.push(event.payload);
-    const script = { post(message) {
-      const callback = receivers.get(message.type);
-      receivers.delete(message.type);
-      callback(message);
-    } };
-    return handleControllerMessage(script, { type: 'send', payload: event }, null, {});
-  };
-  const expect = createExpect();
-  await expect(actual).toHaveScreenshot(actual);
-  await expect(actual).not.toHaveScreenshot(baseline);
-  await expect(actual).toHaveScreenshot(baseline, { maxDiffPixelRatio: 1 });
-  assert.deepEqual(requests.at(-1).payload, { actualPath: actual, baselinePath: baseline,
-    options: { maxDiffPixelRatio: 1 } });
-  assert.equal(requests.at(-1).action, 'screenshot.compare');
-  await assert.rejects(expect(actual, 'search page').toHaveScreenshot(baseline), error => {
-    assert.ok(error instanceof AssertionError);
-    assert.match(error.message, /search page: Screenshot difference ratio 1; allowed 0/);
-    assert.equal(error.matcher, 'toHaveScreenshot');
-    return true;
-  });
-  await assert.rejects(expect(actual).not.toHaveScreenshot(actual), AssertionError);
-  await assert.rejects(expect(actual).not.toHaveScreenshot(join(directory, 'missing.png')), /ENOENT/);
-  await assert.rejects(expect(actual).not.toHaveScreenshot(actual, { maxDiffPixelRatio: 2 }), /\[0, 1\]/);
-  globalThis.send = event => receivers.get(`mobile-easy-use.controller.response.${event.payload.requestId}`)({
-    payload: { ok: true, responsePayload: { matches: 'true' } },
-  });
-  await assert.rejects(expect(actual).not.toHaveScreenshot(actual), /boolean/);
-  globalThis.send = () => { throw new Error('transport failed'); };
-  await assert.rejects(expect(actual).not.toHaveScreenshot(actual), /transport failed/);
-});
+
+}

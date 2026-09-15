@@ -119,6 +119,8 @@ class FakeDeviceManager {
       releaseVersion: '0.1.0',
     };
     this.runtimeStatusCalls = 0;
+    this.gcCalls = 0;
+    this.gcError = null;
     this.sessionDetached = false;
     this.session = {
       detached: this.detached,
@@ -167,6 +169,10 @@ class FakeDeviceManager {
           }
           return this.evalResult;
         };
+        script.exports.collectGarbage = async () => {
+          this.gcCalls += 1;
+          if (this.gcError) throw this.gcError;
+        };
         script.exports.runtimeStatus = async () => {
           this.runtimeStatusCalls += 1;
           return this.runtimeStatus;
@@ -213,6 +219,7 @@ test('connect uses the complete target and Host endpoint', async () => {
   assert.match(manager.createdScripts[0].source, /\/sdk\/android\/index\.js/);
   assert.match(manager.createdScripts[0].source, /frida-java-bridge/);
   assert.equal(manager.runtimeStatusCalls, 1);
+  assert.equal(manager.gcCalls, 1);
   assert.deepEqual(result, {
     connected: true,
     state: 'connected',
@@ -325,6 +332,7 @@ test('connect reuses the same healthy target even when a new endpoint is supplie
   assert.equal(manager.createdScripts.length, 1);
   assert.equal(manager.loadedModules.length, 0);
   assert.equal(manager.runtimeStatusCalls, 2);
+  assert.equal(manager.gcCalls, 2);
 });
 
 test('iOS connect loads before a real connection and skips loading on reuse', async () => {
@@ -1185,3 +1193,16 @@ test('failed SDK runtime readiness resets the connection', async () => {
   assert.equal(manager.createdScripts[0].script.unloadCalls, 1);
   assert.equal(manager.sessionDetached, true);
 });
+
+for (const reuse of [false, true]) {
+  test(`connect cleans up when runtime GC fails (reuse=${reuse})`, async () => {
+    const manager = new FakeDeviceManager();
+    const connection = new GadgetConnection(manager);
+    if (reuse) await connection.connect(targetInput());
+    manager.gcError = new Error('GC failed');
+    await assert.rejects(connection.connect(targetInput()), /GC failed/);
+    assert.equal(manager.gcCalls, reuse ? 2 : 1);
+    assert.equal(connection.getConnectionId(), null);
+    assert.equal(manager.createdScripts[0].script.unloadCalls, 1);
+  });
+}

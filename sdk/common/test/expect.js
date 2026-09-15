@@ -66,7 +66,7 @@ const matchers = {
   },
 };
 
-export function createExpect(findUiView, runOnMainThread, checkUiState) {
+export function createExpect(findUiView, runOnMainThread, checkUiState, screenshot) {
   const uiMatchers = {
     toExist: view => checkUiState(view, 'exists'),
     toBeVisible: view => checkUiState(view, 'visible'),
@@ -93,13 +93,29 @@ export function createExpect(findUiView, runOnMainThread, checkUiState) {
         check(matches, name, true);
       };
     }
-    methods.toHaveScreenshot = async (baselinePath, options = {}) => {
+    async function checkScreenshot(name, shot, actualPath, baselinePath, options) {
+      if (shot?.ok !== true) throw new Error(shot?.error?.message ?? 'Screenshot capture failed');
+      if (typeof actualPath !== 'string' || actualPath.length === 0) {
+        throw new Error('Screenshot capture did not return the requested image');
+      }
       const { ok, responsePayload } = await requestController('screenshot.compare', {
-        actualPath: actual, baselinePath, options,
+        actualPath, baselinePath, options,
       });
       if (!ok) throw new Error(responsePayload.error.message);
       const detail = [message, responsePayload.message].filter(Boolean).join(': ');
-      check(responsePayload.matches, 'toHaveScreenshot', baselinePath, detail);
+      check(responsePayload.matches, name, baselinePath, detail);
+    }
+    methods.toHaveElementScreenShot = async (baselinePath, options = {}) => {
+      if (actual == null) throw new TypeError('toHaveElementScreenShot requires a UI target');
+      const shot = await screenshot({ includeWindow: false, targets: { element: actual } });
+      await checkScreenshot('toHaveElementScreenShot', shot, shot?.targets?.element, baselinePath, options);
+    };
+    methods.toHaveWindowScreenShot = async (baselinePath, options = {}) => {
+      if (actual !== undefined) {
+        throw new TypeError('Use expect().toHaveWindowScreenShot for the current window');
+      }
+      const shot = await screenshot({ includeWindow: true });
+      await checkScreenshot('toHaveWindowScreenShot', shot, shot?.window, baselinePath, options);
     };
     Object.defineProperty(methods, 'not', { get: () => assertions(actual, message, !negate) });
     return methods;

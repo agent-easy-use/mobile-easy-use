@@ -24,6 +24,10 @@ const sdkExports = Object.freeze({
     return await Script.evaluate(scriptName, source);
   },
 
+  collectGarbage() {
+    globalThis.gc();
+  },
+
   runtimeStatus() {
     return globalThis.runtimeStatus();
   },

@@ -593,7 +593,14 @@ declare global {
   type AndroidTestJsonValue = null | boolean | number | string
     | readonly AndroidTestJsonValue[] | { readonly [key: string]: AndroidTestJsonValue };
 
-  /** Mismatches throw or reject with AssertionError.
+  /** Choose assertions by verification target:
+   * - UI controls and properties: use UI matchers for existence, visibility, focus and enabled state;
+   *   use toSatisfy for custom checks of text and other properties.
+   * - Visual appearance: use screenshot matchers.
+   * - Native business objects and state: read primitive values or plain JSON snapshots,
+   *   then use general-purpose matchers.
+   *
+   * Mismatches throw or reject with AssertionError.
    * Await async matchers; none poll. .not inverts comparison results, never input or observation errors.
    */
   interface AndroidTestMatchers {
@@ -635,11 +642,25 @@ declare global {
      * Missing targets and non-boolean results are errors.
      */
     toSatisfy(predicate: (view: Java.Wrapper) => boolean | Promise<boolean>): Promise<void>;
-    /** Compare existing PNG/JPEG files on Host. Actual and baseline must be absolute Host paths.
-     * No capture, baseline updates or diff images. Color threshold is 0.2; anti-alias differences are ignored.
-     * Size mismatch fails; file/decoding/transport errors propagate.
+    /** Capture the current element through AndroidExp.screenshot, then compare on Host.
+     * Use expect(target); baselinePath must be an absolute Host path to an existing PNG/JPEG.
+     * Handles platform thread dispatch internally. No baseline updates or diff images.
+     * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
+     * Capture, missing-image, file/decoding/transport errors propagate, including under .not.
+     * @example await Test.create().expect(123).toHaveElementScreenShot('/absolute/baseline.png');
      */
-    toHaveScreenshot(baselinePath: string, options?: {
+    toHaveElementScreenShot(baselinePath: string, options?: {
+      /** Allowed differing pixel ratio in [0, 1], inclusive. Defaults to 0. */
+      maxDiffPixelRatio?: number;
+    }): Promise<void>;
+    /** Capture the current window through AndroidExp.screenshot, then compare on Host.
+     * Use expect(); baselinePath must be an absolute Host path to an existing PNG/JPEG.
+     * Handles platform thread dispatch internally. No baseline updates or diff images.
+     * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
+     * Capture, missing-image, file/decoding/transport errors propagate, including under .not.
+     * @example await Test.create().expect().toHaveWindowScreenShot('/absolute/baseline.png');
+     */
+    toHaveWindowScreenShot(baselinePath: string, options?: {
       /** Allowed differing pixel ratio in [0, 1], inclusive. Defaults to 0. */
       maxDiffPixelRatio?: number;
     }): Promise<void>;
@@ -647,7 +668,7 @@ declare global {
 
   interface AndroidTestExpect {
     /** Create matchers for an actual value or UI target; message prefixes assertion failures. */
-    (actual: unknown, message?: string): AndroidTestMatchers;
+    (actual?: unknown, message?: string): AndroidTestMatchers;
   }
 
   type AndroidTestSelection = { describe?: undefined; test?: undefined }
