@@ -27,79 +27,65 @@ Agents can connect what users see with what happens inside the app to understand
 
 Available information depends on the platform and app implementation.
 
-## UI automation testing: native objects, UI, and screenshots
+These observations support the agent throughout the coding loop:
 
-**UI automation testing is a core capability of Mobile Easy Use.** Agents can click, type, and scroll, then use `expect` in the same test to verify native business objects, UI state, and screenshots. This connects internal data with control behavior and actual appearance. Hooks, runtime overrides, and internal method calls also help set up test scenarios and investigate failures.
+- **Research and before coding:** Trace actual calls, data, and state alongside source code to understand the implementation.
+- **Validate a technical approach:** Temporarily change configuration, fields, or method returns to test key assumptions, then restore them.
+- **Investigate problems:** Connect call chains, business state, and UI behavior to locate the failure.
+- **After coding:** Rerun the original scenario to check the change. Confirmed expectations can become regression tests.
 
-| Capability | Traditional UI automation (UI-focused) | Mobile Easy Use |
-| --- | :---: | :---: |
-| UI interactions: click, type, scroll, and more | ✓ | ✓ |
-| UI state: locate controls, read properties, and wait for state | ✓ | ✓ |
-| Capture screens and elements | ✓ | ✓ |
-| Assert native business objects and state | — | ✓ |
-| Hook methods: collect call chains, arguments, results, and stacks | — | ✓ |
-| Measure execution time and process memory changes | — | ✓ |
-| Temporarily change runtime conditions: override method returns or fields | — | ✓ |
-| Invoke internal app methods | — | ✓ |
-
-### Example: verify native objects, UI, and screenshots after a click
-
-On the Android ApiDemo **UI → Class names and subclasses** page, the counter starts at 0. After clicking `FIRST`, the native business object's counter should be 1, the button should display `FIRST:1`, and its appearance should match a reviewed screenshot baseline.
-
-This test runs inside the app runtime using the SDK-provided `Test`, `AndroidExp`, `Java`, and `R`. Before running it, open that page in its initial state and pass `baselinePath`, an absolute local path to an existing, reviewed screenshot of the button after the click.
-
-```javascript
-export async function testButton(baselinePath) {
-  const suite = Test.create();
-  const { describe, test, expect } = suite;
-  const button = R.id.api_ui_class_first;
-
-  describe('Counter button', () => {
-    test('updates native state, UI, and appearance', async () => {
-      expect((await AndroidExp.input.click(button)).ok).toBe(true);
-
-      // Native object expect: read the real Java business object and verify its state.
-      const count = await AndroidExp.runOnMainThread(() => {
-        const state = Java.use(
-          'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
-        ).getInstance();
-        return Number(state.getClickCount());
-      });
-      expect(count).toBe(1);
-
-      // UI expect: check visibility, enabled state, and text from the native View.
-      await expect(button).toBeVisible();
-      await expect(button).toBeEnabled();
-      await expect(button).toSatisfy(view => String(view.getText()) === 'FIRST:1');
-
-      // Screenshot expect: compare the button capture with the reviewed baseline.
-      await expect(button).toHaveElementScreenShot(baselinePath, {
-        maxDiffPixelRatio: 0.01,
-      });
-    });
-  });
-  return suite.run();
-}
-```
-
-`expect` connects business state, UI properties, and visual results for the same action in one test. UI and screenshot assertions require `await`; screenshot comparison uses an existing baseline, allowing up to 1% differing pixels here. iOS supports the same assertions, with `IOS` for actions and the Objective-C bridge for native object access.
-
-For a window screenshot, use `await expect().toHaveWindowScreenShot(windowBaselinePath)`. Both assertions capture the current image internally before comparing it with the baseline.
-
-### Bring runtime capabilities into the development process
-
-These capabilities bring runtime information into every stage of development:
-
-- **Before coding:** Inspect real state and call paths alongside source code to decide where and how to make a change.
-- **During coding:** Hook relevant logic and temporarily adjust runtime conditions to check assumptions and branch behavior.
-- **After coding:** Verify that business state and UI agree, and save common actions and probes as Presets.
-
-For example, ask your agent:
+For example, ask the agent to validate an approach:
 
 ```text
 Inspect this page controlled by a configuration flag: check its current
 configuration and actual call path, then temporarily toggle the flag
 and verify data and UI in both states. Restore it when finished.
+Use the evidence to assess the approach and identify what remains unverified.
+```
+
+## Also used for UI automation testing
+
+The same runtime capabilities enable deeper UI automation: click, type, and scroll, then verify **UI state, screenshots, and native business state** in one test. After refreshing a list, for example, check both the displayed content and the underlying data. Temporary overrides help establish test conditions; call and state evidence help explain failures.
+
+The comparison below covers testing centered on UI interactions and interface assertions:
+
+| Testing task | UI-focused testing | Mobile Easy Use |
+| --- | --- | --- |
+| Verify an operation | Check visible text, controls, and screenshots | Also assert native objects, caches, and business state after the same operation |
+| Test intermediate state | Wait for changes exposed through the UI | Read internal state to check transitions such as loading, pending, or completed |
+| Set up a scenario | Reach the state through UI steps and available test data | Also temporarily override fields or method returns to exercise specific branches |
+| Investigate a failure | Inspect failed assertions, screenshots, and available logs | Also trace method calls, arguments, return values, and state changes to explain the failure |
+
+### Example: one click, business state, UI, and screenshot checks
+
+Start on Android ApiDemo's **UI → Class names and subclasses** page in its initial state. Clicking `FIRST` should set the counter to 1, display `FIRST:1`, and match the reviewed appearance. Before running, open that initial page and prepare a reviewed post-click baseline at `baselines/first-clicked.jpg`, relative to the test file.
+
+See [Android tests](./fixtures/android/ApiDemo/tests/) and [iOS tests](./fixtures/ios/ApiDemo/tests/) for complete scenarios and cleanup. Use `expect().toHaveWindowScreenShot(...)` for window comparison.
+
+```javascript
+const { describe, test, expect, run } = Test.create();
+export { run };
+
+describe('Counter button', () => {
+  test('updates state, UI, and appearance', async () => {
+    const button = R.id.api_ui_class_first;
+    const clicked = await AndroidExp.runOnMainThread(() => AndroidExp.input.click(button));
+    expect(clicked.ok).toBe(true);
+
+    // UI state
+    await expect(button).toBeVisible();
+    await expect(button).toSatisfy(view => String(view.getText()) === 'FIRST:1');
+
+    // Screenshot
+    await expect(button).toHaveElementScreenShot('baselines/first-clicked.jpg');
+
+    // Native business state
+    const count = await AndroidExp.runOnMainThread(() => Java.use(
+      'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
+    ).getInstance().getClickCount());
+    expect(Number(count)).toBe(1);
+  });
+});
 ```
 
 ## Getting started
@@ -118,7 +104,7 @@ npx skills add agent-easy-use/mobile-easy-use --skill '*'
 
 This selects all Skills in the repository. Follow the prompts to choose your agent and installation scope. See the [Skills CLI documentation](https://github.com/vercel-labs/skills#options) for the command and options.
 
-**Install Skills and MCP separately**: Skills include Observable, Integrate, Probe, Presets, and their supporting script generation and execution workflows. MCP provides tools to connect to the app and execute operations.
+**Install Skills and MCP separately**: Skills include Observable, Integrate, Probe, Test, Presets, and their supporting script generation and execution workflows. MCP provides tools to connect to the app and execute operations.
 
 ### 2. Integrate into the app
 
@@ -151,11 +137,11 @@ Add `mobile-easy-use` to your agent's MCP configuration. **Use the compatible MC
 }
 ```
 
-`npx` fetches and starts the selected version without a separate global install. Use your client's configuration mechanism to set the working directory to the **target app project root** so MCP can resolve project Presets. The agent and MCP need shared local filesystem access to read SDK declarations and probe files.
+`npx` fetches and starts the selected version without a separate global install. Use your client's configuration mechanism to set the working directory to the **target app project root** so MCP can resolve project Presets. The agent and MCP need shared local filesystem access to read SDK declarations, probes, and test files.
 
 Reload the MCP configuration and check that tools such as `get_sdk_declarations` and `connect` are visible to the agent. New connections check compatibility between the app Runtime Release and MCP version and suggest an adjustment if they do not match.
 
-### 4. Explore with Probe
+### 4. Start a probe or test
 
 After integration, build the app debug version containing the Mobile Easy Use Runtime and install it on the target device or simulator before using Probe. Connect the device, identify the target app, and describe your question:
 
@@ -173,16 +159,28 @@ business state, and UI evidence.
 
 Probe uses source code and existing Presets to generate the investigation, connect to the app through MCP, execute actions, and collect relevant evidence. It answers the original question without requiring you to write probe scripts, distinguishing observed facts, source-based explanations, and unverified behavior.
 
-## Four Skill capabilities
+Use separate Skills to generate and run tests:
 
-These four capabilities cover coding, integration, everyday exploration, and reuse, with separate Android and iOS implementations.
+```text
+Use to-android-test-script to generate list-refresh tests that verify UI,
+screenshots, and internal data state.
+Use to-android-test to run this app's tests directory and summarize
+passed, failed, and unrun cases.
+```
+
+For iOS, use `to-ios-test-script` and `to-ios-test`.
+
+## Skills directory
+
+Each platform has Skills for integration, exploration, testing, and reuse.
 
 | Capability | When to use it | Android / iOS Skill |
 | --- | --- | --- |
 | **Observable** | Optional coding guidance with minimal intrusion: reuse or selectively add logs, UI identifiers, and runtime entry points so the app works better with Mobile Easy Use | [android-observable-code](./skills/android-observable-code/SKILL.md) / [ios-observable-code](./skills/ios-observable-code/SKILL.md) |
 | **Integrate** | Set up or maintain debug integration, acquire Runtime artifacts, configure the project, and select a compatible MCP version; also prepare or repair iOS Runner signing | [to-android-integrate](./skills/to-android-integrate/SKILL.md) / [to-ios-integrate](./skills/to-ios-integrate/SKILL.md) |
 | **Probe** | Start a runtime investigation in natural language, including probe generation, execution, and evidence analysis | [to-android-probe](./skills/to-android-probe/SKILL.md) / [to-ios-probe](./skills/to-ios-probe/SKILL.md) |
-| **Presets** | Turn common navigation, business actions, and state queries into reusable capabilities with type declarations, bundled for future probes | [to-android-presets](./skills/to-android-presets/SKILL.md) / [to-ios-presets](./skills/to-ios-presets/SKILL.md) |
+| **Test** | Generate test files from explicit expectations; run existing tests and summarize results | Generate: [Android](./skills/to-android-test-script/SKILL.md) / [iOS](./skills/to-ios-test-script/SKILL.md); run: [Android](./skills/to-android-test/SKILL.md) / [iOS](./skills/to-ios-test/SKILL.md) |
+| **Presets** | Turn common navigation, business actions, and state queries into reusable capabilities with type declarations, bundled for probes and tests | [to-android-presets](./skills/to-android-presets/SKILL.md) / [to-ios-presets](./skills/to-ios-presets/SKILL.md) |
 
 Probe composes the platform's `to-*-probe-script` and `to-*-run` Skills for generation and execution. For everyday use, start with Probe and describe your question.
 
@@ -234,4 +232,4 @@ npm package: `@agent-easy-use/mobile-easy-use`.
 
 ## Feedback
 
-Tried your first probe? [Share what you investigated and where you got stuck](https://github.com/agent-easy-use/mobile-easy-use/issues/new?template=first-probe.yml). If Mobile Easy Use is useful for your work, star the repository to bookmark it.
+Tried a probe or test? [Share your use case and where you got stuck](https://github.com/agent-easy-use/mobile-easy-use/issues). If Mobile Easy Use is useful for your work, star the repository to bookmark it.

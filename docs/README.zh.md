@@ -27,78 +27,64 @@ Agent 可以将用户看到的界面表现与 App 内部的实际运行情况联
 
 具体可获取的信息取决于平台和 App 的实现。
 
-## UI 自动化测试：从原生对象到界面与截图
+这些运行信息贯穿 Agent 的编码过程：
 
-**UI 自动化测试是 Mobile Easy Use 的重要功能之一。** Agent 可以执行点击、输入、滚动等操作，并在同一个测试用例中用 `expect` 验证原生业务对象、UI 状态和截图，让内部数据、控件表现与实际画面相互印证。结合 Hook、运行时条件调整和内部方法调用，还可以构造测试场景、定位失败原因。
+- **调研与编码前**：结合源码查看实际调用、数据和状态，理解现有实现。
+- **技术方案验证**：临时调整配置、字段或方法返回值，验证关键假设，完成后恢复。
+- **问题定位**：关联调用链、业务状态和 UI 表现，找出异常环节。
+- **编码后**：重跑原场景，检查修改效果，确认后的预期可沉淀为回归测试。
 
-| 能力 | 传统 UI 自动化（以界面为中心） | Mobile Easy Use |
-| --- | :---: | :---: |
-| UI 交互：点击、输入、滚动等 | ✓ | ✓ |
-| UI 状态：控件查找、属性读取与状态等待 | ✓ | ✓ |
-| 页面与元素截图 | ✓ | ✓ |
-| 原生业务对象与状态断言 | — | ✓ |
-| Hook 方法：获取调用链、参数、返回值与调用栈 | — | ✓ |
-| 获取执行耗时和内存变化 | — | ✓ |
-| 临时改变运行条件：替换方法返回值或字段值 | — | ✓ |
-| 主动调用 App 内部方法 | — | ✓ |
-
-### 案例：点击后，同时验证原生对象、UI 和截图
-
-以 Android ApiDemo 的 UI → Class names and subclasses 页面为例：初始计数为 0，点击 `FIRST` 按钮后，原生业务对象中的计数应为 1，按钮应显示 `FIRST:1`，外观应与已审核的截图基线一致。
-
-下面的测试在 App 运行时执行，使用 SDK 提供的 `Test`、`AndroidExp`、`Java` 和 `R`。运行前进入上述初始页面，并传入本机已有的、点击后按钮截图基线的绝对路径 `baselinePath`。
-
-```javascript
-export async function testButton(baselinePath) {
-  const suite = Test.create();
-  const { describe, test, expect } = suite;
-  const button = R.id.api_ui_class_first;
-
-  describe('Counter button', () => {
-    test('updates native state, UI, and appearance', async () => {
-      expect((await AndroidExp.input.click(button)).ok).toBe(true);
-
-      // 原生对象 expect：读取真实 Java 业务对象，验证点击后的状态。
-      const count = await AndroidExp.runOnMainThread(() => {
-        const state = Java.use(
-          'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
-        ).getInstance();
-        return Number(state.getClickCount());
-      });
-      expect(count).toBe(1);
-
-      // UI expect：验证控件可见、可用，并通过原生 View 读取文本。
-      await expect(button).toBeVisible();
-      await expect(button).toBeEnabled();
-      await expect(button).toSatisfy(view => String(view.getText()) === 'FIRST:1');
-
-      // 截图 expect：将按钮截图与已审核基线比较。
-      await expect(button).toHaveElementScreenShot(baselinePath, {
-        maxDiffPixelRatio: 0.01,
-      });
-    });
-  });
-  return suite.run();
-}
-```
-
-`expect` 将同一次操作的业务状态、UI 属性和视觉结果串在一个用例里。UI 与截图断言需要 `await`；截图比较使用已有基线，示例允许最多 1% 的像素差异。iOS 同样支持这些断言，操作和原生对象读取分别使用 `IOS` 与 Objective-C 桥接。
-
-窗口截图使用 `await expect().toHaveWindowScreenShot(windowBaselinePath)`；两种断言都会在内部采集当前截图，再与基线比较。
-
-### 将运行时能力用于整个开发过程
-
-这些能力让运行时信息参与整个开发过程：
-
-- **编码前**：查看真实状态和调用路径，结合源码确定修改位置与方案。
-- **编码中**：Hook 相关逻辑、临时调整运行条件，检查实现假设和分支行为。
-- **编码后**：验证业务状态与 UI 是否一致，将常用操作和探查沉淀为 Presets。
-
-例如，你可以让 Agent：
+例如，让 Agent 验证一个方案：
 
 ```text
-检查这个受配置开关控制的页面：先确认当前配置和实际调用路径，
+检查这个受配置开关控制的页面：确认当前配置和实际调用路径，
 再临时切换开关，验证两种状态下的数据和 UI，完成后恢复。
+结合运行证据判断方案是否可行，并说明仍未验证的部分。
+```
+
+## 也可用于 UI 自动化测试
+
+同样的运行时能力可以用于更深入的 UI 自动化：执行点击、输入、滚动，并在同一用例中验证 **UI 状态、截图和原生业务状态**。例如，刷新列表后，既检查界面显示，也直接确认内部数据已更新。临时行为覆盖帮助构造测试条件，调用与状态证据帮助定位失败原因。
+
+下表对比以 UI 交互和界面断言为主的测试方式：
+
+| 测试任务 | 以 UI 为主的测试 | Mobile Easy Use |
+| --- | --- | --- |
+| 验证操作结果 | 检查文本、控件和截图是否符合预期 | 同一次操作还可断言原生对象、缓存和业务状态，确认内部结果也正确 |
+| 验证中间状态 | 等待界面呈现的状态变化 | 直接读取内部状态，检查加载中、待处理、已完成等状态转换 |
+| 构造测试场景 | 通过 UI 步骤和可用测试数据进入目标状态 | 还可临时覆盖字段或方法返回值，触发特定分支 |
+| 分析测试失败 | 查看失败断言、截图和已有日志 | 进一步关联方法调用、参数、返回值和状态变化，解释失败原因 |
+
+### 示例：一次点击，验证业务状态、UI 和截图
+
+在 Android ApiDemo 的 **UI → Class names and subclasses** 初始页面，点击 `FIRST` 后，计数应为 1，按钮应显示 `FIRST:1`，外观应符合基准。运行前进入该初始页面，并准备已审核的点击后截图 `baselines/first-clicked.jpg`，路径相对于用例文件。
+
+完整场景与清理示例见 [Android tests](../fixtures/android/ApiDemo/tests/) 和 [iOS tests](../fixtures/ios/ApiDemo/tests/)。窗口比较可用 `expect().toHaveWindowScreenShot(...)`。
+
+```javascript
+const { describe, test, expect, run } = Test.create();
+export { run };
+
+describe('Counter button', () => {
+  test('updates state, UI, and appearance', async () => {
+    const button = R.id.api_ui_class_first;
+    const clicked = await AndroidExp.runOnMainThread(() => AndroidExp.input.click(button));
+    expect(clicked.ok).toBe(true);
+
+    // UI 状态
+    await expect(button).toBeVisible();
+    await expect(button).toSatisfy(view => String(view.getText()) === 'FIRST:1');
+
+    // 截图
+    await expect(button).toHaveElementScreenShot('baselines/first-clicked.jpg');
+
+    // 原生业务状态
+    const count = await AndroidExp.runOnMainThread(() => Java.use(
+      'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
+    ).getInstance().getClickCount());
+    expect(Number(count)).toBe(1);
+  });
+});
 ```
 
 ## 使用方式
@@ -146,11 +132,11 @@ Integrate 会获取并校验 Release 产物，修改目标工程配置，并返�
 }
 ```
 
-`npx` 会获取并启动指定版本，无需先全局安装。按所用客户端的配置方式设置工作目录为**目标 App 项目根目录**，以便读取项目 Presets；Agent 与 MCP 需要共享本地文件系统，用于读取 SDK 声明和探查文件。
+`npx` 会获取并启动指定版本，无需先全局安装。按所用客户端的配置方式设置工作目录为**目标 App 项目根目录**，以便读取项目 Presets；Agent 与 MCP 需要共享本地文件系统，用于读取 SDK 声明、探查和测试文件。
 
 重新加载 MCP 配置后，确认 Agent 能看到 `get_sdk_declarations`、`connect` 等工具。新建连接时，MCP 会检查 App Runtime Release 与 MCP 版本的兼容性；不匹配时会给出调整建议。
 
-### 4. 使用 Probe 探查
+### 4. 开始探查或测试
 
 完成集成后，先编译并将包含 Mobile Easy Use Runtime 的 App 调试版本安装到目标设备或模拟器，再使用 Probe 探查。连接设备后，提供目标 App 和要调查的问题：
 
@@ -166,16 +152,26 @@ Integrate 会获取并校验 Release 产物，修改目标工程配置，并返�
 
 Probe 会结合源码和已有 Presets 生成探查逻辑，通过 MCP 连接 App、执行操作并收集相关证据，最后回答原始问题。你不需要手写探查脚本；结果会区分真实观测、源码推断和仍未验证的部分。
 
-## 四类 Skill 能力
+生成测试与执行测试分别使用对应 Skill：
 
-四类能力覆盖编码、接入、日常探查和复用；Android 与 iOS 各有对应实现。
+```text
+使用 to-android-test-script，为列表刷新流程生成测试，验证 UI、截图和内部数据状态。
+使用 to-android-test，执行这个 App 的 tests 目录下的用例，汇总通过、失败和未执行结果。
+```
+
+iOS 对应使用 `to-ios-test-script` 和 `to-ios-test`。
+
+## Skills 导航
+
+Android 与 iOS 各有对应 Skill，覆盖接入、探查、测试和复用。
 
 | 能力 | 何时使用 | Android / iOS Skill |
 | --- | --- | --- |
 | **Observable** | 可选的编码辅助，以极低侵入性复用或按需补充日志、UI 标识与运行时入口，让 App 更好地配合 Mobile Easy Use | [android-observable-code](../skills/android-observable-code/SKILL.md) / [ios-observable-code](../skills/ios-observable-code/SKILL.md) |
 | **Integrate** | 首次接入或维护调试集成，获取 Runtime 产物、配置工程，并确定兼容 MCP 版本；iOS 还包含 Runner 签名准备与修复 | [to-android-integrate](../skills/to-android-integrate/SKILL.md) / [to-ios-integrate](../skills/to-ios-integrate/SKILL.md) |
 | **Probe** | 用自然语言发起一次运行时调查，完成探查生成、执行及证据分析 | [to-android-probe](../skills/to-android-probe/SKILL.md) / [to-ios-probe](../skills/to-ios-probe/SKILL.md) |
-| **Presets** | 把常用页面导航、业务操作和状态读取沉淀为带类型声明的可复用能力，构建后供后续 Probe 使用 | [to-android-presets](../skills/to-android-presets/SKILL.md) / [to-ios-presets](../skills/to-ios-presets/SKILL.md) |
+| **Test** | 根据明确预期生成测试文件；执行已有用例并汇总结果 | [生成 Android 测试](../skills/to-android-test-script/SKILL.md) / [iOS 测试](../skills/to-ios-test-script/SKILL.md)；[执行 Android 测试](../skills/to-android-test/SKILL.md) / [iOS 测试](../skills/to-ios-test/SKILL.md) |
+| **Presets** | 把常用页面导航、业务操作和状态读取沉淀为带类型声明的可复用能力，构建后供 Probe 和 Test 使用 | [to-android-presets](../skills/to-android-presets/SKILL.md) / [to-ios-presets](../skills/to-ios-presets/SKILL.md) |
 
 Probe 内部组合对应平台的 `to-*-probe-script` 和 `to-*-run`，分别负责生成与执行；日常使用从 Probe 入口提出问题即可。
 
@@ -226,4 +222,4 @@ npm 包名：`@agent-easy-use/mobile-easy-use`。
 
 ## 反馈
 
-完成首次探查后，欢迎[分享你调查的问题和接入过程中遇到的卡点](https://github.com/agent-easy-use/mobile-easy-use/issues/new?template=first-probe.yml)。如果 Mobile Easy Use 对你的开发有帮助，可以 Star 收藏项目。
+使用探查或测试后，欢迎[分享使用场景和遇到的问题](https://github.com/agent-easy-use/mobile-easy-use/issues)。如果 Mobile Easy Use 对你的开发有帮助，可以 Star 收藏项目。
