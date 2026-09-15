@@ -1,9 +1,13 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { IOS_CONTROLLER_ACTIONS } from './ios-controller.js';
+import { compareScreenshot } from './compare-screenshot.js';
 
 const CONTROLLER_ACTIONS = new Map([
   ['file.write', writeFileAction],
+  ['screenshot.compare', ({ actualPath, baselinePath, options }) => (
+    compareScreenshot(actualPath, baselinePath, options)
+  )],
   ...IOS_CONTROLLER_ACTIONS,
 ]);
 
