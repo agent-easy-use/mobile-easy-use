@@ -69,7 +69,7 @@ describe('Counter button', () => {
     // Screenshot
     await expect(button).toHaveElementScreenShot('baselines/first-clicked.jpg');
 
-    // Native business state
+    // Native business state: access native types and read fields or call getters
     const count = await AndroidExp.runOnMainThread(() => Java.use(
       'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
     ).getInstance().getClickCount());

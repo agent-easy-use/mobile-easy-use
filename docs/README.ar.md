@@ -69,7 +69,7 @@ describe('Counter button', () => {
     // لقطة الشاشة
     await expect(button).toHaveElementScreenShot('baselines/first-clicked.jpg');
 
-    // حالة الأعمال الداخلية
+    // حالة الأعمال الداخلية: الوصول إلى الأنواع الأصلية وقراءة الحقول أو استدعاء دوال القراءة
     const count = await AndroidExp.runOnMainThread(() => Java.use(
       'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
     ).getInstance().getClickCount());

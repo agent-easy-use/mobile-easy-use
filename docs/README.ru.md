@@ -69,7 +69,7 @@ describe('Counter button', () => {
     // Снимок экрана
     await expect(button).toHaveElementScreenShot('baselines/first-clicked.jpg');
 
-    // Внутреннее бизнес-состояние
+    // Внутреннее бизнес-состояние: доступ к нативным типам, чтение полей или вызов геттеров
     const count = await AndroidExp.runOnMainThread(() => Java.use(
       'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
     ).getInstance().getClickCount());

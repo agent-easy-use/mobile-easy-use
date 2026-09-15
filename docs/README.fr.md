@@ -69,7 +69,7 @@ describe('Counter button', () => {
     // Capture
     await expect(button).toHaveElementScreenShot('baselines/first-clicked.jpg');
 
-    // État métier natif
+    // État métier natif : accéder aux types natifs, lire les champs ou appeler les getters
     const count = await AndroidExp.runOnMainThread(() => Java.use(
       'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
     ).getInstance().getClickCount());

@@ -69,7 +69,7 @@ describe('Counter button', () => {
     // 截图
     await expect(button).toHaveElementScreenShot('baselines/first-clicked.jpg');
 
-    // 原生业务状态
+    // 原生业务状态：访问原生类型，读取字段或调用 getter
     const count = await AndroidExp.runOnMainThread(() => Java.use(
       'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
     ).getInstance().getClickCount());

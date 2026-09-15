@@ -69,7 +69,7 @@ describe('Counter button', () => {
     // Captura
     await expect(button).toHaveElementScreenShot('baselines/first-clicked.jpg');
 
-    // Estado de negocio nativo
+    // Estado de negocio nativo: acceder a tipos nativos y leer campos o llamar a getters
     const count = await AndroidExp.runOnMainThread(() => Java.use(
       'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
     ).getInstance().getClickCount());
