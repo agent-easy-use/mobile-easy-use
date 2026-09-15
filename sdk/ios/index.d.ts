@@ -39,10 +39,14 @@ declare global {
     | readonly IOSJsonValue[]
     | { readonly [key: string]: IOSJsonValue };
 
-  /** Non-empty identifier/label value, matched exactly and case-sensitively. No JS getters or text:: steps. */
+  /** Non-empty values, matched case-sensitively. identifier/label match exactly.
+   * class:: matches a full runtime class name, including subclasses.
+   * No JS getters or text:: steps.
+   */
   type IOSUiPathStep =
     | `identifier::${string}`
-    | `label::${string}`;
+    | `label::${string}`
+    | `class::${string}`;
 
   /** Non-empty path. ui.find/wait/screenshot/evidence/input share the native UIView query.
    * Each step selects the first match in the preceding subtree, including its root; no backtracking.

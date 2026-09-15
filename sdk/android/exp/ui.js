@@ -55,7 +55,7 @@ function parseUiPathStep(step) {
     return { type: 'getter', value: step };
   }
   if (typeof step !== 'string') {
-    throw new Error('UI path steps must be id::, text::, tag::, or a View getter');
+    throw new Error('UI path steps must be id::, text::, tag::, class::, or a View getter');
   }
   const separatorIndex = step.indexOf('::');
   if (separatorIndex <= 0) {
@@ -63,7 +63,7 @@ function parseUiPathStep(step) {
   }
   const type = step.slice(0, separatorIndex);
   const value = step.slice(separatorIndex + 2);
-  if (!['id', 'text', 'tag'].includes(type) || value.length === 0) {
+  if (!['id', 'text', 'tag', 'class'].includes(type) || value.length === 0) {
     throw new Error(`Invalid UI path step: ${step}`);
   }
   if (type === 'id' && (!Number.isInteger(Number(value)) || Number(value) <= 0)) {
@@ -130,6 +130,9 @@ function findUiView(target) {
       } else if (step.type === 'tag') {
         const viewRoot = Java.cast(root, View);
         match = viewRoot.findViewWithTag(StringClass.$new(step.value));
+      } else if (step.type === 'class') {
+        const query = Java.use('com.agenteasyuse.mobileeasyuse.internal.MEUUIQuery');
+        match = query.findViewByClassName(Java.cast(root, View), step.value);
       } else {
         match = step.value(wrapJavaValue(Java.cast(root, Java.use(root.$className))));
         match = unwrapJavaValue(match);

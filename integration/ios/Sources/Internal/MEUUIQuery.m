@@ -47,20 +47,15 @@ static NSUInteger const MEUUIQueryMaximumViews = 10000;
     return nil;
 }
 
-+ (BOOL)matchesView:(UIView *)view step:(NSString *)step {
-    NSRange separator = [step rangeOfString:@"::"];
-    if (separator.location == NSNotFound || separator.location == 0
-        || separator.location + separator.length >= step.length) {
-        return NO;
-    }
-
-    NSString *kind = [step substringToIndex:separator.location];
-    NSString *value = [step substringFromIndex:separator.location + separator.length];
++ (BOOL)matchesView:(UIView *)view kind:(NSString *)kind value:(NSString *)value targetClass:(Class)targetClass {
     if ([kind isEqualToString:@"identifier"]) {
         return [view.accessibilityIdentifier isEqualToString:value];
     }
     if ([kind isEqualToString:@"label"]) {
         return [view.accessibilityLabel isEqualToString:value];
+    }
+    if ([kind isEqualToString:@"class"]) {
+        return [view isKindOfClass:targetClass];
     }
     return NO;
 }
@@ -68,6 +63,20 @@ static NSUInteger const MEUUIQueryMaximumViews = 10000;
 + (nullable UIView *)firstDescendantOfView:(UIView *)root matchingStep:(NSString *)step {
     if (root == nil) {
         return nil;
+    }
+
+    // Parse and resolve once per step, not once per visited View.
+    NSRange separator = [step rangeOfString:@"::"];
+    if (separator.location == NSNotFound || separator.location == 0
+        || separator.location + separator.length >= step.length) {
+        return nil;
+    }
+    NSString *kind = [step substringToIndex:separator.location];
+    NSString *value = [step substringFromIndex:separator.location + separator.length];
+    Class targetClass = Nil;
+    if ([kind isEqualToString:@"class"]) {
+        targetClass = NSClassFromString(value);
+        if (targetClass == Nil) return nil;
     }
 
     // Use a stack and push children in reverse order so that subviews[0] is
@@ -89,7 +98,7 @@ static NSUInteger const MEUUIQueryMaximumViews = 10000;
             return nil;
         }
 
-        if ([self matchesView:view step:step]) {
+        if ([self matchesView:view kind:kind value:value targetClass:targetClass]) {
             return view;
         }
         NSArray<UIView *> *subviews = view.subviews;

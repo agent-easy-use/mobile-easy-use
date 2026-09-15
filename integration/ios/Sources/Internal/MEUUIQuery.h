@@ -7,6 +7,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// Each path item is a string in one of these forms:
 ///   identifier::<accessibilityIdentifier>
 ///   label::<accessibilityLabel>
+///   class::<full runtime class name> (includes subclasses; case-sensitive)
 ///
 /// The first item is resolved below the focused application window. Every
 /// following item is resolved below the UIView returned by the previous item.

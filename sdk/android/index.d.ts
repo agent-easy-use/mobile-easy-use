@@ -85,14 +85,16 @@ declare global {
     getRootViews(): Java.Wrapper[];
   }
 
-  /** id:: requires a positive integer ID; text:: and tag:: require non-empty values.
+  /** id:: requires a positive integer ID; text::, tag:: and class:: require non-empty values.
    * text:: uses Android's text search (may match substrings); tag:: matches a String tag.
+   * class:: matches a full runtime class name case-sensitively, including subclasses.
    * Getters must synchronously return a View or null/undefined; Promises are unsupported.
    */
   type AndroidUiPathStep =
     | `id::${number}`
     | `text::${string}`
     | `tag::${string}`
+    | `class::${string}`
     | ((root: Java.Wrapper) => Java.Wrapper | null | undefined);
 
   /** Non-empty path. Each search includes the preceding View itself and its descendants. */
@@ -117,7 +119,7 @@ declare global {
      */
     find(resourceId: number): Java.Wrapper | null;
     /**
-     * Find a View by applying each native Android id/text/tag/getter step below the preceding View.
+     * Find a View by applying each id/text/tag/class/getter step below the preceding View, without backtracking.
      * The first getter receives the focused Window root. A text step uses the first View returned by
      * View.findViewsWithText() when multiple Views match. Each getter receives the preceding View
      * wrapped as its actual runtime class, and the returned Wrapper preserves the final runtime class.

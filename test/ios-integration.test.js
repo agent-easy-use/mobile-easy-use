@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -34,10 +35,13 @@ test('iOS integration keeps the fixed runtime listen contract', async () => {
   assert.equal(config.code_signing, 'optional');
 });
 
-test('iOS simulator runtime stays pinned before the iOS 26 unwind-broker regression', async () => {
-  const runtime = await readFile(
-    'integration/ios/Binaries/iphonesimulator/MobileEasyUseRuntime.dylib',
-  );
+test('iOS simulator runtime stays pinned before the iOS 26 unwind-broker regression', async (t) => {
+  const runtimePath = 'integration/ios/Binaries/iphonesimulator/MobileEasyUseRuntime.dylib';
+  if (!existsSync(runtimePath)) {
+    t.skip('Restore the iOS binaries from GitHub Release to validate the Runtime artifact');
+    return;
+  }
+  const runtime = await readFile(runtimePath);
   const digest = createHash('sha256').update(runtime).digest('hex');
 
   assert.equal(
@@ -77,7 +81,13 @@ test('iOS embed hook rejects invalid configuration arguments', () => {
   assert.match(unknown.stderr, /unknown argument/);
 });
 
-test('iOS bridge dylibs contain native APIs without linking the Frida runtime', () => {
+test('iOS bridge dylibs contain native APIs without linking the Frida runtime', (t) => {
+  if (process.platform !== 'darwin' || !['iphoneos', 'iphonesimulator'].every(
+    platform => existsSync(`integration/ios/Binaries/${platform}/MobileEasyUse.dylib`),
+  )) {
+    t.skip('macOS and locally built or restored iOS bridge binaries are required');
+    return;
+  }
   for (const platform of ['iphoneos', 'iphonesimulator']) {
     const bridge = `integration/ios/Binaries/${platform}/MobileEasyUse.dylib`;
     const dependencies = spawnSync('otool', ['-L', bridge], { encoding: 'utf8' });

@@ -60,11 +60,16 @@ test('Android generation contract accepts supported targets and rejects misleadi
   check('android', `export {};
     const platform: 'android' = runtimeStatus().platform;
     const path = ['text::Submit'] as const;
+    const classPath = ['class::android.widget.TextView'] as const;
+    AndroidExp.ui.find(classPath);
+    AndroidExp.wait.ui(classPath, 'exist');
+    AndroidExp.screenshot({ targets: { title: classPath } });
+    Probe.evidence.withUiEvidence(() => {}, 'class', { title: classPath });
     const hook: ProbeChainMethodHook = {
       target: 'Flags', method: 'enabled', argumentTypes: [] as const,
       capture: { args: call => call.argumentTypes, timing: true, memory: { metrics: ['javaHeapUsedBytes'] } },
     };
-    for (const target of [R.id.submit, path, Java.use('android.view.View').$new(), {x: 1, y: 2}] as const) {
+    for (const target of [R.id.submit, path, classPath, Java.use('android.view.View').$new(), {x: 1, y: 2}] as const) {
       await AndroidExp.input.click(target);
       await AndroidExp.input.longPress(target);
       await AndroidExp.input.input(target, 'hello');
@@ -101,6 +106,12 @@ test('iOS generation contract narrows actions and requires native override retur
   check('ios', `export {};
     const platform: 'ios' = runtimeStatus().platform;
     const clicked = await IOS.input.click('submit');
+    const classPath = ['identifier::form', 'class::UIButton'] as const;
+    IOS.ui.find(classPath);
+    IOS.wait.ui(classPath, 'exist');
+    IOS.input.click(classPath);
+    IOS.screenshot({ targets: { submit: classPath } });
+    Probe.evidence.withUiEvidence(() => {}, 'class', { submit: classPath });
     const action: 'click' = clicked.action;
     const entered = await IOS.input.input('query', 'hello');
     if (entered.ok) { const count: number = entered.textLength; }

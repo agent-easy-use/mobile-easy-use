@@ -119,6 +119,57 @@ function createFixture() {
     scheduled: () => scheduled, onMain: () => onMain };
 }
 
+test('iOS class paths reach the native query through find, wait, screenshot and evidence', async () => {
+  const fixture = createFixture();
+  const path = ['identifier::form', 'class::UIButton'];
+  const view = { $className: 'CustomButton' };
+  fixture.queryState.view = view;
+  const stateCalls = [];
+  fixture.ObjC.classes.MEUUIQuery.stateForUIViewPath_ = nativePath => {
+    stateCalls.push([...nativePath.values]);
+    return { objectForKey_: key => key === 'exist' };
+  };
+  fixture.ObjC.Block = function Block(options) { Object.assign(this, options); };
+  fixture.ObjC.classes.NSMutableDictionary = { dictionary: () => ({
+    setObject_forKey_(target, key) { assert.equal(target, view); assert.equal(key, 'button'); },
+  }) };
+  let captures = 0;
+  fixture.ObjC.classes.MEUScreenshot = {
+    captureWindowWithTargets_includeWindow_quality_completion_() {
+      captures += 1;
+      throw new Error('test reached native capture');
+    },
+  };
+  const lines = [];
+  fixture.context.console = { log: line => lines.push(line), warn: () => {} };
+  await loadSdk(fixture);
+  assert.equal(fixture.context.IOS.ui.find(path), view);
+  assert.deepEqual(fixture.queryCalls[0].steps, path);
+  assert.equal((await fixture.context.IOS.wait.ui(path, 'exist')).ok, true);
+  assert.deepEqual(stateCalls, [path]);
+  const shot = await fixture.context.IOS.screenshot({ targets: { button: path } });
+  assert.match(shot.error.message, /test reached native capture/);
+  assert.equal(captures, 1);
+  await fixture.context.Probe.evidence.withUiEvidence(() => {}, 'class target', { button: path });
+  const records = lines.filter(line => line.startsWith('@@MOBILE_EVIDENCE@@'))
+    .map(line => JSON.parse(line.slice('@@MOBILE_EVIDENCE@@'.length)))
+    .filter(record => record.category === 'ui');
+  assert.equal(records.length, 2);
+  assert.ok(records.every(record => record.payload.className === 'CustomButton'));
+  assert.ok(fixture.queryCalls.every(call => JSON.stringify(call.steps) === JSON.stringify(path)));
+  fixture.queryState.view = null;
+  assert.equal(fixture.context.IOS.ui.find(['class::Missing']), null);
+  assert.throws(() => fixture.context.IOS.ui.find(['class::']), /Invalid UI path/);
+});
+
+test('iOS plain strings remain identifiers even when they start with class::', async () => {
+  const fixture = createFixture();
+  await loadSdk(fixture);
+  assert.equal(fixture.context.IOS.ui.find('class::UIButton'), null);
+  assert.deepEqual(fixture.queryCalls[0].steps, ['identifier::class::UIButton']);
+  assert.equal(fixture.queryCalls.length, 1);
+});
+
 test('IOS exposes runOnMainThread with value and failure propagation', async () => {
   const fixture = createFixture();
   await loadSdk(fixture);
@@ -231,7 +282,7 @@ test('all target types become screen points in the App without sending paths to 
 
   await Promise.all([
     fixture.context.IOS.input.click('login'),
-    fixture.context.IOS.input.click(['identifier::form', 'label::Login']),
+    fixture.context.IOS.input.click(['identifier::form', 'class::UIButton', 'label::Login']),
     fixture.context.IOS.input.click({ x: 120, y: 360 }),
     fixture.context.IOS.input.click(view),
   ]);
@@ -257,7 +308,7 @@ test('all target types become screen points in the App without sending paths to 
   );
   assert.deepEqual(fixture.queryCalls, [
     { steps: ['identifier::login'], onMain: true },
-    { steps: ['identifier::form', 'label::Login'], onMain: true },
+    { steps: ['identifier::form', 'class::UIButton', 'label::Login'], onMain: true },
   ]);
   assert.equal(
     fixture.controllerRequests.every((request) => (
@@ -273,8 +324,8 @@ test('all target types become screen points in the App without sending paths to 
     assert.equal(Object.hasOwn(request.payload.command, 'context'), false);
   }
   assert.throws(
-    () => fixture.context.IOS.ui.find(['class::UIButton']),
-    /Unsupported native UI path step: class/,
+    () => fixture.context.IOS.ui.find(['unknown::UIButton']),
+    /Unsupported native UI path step: unknown/,
   );
 });
 
@@ -338,7 +389,7 @@ test('invalid and missing App targets fail before any Runner request', async () 
   const results = await Promise.all([
     fixture.context.IOS.input.click('missing'),
     fixture.context.IOS.input.click([]),
-    fixture.context.IOS.input.click(['class::UIButton']),
+    fixture.context.IOS.input.click(['unknown::UIButton']),
     fixture.context.IOS.input.click(''),
     fixture.context.IOS.input.click({ x: 9999, y: 100 }),
     fixture.context.IOS.input.click({ x: -1, y: 100 }),

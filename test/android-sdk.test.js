@@ -302,7 +302,44 @@ test('AndroidExp.ui.find resolves native id, text, tag, and getter path steps', 
     /getter must return an android\.view\.View/,
   );
   assert.throws(() => fixture.context.AndroidExp.ui.find(0), /positive integer/);
-  assert.throws(() => fixture.context.AndroidExp.ui.find(['class::android.view.View']), /Invalid UI path/);
+  assert.throws(() => fixture.context.AndroidExp.ui.find(['unknown::android.view.View']), /Invalid UI path/);
+});
+
+test('class paths delegate each step to native Java and preserve runtime wrappers', async () => {
+  const fixture = createFixture({ screenshotArtifactRecords: [
+    { scope: 'element', uiKey: 'button' }, { scope: 'window' },
+  ] });
+  const calls = [];
+  const use = fixture.Java.use;
+  fixture.Java.use = name => name === 'com.agenteasyuse.mobileeasyuse.internal.MEUUIQuery'
+    ? { findViewByClassName(root, className) {
+      calls.push({ root, className });
+      return className === 'android.widget.TextView' ? fixture.button : null;
+    } } : use(name);
+  await loadSdk(fixture);
+  const path = ['class::android.widget.TextView'];
+  assert.equal(fixture.context.AndroidExp.ui.find(path).$raw, fixture.button);
+  assert.deepEqual(calls, [{ root: fixture.rootView, className: 'android.widget.TextView' }]);
+  assert.equal(fixture.context.AndroidExp.ui.find([
+    `id::${fixture.context.R.id.test_button}`, ...path, root => root,
+  ]).$raw, fixture.button);
+  assert.equal(calls.at(-1).root, fixture.button);
+  assert.equal(fixture.context.AndroidExp.ui.find(['class::missing.Type', () => {
+    assert.fail('must stop on the first miss');
+  }]), null);
+  assert.throws(() => fixture.context.AndroidExp.ui.find(['class::']), /Invalid UI path/);
+
+  assert.equal((await fixture.context.AndroidExp.wait.ui(path, 'visible')).ok, true);
+  assert.equal((await fixture.context.AndroidExp.input.click(path)).ok, true);
+  const shot = await fixture.context.AndroidExp.screenshot({ targets: { button: path } });
+  assert.equal(shot.ok, true);
+  assert.ok(shot.targets.button);
+  const lines = [];
+  fixture.context.console = { log: line => lines.push(line), warn: () => {} };
+  await fixture.context.Probe.evidence.withUiEvidence(() => {}, 'class target', { button: path });
+  const records = evidenceRecords(lines).filter(record => record.category === 'ui');
+  assert.equal(records.length, 2);
+  assert.ok(records.every(record => record.payload.value.exist));
 });
 
 test('AndroidExp.ui.find casts native roots to View and getter inputs to runtime classes', async () => {
@@ -781,7 +818,7 @@ test('withUiEvidence records keyed UI paths before and after an action', async (
     () => fixture.context.Probe.evidence.withUiEvidence(
       () => {},
       'Invalid UI',
-      { invalid: ['class::android.view.View'] },
+      { invalid: ['unknown::android.view.View'] },
     ),
     /Invalid UI path/,
   );
