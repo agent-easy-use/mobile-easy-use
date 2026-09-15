@@ -1,16 +1,20 @@
 {
   "name": "@agent-easy-use/mobile-easy-use",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Agent-oriented Android and iOS runtime automation through MCP.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-easy-use/mobile-easy-use.git"
+  },
+  "homepage": "https://github.com/agent-easy-use/mobile-easy-use",
   "type": "module",
   "files": [
     "src",
     "sdk/dist",
     "sdk/android/index.d.ts",
     "sdk/ios/index.d.ts",
-    "templates",
-    "README.md",
-    "README.zh.md"
+    "README.md"
   ],
   "bin": {
     "mobile-easy-use": "src/index.js"
@@ -27,6 +31,7 @@
     "test": "node --experimental-vm-modules --test"
   },
   "dependencies": {
+    "@types/frida-gum": "18.7.2",
     "frida": "17.16.4",
     "frida-java-bridge": "^7.0.12",
     "frida-objc-bridge": "8.0.6",
@@ -41,7 +46,6 @@
     "access": "public"
   },
   "devDependencies": {
-    "@types/frida-gum": "^18.7.2",
     "frida-compile": "^16.4.1"
   }
 }

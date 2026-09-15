@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -34,10 +35,13 @@ test('iOS integration keeps the fixed runtime listen contract', async () => {
   assert.equal(config.code_signing, 'optional');
 });
 
-test('iOS simulator runtime stays pinned before the iOS 26 unwind-broker regression', async () => {
-  const runtime = await readFile(
-    'integration/ios/Binaries/iphonesimulator/MobileEasyUseRuntime.dylib',
-  );
+test('iOS simulator runtime stays pinned before the iOS 26 unwind-broker regression', async (t) => {
+  const runtimePath = 'integration/ios/Binaries/iphonesimulator/MobileEasyUseRuntime.dylib';
+  if (!existsSync(runtimePath)) {
+    t.skip('Restore the iOS binaries from GitHub Release to validate the Runtime artifact');
+    return;
+  }
+  const runtime = await readFile(runtimePath);
   const digest = createHash('sha256').update(runtime).digest('hex');
 
   assert.equal(
@@ -77,7 +81,13 @@ test('iOS embed hook rejects invalid configuration arguments', () => {
   assert.match(unknown.stderr, /unknown argument/);
 });
 
-test('iOS bridge dylibs contain native APIs without linking the Frida runtime', () => {
+test('iOS bridge dylibs contain native APIs without linking the Frida runtime', (t) => {
+  if (process.platform !== 'darwin' || !['iphoneos', 'iphonesimulator'].every(
+    platform => existsSync(`integration/ios/Binaries/${platform}/MobileEasyUse.dylib`),
+  )) {
+    t.skip('macOS and locally built or restored iOS bridge binaries are required');
+    return;
+  }
   for (const platform of ['iphoneos', 'iphonesimulator']) {
     const bridge = `integration/ios/Binaries/${platform}/MobileEasyUse.dylib`;
     const dependencies = spawnSync('otool', ['-L', bridge], { encoding: 'utf8' });
@@ -150,7 +160,11 @@ if [[ "$1" == "devicectl" ]]; then
     exit 0
   fi
   if [[ " $command " == *" device process launch "* && " $command " == *" com.example.TestApp "* ]]; then
-    printf '{"result":{"process":{"processIdentifier":2468,"executable":"file:///TestApp"}}}' > "$json_output"
+    printf '{"result":{"process":{"processIdentifier":2468,"executable":"file:///TestApp/TestApp"}}}' > "$json_output"
+    exit 0
+  fi
+  if [[ " $command " == *" device info apps "* ]]; then
+    printf '{"result":{"apps":[{"url":"file:///TestApp/"}]}}' > "$json_output"
     exit 0
   fi
   if [[ " $command " == *" device info ddiServices "* ]]; then
@@ -158,7 +172,7 @@ if [[ "$1" == "devicectl" ]]; then
     exit 0
   fi
   if [[ " $command " == *" device info processes "* ]]; then
-    printf '{"result":{"runningProcesses":[{"processIdentifier":2468,"executable":"file:///TestApp"}]}}' > "$json_output"
+    printf '{"result":{"runningProcesses":[{"processIdentifier":2468,"executable":"file:///TestApp/TestApp"}]}}' > "$json_output"
     exit 0
   fi
   echo "unexpected CoreDevice command: $command" >&2
@@ -222,14 +236,8 @@ test('iOS Loader rejects the removed --process option', () => {
 test('iOS Runner help does not require an installed Runner artifact', () => {
   const result = spawnSync(
     iosRunnerScriptPath,
-    ['--help'],
-    {
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        MOBILE_EASY_USE_IOS_RUNNER_ROOT: '/path/that/does/not/exist',
-      },
-    },
+    ['--runner-root', '/path/that/does/not/exist', '--help'],
+    { encoding: 'utf8' },
   );
 
   assert.equal(result.status, 0, result.stderr);
@@ -240,19 +248,13 @@ test('iOS Runner rejects an unavailable explicit artifact root', () => {
   const missingRoot = `/path/that/does/not/exist-${process.pid}`;
   const result = spawnSync(
     iosRunnerScriptPath,
-    ['--simulator', 'SIMULATOR-UDID'],
-    {
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        MOBILE_EASY_USE_IOS_RUNNER_ROOT: missingRoot,
-      },
-    },
+    ['--simulator', 'SIMULATOR-UDID', '--runner-root', missingRoot],
+    { encoding: 'utf8' },
   );
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, new RegExp(`unavailable at '${missingRoot}'`));
-  assert.match(result.stderr, /MOBILE_EASY_USE_IOS_RUNNER_ROOT/);
+  assert.match(result.stderr, /App Release version/);
 });
 
 test('iOS Runner requires an explicit artifact root from the Host', () => {
@@ -264,9 +266,7 @@ test('iOS Runner requires an explicit artifact root from the Host', () => {
       encoding: 'utf8',
       env: {
         ...process.env,
-        HOME: '/different/home',
         MEU_HOME: meuHome,
-        MOBILE_EASY_USE_IOS_RUNNER_ROOT: '',
       },
     },
   );
@@ -276,7 +276,7 @@ test('iOS Runner requires an explicit artifact root from the Host', () => {
   assert.match(result.stderr, /Pass --runner-root from the Host/);
 });
 
-test('iOS Loader retries transient CoreDevice launch-resolution timeouts', async (t) => {
+test('iOS Loader reports a cold-launch timeout without retrying or attaching', async (t) => {
   if (process.platform !== 'darwin') {
     t.skip('the LLDB wrapper is macOS-only');
     return;
@@ -324,12 +324,16 @@ if [[ "$1" == "devicectl" ]]; then
     printf '{"result":{"identifier":"CORE-DEVICE-ID","hardwareProperties":{"udid":"HARDWARE-UDID"}}}' > "$json_output"
     exit 0
   fi
+  if [[ " $command " == *" device info apps "* ]]; then
+    printf '{"result":{"apps":[{"url":"file:///TestApp/"}]}}' > "$json_output"
+    exit 0
+  fi
   if [[ " $command " == *" device info ddiServices "* ]]; then
     printf '{"result":{"isUsable":true}}' > "$json_output"
     exit 0
   fi
   if [[ " $command " == *" device info processes "* ]]; then
-    printf '{"result":{"runningProcesses":[{"processIdentifier":2468,"executable":"file:///TestApp"}]}}' > "$json_output"
+    printf '{"result":{"runningProcesses":[]}}' > "$json_output"
     exit 0
   fi
   [[ " $command " == *" device process launch "* ]] || exit 2
@@ -376,11 +380,11 @@ printf '{"ok":true,"pid":2468,"attachState":"stopped","images":{"MobileEasyUse.d
     },
   );
 
-  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-  assert.equal(await readFile(attemptFile, 'utf8'), '3');
-  assert.match(result.stderr, /attempt 1\/3 timed out; retrying/);
-  assert.match(result.stderr, /attempt 2\/3 timed out; retrying/);
-  assert.match(result.stdout, /"MobileEasyUseRuntime\.dylib"/);
+  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.equal(await readFile(attemptFile, 'utf8'), '1');
+  assert.match(result.stderr, /Failed to launch .* in a stopped state/);
+  assert.match(result.stderr, /Timed out waiting for CoreDeviceService/);
+  assert.doesNotMatch(result.stdout, /Starting LLDB|"ok":true/);
 });
 
 test('iOS Loader dynamically loads a booted simulator after dyld startup', async (t) => {

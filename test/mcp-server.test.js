@@ -37,6 +37,7 @@ test('initialize and tools/list expose a minimal MCP server', async () => {
   const listed = await server.handle({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
   assert.deepEqual(listed.result.tools, toolDefinitions);
   assert.deepEqual(toolDefinitions.map((tool) => tool.name), [
+    'get_sdk_declarations',
     'connect',
     'disconnect',
     'call_function',
@@ -221,7 +222,7 @@ test('eval_script and call_function failures preserve stack and evidence', async
   const failure = new Error('Failed to evaluate script: selector not found');
   failure.stack = 'Error: selector not found\n    at inspect (/eval/source.js:8:11)';
   failure.evidence = [{
-    actionDescription: 'Inspect search state',
+    actionDescription: 'Inspect form state',
     evidencePath: '/tmp/evidence.json',
   }];
   const server = serverWithConnection(connectionFixture({
@@ -260,7 +261,7 @@ test('eval_script and call_function failures preserve stack and evidence', async
         stack: 'Error: selector not found\n    at inspect (/eval/source.js:8:11)',
       },
       evidence: [{
-        actionDescription: 'Inspect search state',
+        actionDescription: 'Inspect form state',
         evidencePath: '/tmp/evidence.json',
       }],
     });

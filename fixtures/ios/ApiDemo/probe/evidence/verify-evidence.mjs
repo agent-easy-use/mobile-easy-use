@@ -1,8 +1,8 @@
-import { verifyOverrideComposition } from '../../../../common/override-composition-contract.mjs';
-import { verifyUiState } from '../../../../common/ui-state-contract.mjs';
-import { verifyStateRuntime, verifyMethodMatching } from '../../../../common/state-runtime-contracts.mjs';
-import { verifyChainContext } from '../../../../common/chain-context-contracts.mjs';
-import { verifyCompleteCapture } from '../../../../common/chain-capture-contracts.mjs';
+import { verifyOverrideComposition } from './override-composition-contract.mjs';
+import { verifyUiState, verifyClassUi } from './ui-state-contract.mjs';
+import { verifyStateRuntime, verifyMethodMatching } from './state-runtime-contracts.mjs';
+import { verifyChainContext } from './chain-context-contracts.mjs';
+import { verifyCompleteCapture } from './chain-capture-contracts.mjs';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
@@ -104,13 +104,29 @@ function verifyChainCapture(document) {
   return { contract: 'chain-method-log-capture-v3', methodRecords: 2 };
 }
 
+function verifyRuntimeTargetResolution(document) {
+  requireEvidence(document.actionDescription === 'chain-runtime-target-resolution-v1', 'actionDescription');
+  requireEmpty(document.state, 'state');
+  requireEmpty(document.ui, 'ui');
+  const methods = document.chain ?? [];
+  requireEvidence(methods.length === 2, 'exactly two method records');
+  requireEvidence(methods.every(item => item.type === 'method'
+    && item.className === 'APIFindClassModuleOne.APIFindClassAmbiguousFixture'
+    && item.selector === '- onlyFirstValue'), 'resolved Runtime class and selector');
+  requireEvidence(methods.map(item => item.phase).join(',') === 'enter,leave', 'method phases');
+  requireEvidence(methods[1].capture?.result === 41, 'captured native result');
+  return {contract: 'chain-runtime-target-resolution-v1', methodRecords: 2};
+}
+
 function verifyEvidence(contract, document) {
+  if (contract === 'class-ui-v1') return verifyClassUi('ios', document);
   if (contract === 'override-composition-v1') return verifyOverrideComposition('ios', document);
   if (contract === 'ui-state-v1') return verifyUiState('ios', document);
   if (contract.startsWith('state-runtime-')) return verifyStateRuntime(contract, document);
   if (contract.startsWith('chain-method-match-')) return verifyMethodMatching(contract, document);
   if (contract.startsWith('chain-context-')) return verifyChainContext('ios', contract, document);
   if (contract.startsWith('chain-complete-')) return verifyCompleteCapture('ios', contract, document);
+  if (contract === 'chain-runtime-target-resolution-v1') return verifyRuntimeTargetResolution(document);
   if (contract === 'chain-method-log-capture-v3') return verifyChainCapture(document);
   if (contract === 'state-click-v2') return verifyState(document);
   if (contract === 'ui-visibility-v4') return verifyUi(document);

@@ -8,10 +8,10 @@ Resolve every class and selector from source or runtime inspection. Every select
 
 ```javascript
 const methodHooks = [{
-  target: 'SearchViewController',
+  target: 'FormViewController',
   selector: '- submit',
   filter(invocation) {
-    return invocation.receiver.$className === 'SearchViewController';
+    return invocation.receiver.$className === 'FormViewController';
   },
 }];
 ```
@@ -31,10 +31,10 @@ Method and log events always include `threadName` (null when unavailable);
 return Probe.evidence.withChainEvidence(
   async () => {
     await IOS.input.click('submit');
-    await waitForSearchCompleted();
+    await waitForSubmissionCompleted();
   },
-  'Submit the search form',
-  new Set(['Search', 'Network']),
+  'Submit the form',
+  new Set(['Form', 'Network']),
   methodHooks,
 );
 ```

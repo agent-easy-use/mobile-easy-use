@@ -14,7 +14,7 @@ Before editing the target project, run `node scripts/ensure-artifacts.mjs`, reso
 
 If the JSON result contains `actionRequired: "confirm-update"`, report the cached and latest Release versions and ask whether to update. Run the script again with `--update` when accepted or `--use-cached` when declined. Preserve a Release already pinned by the project unless the user accepts an upgrade; select it with `--version <version>`. A normal result contains `releaseVersion`, `integrationPath`, `runnerPath`, `minimumMcpVersion`, `maximumMcpVersion`, and an exact `mcpCommand`.
 
-Use `MEU_HOME` to override `~/.meu` and `GITHUB_TOKEN` when authenticated GitHub API access is required. The selected Release's catalog range defines MCP compatibility. Stop and report acquisition, catalog, or checksum errors.
+Use `MEU_HOME` to override `~/.meu`. Artifacts and checksums are downloaded directly from the public GitHub Release; no GitHub token or login is required. The selected Release's catalog range defines MCP compatibility. Stop and report acquisition, catalog, or checksum errors.
 
 Artifact acquisition is cross-platform. Xcode project changes, building, signing, and runtime verification require macOS; on Windows or Linux, finish the download, report both cache paths, and explain that the integration phase must continue on macOS.
 
@@ -112,4 +112,4 @@ If no physical device is available, report Runner signing as pending.
 
 ## Finish
 
-Report the Release version, integration and runner cache paths, compatible MCP range, exact version-pinned MCP command, App target, selected configuration, integration method, changed files, embed command, and signing result (verified team, pending, or not applicable). For requested App/runtime verification, read [references/validation.md](references/validation.md) completely and follow it.
+Report the Release version, integration and runner cache paths, compatible MCP range, exact version-pinned `mcpCommand`, App target, selected configuration, integration method, changed files, embed command, and signing result (verified team, pending, or not applicable). Show `mcpCommand` to the user and ask whether to configure this MCP Server in their Agent. Configure it only with user authorization. For requested App/runtime verification, read [references/validation.md](references/validation.md) completely and follow it.

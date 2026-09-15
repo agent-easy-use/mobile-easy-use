@@ -1,0 +1,6 @@
+interface:
+  display_name: "iOS Observable Code"
+  short_description: "Observability guidelines for iOS App coding"
+  default_prompt: "Use $ios-observable-code while implementing this iOS change to preserve useful logs, stable UI identifiers, and needed runtime entry points."
+policy:
+  allow_implicit_invocation: true

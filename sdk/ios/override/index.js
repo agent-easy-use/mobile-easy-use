@@ -1,6 +1,7 @@
 import ObjC from 'frida-objc-bridge';
 import { errorMessage, safeConsole, safeEmit } from '../common/reporting.js';
 import { requireObjCRuntime } from '../common/main-thread.js';
+import { IOSRuntime } from '../runtime.js';
 import { installField } from './fields.js';
 
 function requireMethodName(selector) {
@@ -29,12 +30,14 @@ function installDefinition(definition) {
   requireObjCRuntime();
   if (definition && Object.hasOwn(definition, 'field')) return installField(definition);
   const target = definition?.target;
-  const className = typeof target === 'string' ? target : target?.$className;
-  const targetClass = typeof target === 'string' ? ObjC.classes[target] : target;
+  const selector = requireMethodName(definition.selector);
+  const targetClass = typeof target === 'string'
+    ? IOSRuntime.findClass(target, [selector])
+    : target;
+  const className = targetClass?.$className ?? target?.$className ?? target;
   if (!targetClass || !className) {
     throw new Error(`Objective-C class not found: ${String(target)}`);
   }
-  const selector = requireMethodName(definition.selector);
   const method = targetClass[selector];
   if (!method?.implementation) {
     throw new Error(`Objective-C method not found: ${className} ${selector}`);

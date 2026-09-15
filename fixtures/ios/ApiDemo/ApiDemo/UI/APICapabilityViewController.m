@@ -1,8 +1,14 @@
 #import "APICapabilityViewController.h"
 #import "APIActivatingView.h"
 #import "APIRejectingInputView.h"
+#import "APIInputWindowFixture.h"
 #import "../Control/APIController.h"
 #import "../State/APISDKFixtureState.h"
+
+@interface APIClassButton : UIButton
+@end
+@implementation APIClassButton
+@end
 
 @interface APICapabilityViewController ()
 @property(nonatomic, copy) NSString *category;
@@ -12,6 +18,7 @@
 @property(nonatomic, strong) UIScrollView *scrollFixture;
 @property(nonatomic, strong) NSLayoutConstraint *resizeWidth;
 @property(nonatomic, strong) NSLayoutConstraint *resizeHeight;
+@property(nonatomic, strong, readwrite) APIInputWindowFixture *inputWindows;
 @end
 
 @implementation APICapabilityViewController
@@ -36,9 +43,14 @@
     [APIController unregisterCapabilityController:self];
 }
 
+- (void)viewDidDisappear:(BOOL)animated {
+    [super viewDidDisappear:animated];
+    [self.inputWindows invalidate];
+}
+
 - (NSArray<NSString *> *)scenarioKeys {
-    if ([self.category isEqualToString:@"ui"]) return @[@"path", @"visibility", @"window"];
-    if ([self.category isEqualToString:@"input"]) return @[@"click", @"text", @"vertical_scroll", @"horizontal_scroll", @"errors", @"long_press"];
+    if ([self.category isEqualToString:@"ui"]) return @[@"path", @"class", @"visibility", @"window"];
+    if ([self.category isEqualToString:@"input"]) return @[@"click", @"text", @"focus_switch", @"vertical_scroll", @"horizontal_scroll", @"errors", @"long_press", @"geometry", @"windows"];
     if ([self.category isEqualToString:@"wait"]) return @[@"immediate", @"delayed_visible", @"delayed_gone", @"attach_detach", @"resize", @"timeout"];
     return @[@"method_log", @"state_evidence", @"ui_evidence", @"chain_evidence"];
 }
@@ -96,6 +108,8 @@
 }
 
 - (UIStackView *)resetViewWithTitle:(NSString *)titleText {
+    [self.inputWindows invalidate];
+    self.inputWindows = nil;
     self.view.backgroundColor = UIColor.systemGroupedBackgroundColor;
     self.view.accessibilityIdentifier = [NSString stringWithFormat:@"api.%@.root", self.category];
     [self.view.subviews makeObjectsPerformSelector:@selector(removeFromSuperview)];
@@ -157,6 +171,17 @@
     self.fixtures[key] = view;
 }
 
+- (APIClassButton *)classButtonWithTitle:(NSString *)title identifier:(NSString *)identifier {
+    APIClassButton *button = [[APIClassButton alloc] init];
+    [button setTitle:title forState:UIControlStateNormal];
+    button.backgroundColor = UIColor.systemBlueColor;
+    button.accessibilityIdentifier = identifier;
+    button.accessibilityLabel = title;
+    button.accessibilityValue = @"count:0";
+    [button addTarget:self action:@selector(classClickFixture:) forControlEvents:UIControlEventTouchUpInside];
+    return button;
+}
+
 - (void)buildUiScenario {
     if ([self.scenario isEqualToString:@"path"]) {
         UIView *parent = [[UIView alloc] init];
@@ -180,6 +205,21 @@
         outside.accessibilityLabel = @"API_FIXED_LABEL";
         [self pinView:outside inContainer:self.fixtureContainer top:240 height:48];
         [self recordFixture:outside key:@"outside"];
+    } else if ([self.scenario isEqualToString:@"class"]) {
+        UIView *scope = [[UIView alloc] init];
+        scope.accessibilityIdentifier = @"api.ui.class.scope";
+        [self pinView:scope inContainer:self.fixtureContainer top:16 height:150];
+        UIView *branch = [[UIView alloc] init];
+        [self pinView:branch inContainer:scope top:0 height:60];
+        [self pinView:[self classButtonWithTitle:@"FIRST" identifier:@"api.ui.class.first"]
+         inContainer:branch top:0 height:48];
+        [self pinView:[self classButtonWithTitle:@"SECOND" identifier:@"api.ui.class.second"]
+         inContainer:scope top:80 height:48];
+        [self pinView:[self buttonWithTitle:@"OUTSIDE" identifier:@"api.ui.class.outside"]
+         inContainer:self.fixtureContainer top:190 height:48];
+        APIClassButton *hidden = [self classButtonWithTitle:@"HIDDEN" identifier:@"api.ui.class.hidden"];
+        hidden.hidden = YES;
+        [self pinView:hidden inContainer:self.fixtureContainer top:260 height:48];
     } else if ([self.scenario isEqualToString:@"visibility"]) {
         UILabel *visible = [self labelWithText:@"Visible" identifier:@"api.ui.visible"];
         visible.accessibilityLabel = @"visible fixture";
@@ -210,8 +250,10 @@
 }
 
 - (void)buildInputScenario {
-    if ([self.scenario isEqualToString:@"click"]) {
-        UIButton *button = [self buttonWithTitle:@"Semantic click" identifier:@"api.input.click"];
+    if ([self.scenario isEqualToString:@"windows"]) {
+        self.inputWindows = [[APIInputWindowFixture alloc] initWithContainer:self.fixtureContainer];
+    } else if ([self.scenario isEqualToString:@"click"]) {
+        UIButton *button = [self buttonWithTitle:@"Touch click" identifier:@"api.input.click"];
         button.accessibilityLabel = @"click fixture";
         button.accessibilityValue = @"count:0";
         [button addTarget:self action:@selector(clickFixture:) forControlEvents:UIControlEventTouchUpInside];
@@ -224,7 +266,34 @@
         activating.backgroundColor = UIColor.systemGreenColor;
         [self pinView:activating inContainer:self.fixtureContainer top:96 height:52];
         [self recordFixture:activating key:@"activation"];
-    } else if ([self.scenario isEqualToString:@"text"]) {
+    } else if ([self.scenario isEqualToString:@"geometry"]) {
+        UIView *clippingParent = [[UIView alloc] init];
+        clippingParent.clipsToBounds = YES;
+        clippingParent.backgroundColor = UIColor.systemGray5Color;
+        [self pinView:clippingParent inContainer:self.fixtureContainer top:20 height:60];
+        UIButton *clipped = [self buttonWithTitle:@"Partially clipped" identifier:@"api.input.clipped"];
+        [clipped addTarget:self action:@selector(clickFixture:) forControlEvents:UIControlEventTouchUpInside];
+        [self pinView:clipped inContainer:clippingParent top:40 height:48];
+        [self recordFixture:clipped key:@"clipped"];
+
+        UIButton *covered = [self buttonWithTitle:@"Covered target" identifier:@"api.input.covered"];
+        [covered addTarget:self action:@selector(clickFixture:) forControlEvents:UIControlEventTouchUpInside];
+        [self pinView:covered inContainer:self.fixtureContainer top:120 height:48];
+        [self recordFixture:covered key:@"covered"];
+        APIActivatingView *cover = [[APIActivatingView alloc] init];
+        cover.backgroundColor = UIColor.systemRedColor;
+        [self pinView:cover inContainer:self.fixtureContainer top:120 height:48];
+        [self recordFixture:cover key:@"cover"];
+
+        for (NSInteger index = 0; index < 2; index++) {
+            UIButton *duplicate = [self buttonWithTitle:[NSString stringWithFormat:@"Duplicate %ld", (long)index]
+                                                           identifier:@"api.input.duplicate"];
+            duplicate.accessibilityValue = @"count:0";
+            [duplicate addTarget:self action:@selector(clickFixture:) forControlEvents:UIControlEventTouchUpInside];
+            [self pinView:duplicate inContainer:self.fixtureContainer top:210 + index * 70 height:48];
+            [self recordFixture:duplicate key:[NSString stringWithFormat:@"duplicate%ld", (long)index]];
+        }
+    } else if ([self.scenario isEqualToString:@"text"] || [self.scenario isEqualToString:@"focus_switch"]) {
         UITextField *field = [[UITextField alloc] init];
         field.borderStyle = UITextBorderStyleRoundedRect;
         field.accessibilityIdentifier = @"api.input.text";
@@ -233,6 +302,18 @@
         [field addTarget:self action:@selector(textChanged:) forControlEvents:UIControlEventEditingChanged];
         [self pinView:field inContainer:self.fixtureContainer top:24 height:52];
         [self recordFixture:field key:@"text"];
+        if ([self.scenario isEqualToString:@"focus_switch"]) {
+            field.placeholder = @"Field A";
+            UITextField *second = [[UITextField alloc] init];
+            second.borderStyle = UITextBorderStyleRoundedRect;
+            second.placeholder = @"Field B";
+            second.accessibilityIdentifier = @"api.input.text-second";
+            second.autocorrectionType = UITextAutocorrectionTypeNo;
+            second.autocapitalizationType = UITextAutocapitalizationTypeNone;
+            [second addTarget:self action:@selector(textChanged:) forControlEvents:UIControlEventEditingChanged];
+            [self pinView:second inContainer:self.fixtureContainer top:100 height:52];
+            [self recordFixture:second key:@"textSecond"];
+        }
     } else if ([self.scenario hasSuffix:@"scroll"]) {
         UIScrollView *scroll = [[UIScrollView alloc] init];
         scroll.accessibilityIdentifier = [self.scenario hasPrefix:@"vertical"] ? @"api.input.vertical-scroll" : @"api.input.horizontal-scroll";
@@ -341,6 +422,12 @@
     sender.accessibilityValue = [NSString stringWithFormat:@"count:%ld", (long)count];
 }
 
+- (void)classClickFixture:(UIButton *)sender {
+    [self clickFixture:sender];
+    [sender setTitle:[NSString stringWithFormat:@"%@:%ld", sender.accessibilityLabel,
+                     (long)APISDKFixtureState.sharedState.counter] forState:UIControlStateNormal];
+}
+
 - (void)textChanged:(UITextField *)sender {
     [[APISDKFixtureState sharedState] recordText:sender.text];
 }
@@ -388,7 +475,20 @@
             @"width": @(view.bounds.size.width),
             @"height": @(view.bounds.size.height),
             @"className": NSStringFromClass(view.class),
+            @"value": view.accessibilityValue ?: @"",
         };
+        if ([view isKindOfClass:APIActivatingView.class]) {
+            NSMutableDictionary *values = [fixtureStates[key] mutableCopy];
+            values[@"touchCount"] = @(((APIActivatingView *)view).touchCount);
+            values[@"accessibilityActivationCount"] = @(((APIActivatingView *)view).accessibilityActivationCount);
+            fixtureStates[key] = values;
+        }
+        if ([view isKindOfClass:UITextField.class]) {
+            NSMutableDictionary *values = [fixtureStates[key] mutableCopy];
+            values[@"text"] = ((UITextField *)view).text ?: @"";
+            values[@"isFirstResponder"] = @(view.isFirstResponder);
+            fixtureStates[key] = values;
+        }
     }];
     return @{
         @"generation": @(state.generation),

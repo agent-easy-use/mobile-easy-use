@@ -1,38 +1,68 @@
 ---
 name: to-android-presets
-description: Build reusable Android presets for a target App scene by reading project source, then iterating with to-android-script and to-android-run until each driver action and probe is verified. Use when creating or extending docs/mobile-easy-use preset source, declarations, and exports for a reproducible scene workflow.
+description: Generate reusable Android App probes and declarations in the configured presets directory, build the bundle, and verify on-device when a device is available.
 ---
 
 # To Android Presets
 
-Build the smallest reusable preset for one target scene. Discover identifiers from source and
-verify each capability on-device before promoting it into `docs/mobile-easy-use`.
+Generate reusable probe code and declarations for the user's request. Use
+[to-android-script](../to-android-script/SKILL.md) for generation, and
+[to-android-run](../to-android-run/SKILL.md) for verification when a device is available.
+
+## Directory
+
+1. **Location:** Read `presets.directory` from `<project-root>/.meu/config.json` and append
+   `android`. Relative paths resolve from the target project root, also used as the MCP
+   working directory. Always use the saved config to locate presets.
+2. **Initialization:** If the config file or `presets.directory` is missing, save the user's
+   explicit base directory, or `.meu/presets` when unspecified. Preserve unrelated config fields.
+3. **Switching:** Keep the configured base unless the user explicitly requests a different one;
+   compare resolved paths. If either platform's `presets.dist.js` exists under the old base,
+   explain that its capabilities will no longer load through the new base and obtain explicit
+   confirmation before updating config. Otherwise update directly. If declined, keep the old
+   config. Preserve unrelated fields and retain old files.
+
+## Source contract
+
+```text
+<base-directory>/android/
+├── page-state/
+│   ├── probe.js
+│   └── probe.d.ts
+├── network-request/
+│   ├── probe.js
+│   └── probe.d.ts
+├── presets.entry.js
+└── presets.dist.js
+```
+
+Use one feature directory per coherent capability. `presets.entry.js` explicitly re-exports
+public functions from `./<feature>/probe.js`; each feature's `probe.d.ts` describes its exports.
+Keep feature declarations consistent with their implementations.
+
+Read the entry, feature declarations and relevant sources before generating equivalents.
+Never edit `presets.dist.js`.
 
 ## Workflow
 
-1. Read the complete sibling `../to-android-script/SKILL.md` and
-   `../to-android-run/SKILL.md`; follow both contracts throughout this workflow.
-2. Inspect the target App source to resolve the scene entry, UI hierarchy, resource IDs,
-   business symbols, transitions, and expected state. Never guess identifiers.
-3. Inspect `docs/mobile-easy-use/presets.d.ts`, `presets.entry.js`, and relevant source modules.
-   Reuse existing capabilities and do not read or edit the generated `presets.js` directly.
-4. Split the scene into the smallest ordered capabilities. Establish the driver path first, then
-   add only the probes needed to observe the requested behavior.
-5. For one capability at a time:
-   - use `to-android-script` to generate or revise a temporary `probe.js` and `probe.d.ts`;
-   - use `to-android-run` to execute exactly one exported function;
-   - compare the result and evidence with the expected scene state;
-   - revise only the failing capability, then verify it again from a known start state.
-6. Promote only verified, reusable logic into a focused module under `docs/mobile-easy-use/`.
-   Keep driver exports action-oriented and probe exports evidence-oriented. Add matching JSDoc
-   declarations and re-export public capabilities from `presets.entry.js` and `presets.d.ts`.
-7. Run the presets build and relevant checks. Confirm generated scripts can import public presets
-   only from `/docs/mobile-easy-use/presets.js` and only through declarations in `presets.d.ts`.
+1. Resolve identifiers from App source and generate/update `<feature>/probe.js` and `probe.d.ts`.
+   Tell to-script to skip presets declaration lookup and `/meu/presets.js` imports for this source
+   generation; reuse local source modules through relative imports.
+2. This skill creates and maintains `presets.entry.js`: create it on first use, then add, remove
+   or update explicit exports for the current feature changes while preserving other existing
+   exports. Export only the intended public capabilities; do not put business logic in this file.
+3. From the project root, run the build script. It only reads config and bundles the existing
+   entry into `presets.dist.js`; a failed build retains the previous artifact.
 
-## Iteration rules
+   ```bash
+   node <skill-directory>/scripts/build-presets.mjs
+   ```
 
-- Keep every iteration independently understandable and executable.
-- Do not promote an unverified action, selector, hook, state accessor, or return contract.
-- Do not automatically retry a failed or timed-out mutating call; restore a known scene first.
-- Preserve the smallest stable public API and avoid scenario-specific duplication.
-- Report verified capabilities, remaining gaps, and any SDK limitation separately.
+4. If a target device is available, read the platform run skill, connect the App and actually
+   execute the changed capabilities via `/meu/presets.js` imports. Disconnect/reconnect an existing
+   session first to load the new bundle. Check the expected results; fix failures and rebuild.
+   Do not retry a timed-out mutation without restoring a known starting state.
+5. Report generated capabilities and build/verification results. Without a device, complete
+   generation and bundling, explicitly state that actual runtime behavior remains unverified,
+   and recommend connecting a physical device to verify it. Never treat build success or a
+   failed device run as verification.

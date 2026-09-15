@@ -2,6 +2,7 @@ import { currentThreadName } from '../../common/thread.js';
 import { createCapture } from './capture.js';
 import { errorMessage, safeConsole, safeEmit } from '../../common/reporting.js';
 import Java from 'frida-java-bridge';
+import { prepareStaticHook } from '../../common/static-hook.js';
 import { installNativeLogEvidenceHooks } from './native-log.js';
 import { runEvidenceAction, writeEvidence } from './utils.js';
 
@@ -52,6 +53,7 @@ function installHook(targetClass, methodName, options = {}) {
         if (overload.implementation !== null && overload.implementation !== undefined) {
           throw new Error(`Java overload already has an implementation: ${javaClass.$className}.${methodName}`);
         }
+        prepareStaticHook(overload);
         const original = overload;
         overload.implementation = function (...rawArgs) {
           const invocation = {

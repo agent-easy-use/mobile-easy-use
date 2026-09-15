@@ -8,10 +8,10 @@ Relevant section example:
 
 ```json
 {
-  "actionDescription": "Enter query",
+  "actionDescription": "Enter form text",
   "state": {
-    "SearchViewModel#query": {
-      "path": "SearchViewModel#query",
+    "FormViewModel#text": {
+      "path": "FormViewModel#text",
       "before": "",
       "after": "codex"
     }

@@ -78,3 +78,72 @@ export async function probeFindHiddenView() {
     return { passed: result?.identifier === 'api.ui.hidden' && result.hidden, api: 'IOS.ui.find(hidden)', result, oracle: { hidden: true } };
   });
 }
+
+/** Exercise actual UIKit class lookup, subclass matching, DFS order and mixed paths. */
+export async function probeFindByClass() {
+  return navigate('class', () => onMain(() => {
+    const scope = 'identifier::api.ui.class.scope';
+    const paths = {
+      exact: ['class::APIClassButton'],
+      subclass: [scope, 'class::UIButton'],
+      ancestor: [scope, 'class::UIControl'],
+      mixed: [scope, 'class::APIClassButton', 'label::FIRST'],
+      self: ['identifier::api.ui.class.first', 'class::UIButton'],
+    };
+    const result = Object.fromEntries(Object.entries(paths).map(([key, path]) =>
+      [key, describe(IOS.ui.find(path))]));
+    return { passed: Object.values(result).every(view => view?.identifier === 'api.ui.class.first'
+      && view.className === 'APIClassButton' && !view.hidden), api: 'IOS.ui.find(class path)', result,
+    oracle: { identifier: 'api.ui.class.first', className: 'APIClassButton' } };
+  }));
+}
+
+/** Check class-path misses, scope, no backtracking and hidden UIKit Views. */
+export async function probeClassPathBoundaries() {
+  return navigate('class', () => onMain(() => {
+    const scope = 'identifier::api.ui.class.scope';
+    const paths = {
+      missing: [scope, 'class::MissingClassButton'],
+      caseSensitive: [scope, 'class::apiclassbutton'],
+      baseIsNotSubclass: ['identifier::api.ui.class.outside', 'class::APIClassButton'],
+      noBacktracking: [scope, 'class::UIButton', 'label::SECOND'],
+      noEscape: [scope, 'class::APIClassButton', 'identifier::api.ui.class.outside'],
+    };
+    const misses = Object.fromEntries(Object.entries(paths).map(([key, path]) => [key, IOS.ui.find(path) === null]));
+    const hidden = describe(IOS.ui.find(['identifier::api.ui.class.hidden', 'class::APIClassButton']));
+    let rejectsEmpty = false;
+    try { IOS.ui.find(['class::']); } catch (error) { rejectsEmpty = /Invalid UI path/.test(error.message); }
+    return { passed: Object.values(misses).every(Boolean) && rejectsEmpty
+      && hidden?.identifier === 'api.ui.class.hidden' && hidden.hidden,
+    api: 'IOS.ui.find(class path boundaries)', result: { misses, hidden, rejectsEmpty },
+    oracle: { allMiss: true, hiddenIdentifier: 'api.ui.class.hidden', hidden: true, rejectsEmpty: true } };
+  }));
+}
+
+/** Click the first subclass via its base class and verify real state, screenshots and evidence. */
+export async function probeClassActions() {
+  return navigate('class', async () => {
+    const path = ['identifier::api.ui.class.scope', 'class::UIButton'];
+    const readState = () => onMain(() => ({
+      clickCount: Number(ObjC.classes.APISDKFixtureState.sharedState().counter()),
+      first: String(IOS.ui.find('api.ui.class.first').currentTitle()),
+      second: String(IOS.ui.find('api.ui.class.second').currentTitle()),
+      outside: String(IOS.ui.find('api.ui.class.outside').currentTitle()),
+    }));
+    const before = await readState();
+    const ready = await IOS.wait.ui(path, 'visible');
+    if (!ready.ok) return { passed: false, api: 'IOS.wait.ui(class path)', result: ready, oracle: before };
+    const click = await Probe.evidence.withUiEvidence(() => Probe.evidence.withStateEvidence(
+      () => IOS.input.click(path), 'class-ui-v1', { state: readState }), 'class-ui-v1', { first: path });
+    const after = await readState();
+    const screenshot = await IOS.screenshot({ includeWindow: true, targets: {
+      first: path, hidden: ['identifier::api.ui.class.hidden', 'class::APIClassButton'],
+    } });
+    return { passed: click.ok === true && before.clickCount === 0 && before.first === 'FIRST'
+      && before.second === 'SECOND' && before.outside === 'OUTSIDE'
+      && after.clickCount === 1 && after.first === 'FIRST:1' && after.second === 'SECOND' && after.outside === 'OUTSIDE'
+      && screenshot.ok === true && Boolean(screenshot.window) && Boolean(screenshot.targets.first)
+      && !screenshot.targets.hidden, api: 'class path wait/input/screenshot/evidence',
+    evidenceContract: 'class-ui-v1', result: { click, screenshot }, oracle: { before, after } };
+  });
+}

@@ -5,6 +5,7 @@ import { runOnMainThread } from './common/main-thread.js';
 import { IOSInput } from './input.js';
 import { Override } from './override/index.js';
 import { Probe } from './probe/index.js';
+import { IOSRuntime } from './runtime.js';
 import { screenshot } from './screenshot.js';
 import { checkUiState, checkUiStateNow } from './ui/state.js';
 import { findUiView } from './ui/index.js';
@@ -14,6 +15,7 @@ const Test = { create: () => createTest(findUiView, runOnMainThread, checkUiStat
 
 const IOS = Object.freeze({
   runOnMainThread,
+  runtime: IOSRuntime,
   screenshot,
   ui: Object.freeze({
     find: findUiView,
@@ -53,7 +55,6 @@ globalThis.runtimeStatus = () => {
     platform: 'ios',
     available,
     appId,
-    sdkVersion: globalThis.__mobileEasyUseSdkVersion ?? null,
     releaseVersion,
   };
 };

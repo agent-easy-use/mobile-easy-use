@@ -8,7 +8,7 @@ import {
 } from '../src/sdk-source.js';
 
 test('preset ES module uses the documented stable module path', () => {
-  assert.equal(PRESETS_MODULE_PATH, '/docs/mobile-easy-use/presets.js');
+  assert.equal(PRESETS_MODULE_PATH, '/meu/presets.js');
 });
 
 test('loadSdkSource reads the build-time frida-compile SDK bundle', async () => {

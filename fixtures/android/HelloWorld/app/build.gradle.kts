@@ -41,6 +41,8 @@ android {
     }
 }
 
+val mobileEasyUseRelease: String by project
+
 dependencies {
-    debugImplementation("com.agenteasyuse:mobile-easy-use:0.1.0")
+    debugImplementation("com.agenteasyuse:mobile-easy-use:$mobileEasyUseRelease")
 }

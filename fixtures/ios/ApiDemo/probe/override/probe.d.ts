@@ -3,6 +3,8 @@ export interface OverrideProbeResult { passed: boolean; api: string; result: unk
 export declare function probeInstanceOverride(): Promise<OverrideProbeResult>;
 /** Replace an Objective-C class method and prove class-selector restoration. */
 export declare function probeClassOverride(): Promise<OverrideProbeResult>;
+/** Resolve a short multi-module target internally with the method selector. */
+export declare function probeRuntimeTargetResolution(): Promise<OverrideProbeResult>;
 /** Apply an argument filter and allow an unmatched call through exactly once. */
 export declare function probeFilteredOverride(): Promise<OverrideProbeResult>;
 /** Keep an override installed through Promise settlement and clean it afterward. */

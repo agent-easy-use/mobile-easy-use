@@ -7,6 +7,21 @@ static NSInteger SharedMatch(id receiver, SEL selector, NSInteger value) {
     return value + 10;
 }
 
+static void FindClassNoop(id receiver, SEL selector) {}
+static NSInteger FindClassValue(id receiver, SEL selector) { return 41; }
+
+static void RegisterFindClassFixture(const char *name, BOOL hasUniqueSelector) {
+    if (objc_getClass(name) != Nil) return;
+    Class cls = objc_allocateClassPair([NSObject class], name, 0);
+    NSCAssert(cls != Nil, @"Failed to allocate findClass fixture %s", name);
+    class_addMethod(cls, NSSelectorFromString(@"sharedSelector"), (IMP)FindClassNoop, "v@:");
+    if (hasUniqueSelector) {
+        class_addMethod(cls, NSSelectorFromString(@"onlyFirstSelector"), (IMP)FindClassNoop, "v@:");
+        class_addMethod(cls, NSSelectorFromString(@"onlyFirstValue"), (IMP)FindClassValue, "q@:");
+    }
+    objc_registerClassPair(cls);
+}
+
 @implementation APIMethodMatchFixture
 + (void)load {
     // Use one actual native address for both selectors, both kinds and unrelated classes.
@@ -16,6 +31,8 @@ static NSInteger SharedMatch(id receiver, SEL selector, NSInteger value) {
         method_setImplementation(class_getClassMethod(cls, @selector(match:)), (IMP)SharedMatch);
         method_setImplementation(class_getClassMethod(cls, @selector(alias:)), (IMP)SharedMatch);
     }
+    RegisterFindClassFixture("APIFindClassModuleOne.APIFindClassAmbiguousFixture", YES);
+    RegisterFindClassFixture("APIFindClassModuleTwo.APIFindClassAmbiguousFixture", NO);
 }
 - (NSInteger)match:(NSInteger)value { return SharedMatch(self, _cmd, value); }
 - (NSInteger)alias:(NSInteger)value { return SharedMatch(self, _cmd, value); }

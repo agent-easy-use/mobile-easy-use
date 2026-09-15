@@ -5,16 +5,16 @@ It is not a product-flow sample and does not reuse HelloWorld state or screens.
 
 ## Coverage baseline
 
-The checked-in Module operations currently provide 64 actual-runtime probes:
+The checked-in Module operations currently provide 78 actual-runtime probe exports:
 
 | Capability | Operations |
 | --- | ---: |
-| Runtime status / `callFunction` | 2 |
-| `IOS.ui.find` | 4 |
-| `IOS.input` | 10 |
+| Runtime status / `callFunction` / class discovery | 3 |
+| UI lookup / class-path actions | 7 |
+| `IOS.input` | 18 |
 | `IOS.wait` | 8 |
-| `Override.run` | 12 |
-| State / UI / Chain Evidence | 26 |
+| `Override.run` | 13 |
+| State / UI / Chain Evidence | 27 |
 | Window / Driver-failure screenshots | 2 |
 
 `evalScript`, preset loading, connection concurrency, and detach/reconnect are transport-level
@@ -23,8 +23,8 @@ operations; they are intentionally not hidden inside a `callFunction` probe.
 
 ## Integration shape
 
-The local `MobileEasyUse` Pod is resource-only and scoped to `ProbeDebug`. Its after-compile script
-phase copies and signs the platform `MobileEasyUse.dylib` bridge, the separate
+The `ProbeDebug` build uses a CocoaPods after-compile script phase to copy and sign
+the platform `MobileEasyUse.dylib` bridge, the separate
 `MobileEasyUseRuntime.dylib`, and `MobileEasyUseRuntime.config`. Neither dylib is linked by the App,
 and no native bridge source is compiled into the App or Pods target. For both a simulator and a
 physical device, MCP `connect` launches or preserves the App and uses LLDB to load the bridge and
@@ -77,10 +77,12 @@ The physical-device Runtime endpoint is `127.0.0.1:28484`. The final App must be
 with `get-task-allow = true`, or LLDB attachment will fail.
 
 See `probe/README.md` for the one-operation execution contract.
+The [input matrix](probe/input/README.md) expands the 18 input exports into 96
+independent operations covering all target forms, directions and native state oracles.
 
 ## Release boundary
 
-The resource-only Pod is enabled only in `ProbeDebug`; MobileEasyUse source is never compiled into
+The embed phase runs only in `ProbeDebug`; MobileEasyUse source is never compiled into
 the App executable. Verify a production build with:
 
 ```bash

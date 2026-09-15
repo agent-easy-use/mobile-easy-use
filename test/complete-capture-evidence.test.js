@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {verifyCompleteCapture} from '../fixtures/common/chain-capture-contracts.mjs';
+import {verifyCompleteCapture} from '../fixtures/android/ApiDemo/probe/evidence/chain-capture-contracts.mjs';
 
 for (const platform of ['android', 'ios']) {
+  const {verifyCompleteCapture} = await import(`../fixtures/${platform}/ApiDemo/probe/evidence/chain-capture-contracts.mjs`);
   test(`${platform}: concurrent oracle accepts out-of-order completion and rejects mixed/lost capture`, () => {
     const contract = 'chain-complete-concurrent-v1';
     const base = {type: 'method', className: platform === 'ios' ? 'APIChainCaptureFixture'

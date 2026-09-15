@@ -12,7 +12,7 @@ const definitions = [{
   method: 'getRegion',
   argumentTypes: ['java.lang.String'],
   filter(invocation) {
-    return String(invocation.args[0]) === 'search';
+    return String(invocation.args[0]) === 'form';
   },
   withReturn: 'JP',
 }];

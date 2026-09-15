@@ -39,6 +39,9 @@ async function loadSdk(fixture) {
 
 function createFixture() {
   let scheduled = 0;
+  let onMain = false;
+  const queryCalls = [];
+  const queryState = { view: null };
   const controllerReceivers = new Map();
   const controllerRequests = [];
   const ObjC = {
@@ -52,7 +55,36 @@ function createFixture() {
     schedule(queue, work) {
       assert.equal(queue, ObjC.mainQueue);
       scheduled += 1;
-      work();
+      const previous = onMain;
+      onMain = true;
+      try { work(); } finally { onMain = previous; }
+    },
+  };
+  const list = (items) => ({ count: () => items.length, objectAtIndex_: (index) => items[index],
+    containsObject_: (object) => items.includes(object) });
+  const space = { bounds: () => [[0, 0], [414, 896]] };
+  const screen = { coordinateSpace: () => space, isEqual_: (other) => other === screen };
+  const scene = { activationState: () => 0, interfaceOrientation: () => 1,
+    windows: () => list([window]), isEqual_: (other) => other === scene };
+  const window = { windowScene: () => scene, screen: () => screen, isKeyWindow: () => true,
+    isEqual_: (other) => other === window,
+    isHidden: () => false, alpha: () => 1, isUserInteractionEnabled: () => true,
+    bounds: () => space.bounds(), convertRect_toCoordinateSpace_: () => space.bounds(),
+    convertPoint_fromCoordinateSpace_: (point) => point, hitTest_withEvent_: () => null };
+  ObjC.classes.UIScreen = { mainScreen: () => screen };
+  const application = {
+    windows: () => list([window]),
+    connectedScenes: () => ({ allObjects: () => list([scene]) }),
+  };
+  ObjC.classes.UIApplication = { sharedApplication: () => application };
+  ObjC.classes.NSMutableArray = { array: () => {
+    const values = [];
+    return { values, addObject_: (value) => values.push(value) };
+  } };
+  ObjC.classes.MEUUIQuery = {
+    findUIView_(path) {
+      queryCalls.push({ steps: [...path.values], onMain });
+      return queryState.view;
     },
   };
   const context = vm.createContext({
@@ -83,8 +115,55 @@ function createFixture() {
     rpc: {},
     setTimeout,
   });
-  return { context, controllerRequests, ObjC, scheduled: () => scheduled };
+  return { context, controllerRequests, ObjC, window, application, queryCalls, queryState, list,
+    scheduled: () => scheduled, onMain: () => onMain };
 }
+
+test('iOS class paths reach the native query through find, wait, screenshot and evidence', async () => {
+  const fixture = createFixture();
+  const path = ['identifier::form', 'class::UIButton'];
+  const view = { $className: 'CustomButton' };
+  fixture.queryState.view = view;
+  fixture.ObjC.Block = function Block(options) { Object.assign(this, options); };
+  fixture.ObjC.classes.NSMutableDictionary = { dictionary: () => ({
+    setObject_forKey_(target, key) { assert.equal(target, view); assert.equal(key, 'button'); },
+  }) };
+  let captures = 0;
+  fixture.ObjC.classes.MEUScreenshot = {
+    captureWindowWithTargets_includeWindow_quality_completion_() {
+      captures += 1;
+      throw new Error('test reached native capture');
+    },
+  };
+  const lines = [];
+  fixture.context.console = { log: line => lines.push(line), warn: () => {} };
+  await loadSdk(fixture);
+  assert.equal(fixture.context.IOS.ui.find(path), view);
+  assert.deepEqual(fixture.queryCalls[0].steps, path);
+  assert.equal((await fixture.context.IOS.wait.ui(path, 'exists')).ok, true);
+  assert.deepEqual(fixture.queryCalls[1], { steps: path, onMain: true });
+  const shot = await fixture.context.IOS.screenshot({ targets: { button: path } });
+  assert.match(shot.error.message, /test reached native capture/);
+  assert.equal(captures, 1);
+  await fixture.context.Probe.evidence.withUiEvidence(() => {}, 'class target', { button: path });
+  const records = lines.filter(line => line.startsWith('@@MOBILE_EVIDENCE@@'))
+    .map(line => JSON.parse(line.slice('@@MOBILE_EVIDENCE@@'.length)))
+    .filter(record => record.category === 'ui');
+  assert.equal(records.length, 2);
+  assert.ok(records.every(record => record.payload.className === 'CustomButton'));
+  assert.ok(fixture.queryCalls.every(call => JSON.stringify(call.steps) === JSON.stringify(path)));
+  fixture.queryState.view = null;
+  assert.equal(fixture.context.IOS.ui.find(['class::Missing']), null);
+  assert.throws(() => fixture.context.IOS.ui.find(['class::']), /Invalid UI path/);
+});
+
+test('iOS plain strings remain identifiers even when they start with class::', async () => {
+  const fixture = createFixture();
+  await loadSdk(fixture);
+  assert.equal(fixture.context.IOS.ui.find('class::UIButton'), null);
+  assert.deepEqual(fixture.queryCalls[0].steps, ['identifier::class::UIButton']);
+  assert.equal(fixture.queryCalls.length, 1);
+});
 
 test('IOS exposes runOnMainThread with value and failure propagation', async () => {
   const fixture = createFixture();
@@ -92,7 +171,7 @@ test('IOS exposes runOnMainThread with value and failure propagation', async () 
 
   assert.deepEqual(
     Array.from(Object.keys(fixture.context.IOS).sort()),
-    ['input', 'runOnMainThread', 'screenshot', 'ui', 'wait'],
+    ['input', 'runOnMainThread', 'runtime', 'screenshot', 'ui', 'wait'],
   );
   assert.equal(typeof fixture.context.IOS.screenshot, 'function');
   assert.equal(await fixture.context.IOS.runOnMainThread(() => 42), 42);
@@ -113,22 +192,92 @@ test('IOS exposes runOnMainThread with value and failure propagation', async () 
   );
 });
 
-test('iOS input sends serializable targets to the Host Controller', async () => {
+test('IOS.runtime.findClass resolves exact and suffix names with all selector requirements', async () => {
+  const fixture = createFixture();
+  const method = { implementation: {} };
+  const exact = { $className: 'Target', '- exact': method };
+  const swift = { $className: 'Feature.Target', '- exact': method, '+ shared': method };
+  fixture.ObjC.classes.Target = exact;
+  fixture.ObjC.classes['Feature.Target'] = swift;
+  fixture.ObjC.classes['Other.Filtered'] = { $className: 'Other.Filtered', '- first': method };
+  fixture.ObjC.classes['Feature.Filtered'] = {
+    $className: 'Feature.Filtered', '- first': method, '- second': method,
+  };
+  await loadSdk(fixture);
+
+  assert.equal(fixture.context.IOS.runtime.findClass('Target', ['- exact']), exact);
+  assert.equal(
+    fixture.context.IOS.runtime.findClass('Target', ['- exact', '+ shared']),
+    swift,
+  );
+  assert.equal(
+    fixture.context.IOS.runtime.findClass('Filtered', ['- first', '- second']),
+    fixture.ObjC.classes['Feature.Filtered'],
+  );
+  assert.equal(fixture.context.IOS.runtime.findClass('Missing'), null);
+  assert.equal(fixture.context.IOS.runtime.findClass('Target', ['- missing']), null);
+});
+
+test('IOS.runtime.findClass reports every remaining ambiguous Runtime class', async () => {
+  const fixture = createFixture();
+  const method = { implementation: {} };
+  fixture.ObjC.classes['Second.SharedTarget'] = { '- shared': method };
+  fixture.ObjC.classes['First.SharedTarget'] = { '- shared': method };
+  fixture.ObjC.classes['Ignored.SharedTarget'] = {};
+  await loadSdk(fixture);
+
+  assert.throws(
+    () => fixture.context.IOS.runtime.findClass('SharedTarget', ['- shared']),
+    error => error.message.includes('unable to determine a unique target')
+      && error.message.includes('First.SharedTarget')
+      && error.message.includes('Second.SharedTarget')
+      && !error.message.includes('Ignored.SharedTarget'),
+  );
+});
+
+test('IOS.runtime.findClass validates arguments and Objective-C availability', async () => {
+  const fixture = createFixture();
+  await loadSdk(fixture);
+
+  assert.throws(() => fixture.context.IOS.runtime.findClass(''), /className must be/);
+  assert.throws(() => fixture.context.IOS.runtime.findClass(' Target '), /className must be/);
+  assert.throws(() => fixture.context.IOS.runtime.findClass('Target', '- run'), /selectors must be an array/);
+  assert.throws(
+    () => fixture.context.IOS.runtime.findClass('Target', ['run']),
+    /Each selector must start/,
+  );
+  fixture.ObjC.available = false;
+  assert.throws(
+    () => fixture.context.IOS.runtime.findClass('Target'),
+    /Objective-C runtime is unavailable/,
+  );
+});
+
+test('all target types become screen points in the App without sending paths to the Runner', async () => {
   const fixture = createFixture();
   fixture.ObjC.classes.UIView = {};
   await loadSdk(fixture);
   const view = {
     isKindOfClass_: (type) => type === fixture.ObjC.classes.UIView,
-    window: () => ({}),
+    window: () => fixture.window,
     isHidden: () => false,
     alpha: () => 1,
     bounds: () => [[0, 0], [80, 40]],
-    convertRect_toView_: () => [[20, 100], [80, 40]],
+    convertRect_toCoordinateSpace_: () => {
+      assert.equal(fixture.onMain(), true);
+      return [[20, 100], [80, 40]];
+    },
+    isUserInteractionEnabled: () => true,
+    clipsToBounds: () => false,
+    superview: () => null,
+    isEqual_: (other) => other === view,
   };
+  fixture.window.hitTest_withEvent_ = () => view;
+  fixture.queryState.view = view;
 
   await Promise.all([
     fixture.context.IOS.input.click('login'),
-    fixture.context.IOS.input.click(['identifier::form', 'label::Login']),
+    fixture.context.IOS.input.click(['identifier::form', 'class::UIButton', 'label::Login']),
     fixture.context.IOS.input.click({ x: 120, y: 360 }),
     fixture.context.IOS.input.click(view),
   ]);
@@ -143,15 +292,19 @@ test('iOS input sends serializable targets to the Host Controller', async () => 
   );
   assert.deepEqual(
     JSON.parse(JSON.stringify(
-      fixture.controllerRequests.map((request) => request.payload.command.target),
+      fixture.controllerRequests.map((request) => request.payload.command.point),
     )),
     [
-      { type: 'identifier', value: 'login' },
-      { type: 'path', steps: ['identifier::form', 'label::Login'] },
-      { type: 'location', x: 120, y: 360 },
-      { type: 'location', x: 60, y: 120, bounds: { x: 20, y: 100, width: 80, height: 40 } },
+      { x: 60, y: 120 },
+      { x: 60, y: 120 },
+      { x: 120, y: 360 },
+      { x: 60, y: 120 },
     ],
   );
+  assert.deepEqual(fixture.queryCalls, [
+    { steps: ['identifier::login'], onMain: true },
+    { steps: ['identifier::form', 'class::UIButton', 'label::Login'], onMain: true },
+  ]);
   assert.equal(
     fixture.controllerRequests.every((request) => (
       !Object.hasOwn(request.payload, 'runnerId')
@@ -159,10 +312,49 @@ test('iOS input sends serializable targets to the Host Controller', async () => 
     )),
     true,
   );
+  for (const request of fixture.controllerRequests) {
+    assert.equal(request.payload.command.orientation, 1);
+    assert.ok(request.payload.command.expiresAt > Date.now());
+    assert.equal(Object.hasOwn(request.payload.command, 'target'), false);
+    assert.equal(Object.hasOwn(request.payload.command, 'context'), false);
+  }
   assert.throws(
-    () => fixture.context.IOS.ui.find(['class::UIButton']),
-    /Unsupported native UI path step: class/,
+    () => fixture.context.IOS.ui.find(['unknown::UIButton']),
+    /Unsupported native UI path step: unknown/,
   );
+});
+
+test('UIView input clips the target and rejects occlusion before dispatch', async () => {
+  const fixture = createFixture();
+  fixture.ObjC.classes.UIView = {};
+  await loadSdk(fixture);
+  const parent = {
+    isHidden: () => false, alpha: () => 1, isUserInteractionEnabled: () => true,
+    clipsToBounds: () => true, superview: () => null, bounds: () => [[0, 0], [100, 100]],
+    convertRect_toCoordinateSpace_: () => [[0, 0], [100, 100]],
+  };
+  const view = {
+    isKindOfClass_: () => true, window: () => fixture.window,
+    isHidden: () => false, alpha: () => 1, isUserInteractionEnabled: () => true,
+    clipsToBounds: () => false, superview: () => parent,
+    bounds: () => [[0, 0], [80, 40]],
+    convertRect_toCoordinateSpace_: () => [[70, 80], [80, 40]],
+    isEqual_: (other) => other === view,
+  };
+  fixture.window.hitTest_withEvent_ = () => view;
+  assert.equal((await fixture.context.IOS.input.click(view)).ok, true);
+  const command = fixture.controllerRequests[0].payload.command;
+  assert.deepEqual(JSON.parse(JSON.stringify(command.point)), { x: 85, y: 90 });
+  assert.deepEqual(JSON.parse(JSON.stringify(command.bounds)), { x: 70, y: 80, width: 30, height: 20 });
+  fixture.queryState.view = view;
+  assert.equal((await fixture.context.IOS.input.scroll(['identifier::feed'], 'up', 300)).ok, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(fixture.controllerRequests[1].payload.command.gesture)), {
+    startX: 85, startY: 99, endX: 85, endY: 81,
+  });
+  fixture.window.hitTest_withEvent_ = () => ({ isEqual_: () => false, isDescendantOfView_: () => false });
+  const covered = await fixture.context.IOS.input.click('feed');
+  assert.equal(covered.error.code, 'TOUCH_TARGET_MISMATCH');
+  assert.equal(fixture.controllerRequests.length, 2);
 });
 
 test('iOS runtimeStatus only reports the target App runtime', async () => {
@@ -171,9 +363,9 @@ test('iOS runtimeStatus only reports the target App runtime', async () => {
 
   const status = await fixture.context.runtimeStatus();
 
-  assert.equal(status.platform, 'ios');
-  assert.equal(status.available, true);
-  assert.equal(status.appId, 'com.example.app');
+  assert.deepEqual(JSON.parse(JSON.stringify(status)), {
+    platform: 'ios', available: true, appId: 'com.example.app', releaseVersion: null,
+  });
   assert.deepEqual(fixture.controllerRequests, []);
 });
 
@@ -213,4 +405,183 @@ test('iOS Test.create wires runner and UI assertions to native lookup on the mai
     ['identifier::search'], ['identifier::missing'],
   ]);
   assert.equal(fixture.scheduled(), 5);
+});
+
+test('coordinate input requires a foreground scene key window', async () => {
+  const fixture = createFixture();
+  fixture.application.connectedScenes = () => ({ allObjects: () => ({ count: () => 0 }) });
+  await loadSdk(fixture);
+  const result = await fixture.context.IOS.input.click({ x: 100, y: 100 });
+  assert.equal(result.error.code, 'INVALID_TARGET');
+  assert.equal(fixture.controllerRequests.length, 0);
+});
+
+test('invalid and missing App targets fail before any Runner request', async () => {
+  const fixture = createFixture();
+  await loadSdk(fixture);
+  const results = await Promise.all([
+    fixture.context.IOS.input.click('missing'),
+    fixture.context.IOS.input.click([]),
+    fixture.context.IOS.input.click(['unknown::UIButton']),
+    fixture.context.IOS.input.click(''),
+    fixture.context.IOS.input.click({ x: 9999, y: 100 }),
+    fixture.context.IOS.input.click({ x: -1, y: 100 }),
+    fixture.context.IOS.input.input('missing', ''),
+    fixture.context.IOS.input.longPress({ x: 10, y: 10 }, 0),
+    fixture.context.IOS.input.scroll({ x: 10, y: 10 }, 'diagonal', 100),
+    fixture.context.IOS.input.scroll({ x: 10, y: 10 }, 'up', 0),
+    fixture.context.IOS.input.scroll({ x: 10, y: 10 }, 'up', Infinity),
+  ]);
+  assert.deepEqual(results.map((result) => result.error.code), [
+    'ELEMENT_NOT_FOUND', 'INVALID_TARGET', 'INVALID_TARGET', 'INVALID_TARGET',
+    'INVALID_COORDINATES', 'INVALID_COORDINATES', 'INVALID_ARGUMENT', 'INVALID_ARGUMENT', 'INVALID_ARGUMENT',
+    'INVALID_ARGUMENT', 'INVALID_ARGUMENT',
+  ]);
+  assert.equal(fixture.queryCalls.length, 1);
+  assert.equal(fixture.controllerRequests.length, 0);
+});
+
+test('text and long press parameters survive App coordinate normalization', async () => {
+  const fixture = createFixture();
+  await loadSdk(fixture);
+  await Promise.all([
+    fixture.context.IOS.input.input({ x: 10, y: 20 }, '中文🙂\n'),
+    fixture.context.IOS.input.longPress({ x: 30, y: 40 }),
+  ]);
+  const [text, press] = fixture.controllerRequests.map((request) => request.payload.command);
+  assert.equal(text.text, '中文🙂\n');
+  assert.equal(press.duration, 600);
+  assert.deepEqual(JSON.parse(JSON.stringify(press.point)), { x: 30, y: 40 });
+});
+
+test('App main-queue delays consume the deadline and expired input is never sent', async () => {
+  const fixture = createFixture();
+  let now = Date.now();
+  fixture.context.Date = { now: () => now };
+  const schedule = fixture.ObjC.schedule;
+  fixture.ObjC.schedule = (queue, work) => { now += 30000; schedule(queue, work); };
+  await loadSdk(fixture);
+  const result = await fixture.context.IOS.input.click({ x: 10, y: 20 });
+  assert.equal(result.error.code, 'INPUT_TIMEOUT');
+  assert.equal(fixture.controllerRequests.length, 0);
+});
+
+function windowFixture() {
+  const f = createFixture();
+  f.ObjC.classes.UIView = {};
+  const view = {
+    isKindOfClass_: () => true, window: () => f.window,
+    $className: 'UIButton', accessibilityIdentifier: () => 'form.submit',
+    isHidden: () => false, alpha: () => 1, isUserInteractionEnabled: () => true,
+    clipsToBounds: () => false, superview: () => null,
+    bounds: () => [[0, 0], [100, 300]],
+    convertRect_toCoordinateSpace_: () => [[20, 100], [100, 300]],
+    isEqual_: (other) => other === view,
+  };
+  f.window.hitTest_withEvent_ = () => view;
+  f.queryState.view = view;
+  const blocker = { isEqual_: () => false, isDescendantOfView_: () => false,
+    $className: 'UIView', accessibilityIdentifier: () => 'dialog.mask' };
+  const overlay = { ...f.window, isKeyWindow: () => false, hitTest_withEvent_: () => blocker };
+  overlay.isEqual_ = (other) => other === overlay;
+  const order = [f.window, overlay];
+  f.application.windows = () => {
+    assert.equal(f.onMain(), true);
+    return f.list(order);
+  };
+  return { ...f, view, overlay, order, blocker };
+}
+
+test('ordered windows block all view-resolving forms and actions but leave coordinates literal', async () => {
+  const f = windowFixture();
+  await loadSdk(f);
+  for (const target of ['target', ['identifier::target'], f.view]) {
+    const results = await Promise.all([
+      f.context.IOS.input.click(target), f.context.IOS.input.longPress(target),
+      f.context.IOS.input.input(target, 'hello'), f.context.IOS.input.scroll(target, 'up', 100),
+    ]);
+    assert.ok(results.every((result) => result.error?.code === 'TOUCH_TARGET_MISMATCH'));
+  }
+  assert.equal(f.controllerRequests.length, 0);
+  assert.equal((await f.context.IOS.input.click({ x: 70, y: 250 })).ok, true);
+  assert.equal(f.controllerRequests.length, 1);
+});
+
+test('window order is read afresh and is independent of key status or equal levels', async () => {
+  const f = windowFixture();
+  f.window.windowLevel = f.overlay.windowLevel = () => 0;
+  await loadSdk(f);
+  assert.equal((await f.context.IOS.input.click(f.view)).error.code, 'TOUCH_TARGET_MISMATCH');
+  f.order.reverse();
+  assert.equal((await f.context.IOS.input.click(f.view)).ok, true);
+  f.window.isKeyWindow = () => false;
+  f.overlay.isKeyWindow = () => true;
+  assert.equal((await f.context.IOS.input.click(f.view)).ok, true);
+  f.order.reverse();
+  assert.equal((await f.context.IOS.input.click(f.view)).error.code, 'TOUCH_TARGET_MISMATCH');
+  assert.equal(f.controllerRequests.length, 2);
+});
+
+test('hidden, transparent, disabled, pass-through and other-scene windows do not block input', async () => {
+  const configurations = [
+    { isHidden: () => true }, { alpha: () => 0 }, { isUserInteractionEnabled: () => false },
+    { hitTest_withEvent_: () => null }, { windowScene: () => ({ isEqual_: () => false }) },
+  ];
+  await Promise.all(configurations.map(async (overrides) => {
+    const f = windowFixture();
+    Object.assign(f.overlay, overrides);
+    await loadSdk(f);
+    assert.equal((await f.context.IOS.input.click(f.view)).ok, true);
+  }));
+});
+
+test('cross-window hit testing converts screen points and checks the actual scroll start', async () => {
+  const f = windowFixture();
+  const points = [];
+  f.overlay.convertPoint_fromCoordinateSpace_ = ([x, y]) => [x - 20, y - 280];
+  f.overlay.hitTest_withEvent_ = ([x, y]) => { points.push([x, y]); return y >= 0 ? f.blocker : null; };
+  await loadSdk(f);
+  assert.equal((await f.context.IOS.input.click(f.view)).ok, true); // center y=250 is clear
+  assert.equal((await f.context.IOS.input.scroll(f.view, 'up', 100)).error.code, 'TOUCH_TARGET_MISMATCH'); // start y=300 covered
+  assert.deepEqual(points, [[50, -30], [50, 20]]);
+  assert.equal(f.controllerRequests.length, 1);
+});
+
+test('a target absent from the ordered windows is rejected before dispatch', async () => {
+  const f = windowFixture();
+  f.order.shift();
+  await loadSdk(f);
+  assert.equal((await f.context.IOS.input.click(f.view)).error.code, 'INVALID_TARGET');
+  assert.equal(f.controllerRequests.length, 0);
+});
+
+test('touch errors distinguish same-window mismatch, cross-window mismatch and no receiver', async () => {
+  const f = windowFixture();
+  await loadSdk(f);
+  const cross = await f.context.IOS.input.click(f.view);
+  assert.equal(cross.error.code, 'TOUCH_TARGET_MISMATCH');
+  assert.equal(cross.error.message, 'TOUCH_TARGET_MISMATCH: target UIButton(identifier="form.submit") does not receive the touch at screen point (70, 250); hit UIView(identifier="dialog.mask") in another App window');
+
+  f.overlay.hitTest_withEvent_ = () => null;
+  f.window.hitTest_withEvent_ = () => f.blocker;
+  const same = await f.context.IOS.input.click(f.view);
+  assert.equal(same.error.code, 'TOUCH_TARGET_MISMATCH');
+  assert.match(same.error.message, /hit UIView\(identifier="dialog.mask"\) in the target window$/);
+
+  f.window.hitTest_withEvent_ = () => null;
+  const none = await f.context.IOS.input.click(f.view);
+  assert.equal(none.error.code, 'NO_TOUCH_RECEIVER');
+  assert.equal(none.error.message, 'NO_TOUCH_RECEIVER: no view receives the touch at screen point (70, 250) for target UIButton(identifier="form.submit") in its App scene');
+  assert.equal(f.controllerRequests.length, 0);
+});
+
+test('touch diagnostics support missing identifiers and preserve the error if a getter throws', async () => {
+  const f = windowFixture();
+  f.view.accessibilityIdentifier = () => null;
+  f.blocker.accessibilityIdentifier = () => { throw new Error('custom getter failed'); };
+  await loadSdk(f);
+  const result = await f.context.IOS.input.click(f.view);
+  assert.equal(result.error.code, 'TOUCH_TARGET_MISMATCH');
+  assert.match(result.error.message, /target UIButton .*hit UIView in another App window$/);
+  assert.equal(f.controllerRequests.length, 0);
 });

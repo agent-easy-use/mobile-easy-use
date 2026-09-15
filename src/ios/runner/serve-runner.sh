@@ -11,8 +11,8 @@ runner_dir=""
 
 usage() {
   echo "Usage:"
-  echo "  serve-runner.sh --simulator UDID [--port PORT]"
-  echo "  serve-runner.sh --device UDID --team TEAM_ID --bundle-id BUNDLE_ID [--port PORT]"
+  echo "  serve-runner.sh --simulator UDID --runner-root PATH [--port PORT]"
+  echo "  serve-runner.sh --device UDID --team TEAM_ID --bundle-id BUNDLE_ID --runner-root PATH [--port PORT]"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -65,13 +65,9 @@ if [[ "${kind}" == "device" && ( ! "${team_id}" =~ ^[A-Z0-9]{10}$ || ! "${bundle
   exit 2
 fi
 
-if [[ -z "${runner_dir}" ]]; then
-  runner_dir="${MOBILE_EASY_USE_IOS_RUNNER_ROOT:-}"
-fi
-
 if [[ -z "${runner_dir}" || ! -d "${runner_dir}" ]]; then
   echo "MobileEasyUse iOS Runner is unavailable at '${runner_dir}'." >&2
-  echo "Pass --runner-root from the Host or set MOBILE_EASY_USE_IOS_RUNNER_ROOT." >&2
+  echo "Pass --runner-root from the Host, resolved from the App Release version." >&2
   exit 1
 fi
 

@@ -18,7 +18,7 @@ Before editing the target project, run `node scripts/ensure-artifacts.mjs`, reso
 
 If the JSON result contains `actionRequired: "confirm-update"`, report the cached and latest Release versions and ask whether to update. Run again with `--update` when accepted or `--use-cached` when declined. Preserve a Release already pinned in the project unless the user accepts an upgrade; select it with `--version <version>`.
 
-Use `MEU_HOME` when the user or environment needs a cache root other than `~/.meu`. Use `GITHUB_TOKEN` when authenticated GitHub API access is required. The selected Release is the integration source, and its catalog range defines MCP compatibility. Stop and report acquisition, catalog, or checksum errors.
+Use `MEU_HOME` when the user or environment needs a cache root other than `~/.meu`. Artifacts and checksums are downloaded directly from the public GitHub Release; no GitHub token or login is required. The selected Release is the integration source, and its catalog range defines MCP compatibility. Stop and report acquisition, catalog, or checksum errors.
 
 ## Workflow
 
@@ -31,7 +31,7 @@ Use `MEU_HOME` when the user or environment needs a cache root other than `~/.me
 4. Add the returned `repositoryPath` as a project-level Maven repository. Derive the portable path from `MEU_HOME`, or from the current user's home plus `.meu`, in the target Gradle settings. Read [references/gradle.md](references/gradle.md) and use the examples matching the project's Gradle DSL and repository layout.
 5. Use Automatic startup. Scope `com.agenteasyuse:mobile-easy-use:<returned version>` to the selected debuggable variant with `debugImplementation(...)`, or the matching variant-aware configuration such as `internalDebugImplementation(...)`. Pin the returned Release version in the project's existing version-management location.
 6. The AAR manifest provider `com.agenteasyuse.mobileeasyuse.internal.MobileEasyUseInitProvider` calls `MobileEasyUse.initialize()` before `Application.onCreate()`. The variant dependency completes the startup integration.
-7. Report the Release version, compatible MCP range, exact version-pinned MCP command, cache path, target module, variant, changed files, dependency configuration, and Automatic startup. Ask whether the user wants to verify the integration.
+7. Report the Release version, compatible MCP range, exact version-pinned `mcpCommand`, cache path, target module, variant, changed files, dependency configuration, and Automatic startup. Show `mcpCommand` to the user and ask whether to configure this MCP Server in their Agent. Configure it only with user authorization. Ask whether the user wants to verify the integration.
 
 ## Manual startup
 

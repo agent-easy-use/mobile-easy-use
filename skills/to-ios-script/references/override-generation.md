@@ -11,7 +11,7 @@ const definitions = [{
   target: 'MyApp.RegionProvider',
   selector: '- regionForScene:',
   filter(invocation) {
-    return invocation.args[0].toString() === 'search';
+    return invocation.args[0].toString() === 'form';
   },
   withReturn: 'JP',
 }];

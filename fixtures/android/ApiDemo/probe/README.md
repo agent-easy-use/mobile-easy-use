@@ -68,7 +68,7 @@ method runs. `leave`/`throw` carries `capture.elapsedMs` as a number with fracti
 before/after memory, and exit-side capture errors. Only normal `leave` carries `capture.result`.
 Previously archived v1 device evidence keeps its original format and is not a v2 verification run.
 
-See the [chain capture coverage matrix](../../../common/README.md) for the full set of platform exports,
+See the [chain capture coverage matrix](evidence/README.md) for the full set of platform exports,
 manifest assertions, and fault-injection boundaries.
 
 ## Thread names and entry stacks
@@ -83,7 +83,7 @@ stacks (default depth 5), depth validation, filtering, recursion and hook cleanu
 
 The state module exports `probeAsyncStateGetters`, `probeStateGetterErrors`, and
 `probeStateFailureIsolation`. Run each separately and verify its `state-runtime-*-v1` manifest.
-See the [runtime coverage matrix](../../../common/README.md#state-snapshots-and-method-matching)
+See the [runtime coverage matrix](evidence/README.md#state-snapshots-and-method-matching)
 for exact assertions and platform-specific method-matching probes.
 
 `evidence/chain/probeMethodOverloads` verifies actual overload signatures without capture (`chain-complete-overloads-v1`).
@@ -94,5 +94,32 @@ and aggregates it with UI screenshots for the same action (`ui-state-v1`); it do
 `override/probeFieldValues` verifies temporary scalar/object assignment and restored native reference identity.
 `override/probeFieldFailures` covers action errors, rejected values, partial installation rollback, and mixed method/field scopes.
 
-See the [Override coverage matrix](../../../common/override-coverage.md) for method callbacks,
+See the [Override coverage matrix](evidence/override-coverage.md) for method callbacks,
 selection, failure cleanup, field types, object lifetimes, and per-case native assertions.
+
+## Class-path device cases
+
+The UI class scenario uses a real custom button subclass. Its first match is nested
+one level deeper than the second match, with a plain base-class button outside the
+scope and a hidden subclass instance.
+
+Run these exports from `ui/probe.js` separately through `to-android-run`:
+
+| Export | Native oracle |
+| --- | --- |
+| `probeFindByClass` | Exact runtime class, superclass matching, DFS order, mixed steps, root inclusion |
+| `probeClassPathBoundaries` | Unknown/case-mismatched names, base is not subclass, no backtracking, subtree scope, hidden View, empty-name rejection |
+| `probeClassActions` | Class-path wait and click; native counter 0 → 1; first button FIRST → FIRST:1; sibling/outside unchanged; real window/crop screenshots |
+
+All operations must return `result.passed === true` and return to the main menu.
+The action case also returns `class-ui-v1` Evidence. Verify its manifest:
+
+```bash
+node fixtures/android/ApiDemo/probe/evidence/verify-evidence.mjs class-ui-v1 <evidencePath>
+```
+
+The verifier requires before/after native state and screenshots of the exact custom
+button. Check that the returned JPEG paths exist; the standalone hidden target must
+have no crop. These are device operations through the real SDK/native bridge, not
+the JVM/JavaScript fixtures under `test/`. Rebuild and install ApiDemo plus its
+native integration, and run the matching SDK bundle before validating changes.

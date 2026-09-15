@@ -2,12 +2,12 @@ import ObjC from 'frida-objc-bridge';
 import { rectValue } from '../common/geometry.js';
 
 const NATIVE_QUERY_CLASS = 'MEUUIQuery';
-const PATH_STEP_TYPES = new Set(['identifier', 'label']);
+const PATH_STEP_TYPES = new Set(['identifier', 'label', 'class']);
 
 function parsePathStep(step) {
   if (typeof step !== 'string') {
     throw new Error(
-      'UI path steps must be identifier:: or label:: strings; '
+      'UI path steps must be identifier::, label:: or class:: strings; '
       + 'JavaScript getters are not supported by the native query bridge',
     );
   }

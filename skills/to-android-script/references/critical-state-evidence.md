@@ -8,7 +8,7 @@ Generate one read-only getter per state. Use a source-qualified variable or stat
 
 ```javascript
 const stateGetters = {
-  'SearchModel#query': () => AndroidExp.runOnMainThread(() => readCurrentQuery()),
+  'FormModel#text': () => AndroidExp.runOnMainThread(() => readCurrentText()),
   'com.example.feature.FeatureManager#requestCount': () => {
     const manager = getFeatureManager();
     const count = manager.getRequestCount();

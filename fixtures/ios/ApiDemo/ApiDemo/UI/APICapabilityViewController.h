@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+@class APIInputWindowFixture;
 
 @interface APICapabilityViewController : UIViewController
 
@@ -9,5 +10,6 @@
 
 @property(nonatomic, copy, readonly) NSString *category;
 @property(nonatomic, copy, readonly) NSString *scenario;
+@property(nonatomic, strong, readonly) APIInputWindowFixture *inputWindows;
 
 @end

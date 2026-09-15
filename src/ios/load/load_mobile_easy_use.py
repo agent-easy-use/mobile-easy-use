@@ -2,15 +2,25 @@ import json
 import os
 import posixpath
 import re
+import struct
+import sys
+import threading
 import time
 
 import lldb
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from darwin_loader_protocol import (
+    MAX_METADATA_SIZE, MAX_PAGE_PLAN_SIZE, PAGE_PLAN_BREAK,
+    export_layout, regular_export_offset, page_plan_writes,
+)
 
 
 MODE_ENV = "MOBILE_EASY_USE_LLDB_MODE"
 TARGET_ENV = "MOBILE_EASY_USE_LLDB_TARGET"
 PID_ENV = "MOBILE_EASY_USE_LLDB_PID"
 TIMEOUT_ENV = "MOBILE_EASY_USE_LLDB_TIMEOUT"
+WAIT_FOR_MAIN_ENV = "MOBILE_EASY_USE_LLDB_WAIT_FOR_MAIN"
 
 TERMINAL_FAILURE_STATES = {
     lldb.eStateCrashed,
@@ -124,13 +134,13 @@ def remote_bridge_path(target):
     return app_bridge
 
 
-def expression_options(timeout_seconds):
+def expression_options(timeout_seconds, all_threads=False):
     options = lldb.SBExpressionOptions()
     options.SetLanguage(lldb.eLanguageTypeC)
     options.SetIgnoreBreakpoints(True)
     options.SetUnwindOnError(True)
     options.SetTrapExceptions(False)
-    options.SetStopOthers(True)
+    options.SetStopOthers(not all_threads)
     options.SetTryAllThreads(False)
     options.SetSuppressPersistentResult(True)
     options.SetTimeoutInMicroSeconds(timeout_seconds * 1_000_000)
@@ -330,6 +340,8 @@ def loaded_function_address(target, module_name, function_name):
             address = symbol.GetStartAddress().GetLoadAddress(target)
             if address != lldb.LLDB_INVALID_ADDRESS:
                 matches.append(address)
+    if not matches:
+        return exported_function_address(target, module_name, function_name)
     if len(matches) != 1:
         raise LoaderError(
             f"cannot resolve {module_name}`{function_name}: found {len(matches)} matches"
@@ -337,31 +349,195 @@ def loaded_function_address(target, module_name, function_name):
     return matches[0]
 
 
-def load_image_with_sbtarget(target, path, timeout_seconds):
+def exported_function_address(target, module_name, function_name):
+    """Memory-backed modules have no LLDB symbols in minimal mode."""
+    modules = [target.GetModuleAtIndex(i) for i in range(target.GetNumModules())
+               if target.GetModuleAtIndex(i).GetFileSpec().GetFilename() == module_name]
+    if len(modules) != 1:
+        raise LoaderError(f'cannot resolve unique loaded module {module_name}')
+    module = modules[0]
+    base = module.GetObjectFileHeaderAddress().GetLoadAddress(target)
+    if base == lldb.LLDB_INVALID_ADDRESS:
+        raise LoaderError(f'{module_name} has no loaded Mach-O header')
+    process = target.GetProcess()
+    header = read_memory(process, base, 32)
+    size = struct.unpack_from('<I', header, 20)[0]
+    if not 0 < size <= MAX_METADATA_SIZE:
+        raise LoaderError('invalid export load-command size')
+    try:
+        trie, size, ranges = export_layout(header, read_memory(process, base + 32, size), base)
+        address = base + regular_export_offset(read_memory(process, trie, size), ('_' + function_name).encode())
+    except ValueError as error:
+        raise LoaderError(f'cannot resolve {module_name}`{function_name} from exports: {error}') from error
+    if not any(start <= address < end for start, end in ranges):
+        raise LoaderError('resolved export is outside executable segments')
+    print('MEU_EXPORT_RESOLVED ' + json.dumps({
+        'module': module_name, 'uuid': module.GetUUIDString(),
+        'symbol': function_name, 'address': address,
+    }), flush=True)
+    return address
+
+
+def page_plan_thread(process):
+    candidates = []
+    for thread in process:
+        reason = thread.GetStopReason()
+        if reason in (lldb.eStopReasonNone, lldb.eStopReasonInvalid, lldb.eStopReasonPlanComplete):
+            continue
+        frame = thread.GetFrameAtIndex(0)
+        if (reason not in (lldb.eStopReasonException, lldb.eStopReasonSignal)
+                or frame.GetModule().GetFileSpec().GetFilename() != RUNTIME_IMAGE_NAME):
+            raise LoaderError(f'unexpected stop during dlopen: {thread.GetStopDescription(256)} '
+                              f'(thread={thread.GetThreadID()}, pc={frame.GetPC():#x}, sp={frame.GetSP():#x})')
+        if read_memory(process, frame.GetPC(), 4) != PAGE_PLAN_BREAK:
+            raise LoaderError(f'unexpected Runtime trap: {thread.GetStopDescription(256)}')
+        candidates.append(thread)
+    if len(candidates) > 1:
+        raise LoaderError('concurrent Runtime page-plan stops are unsupported')
+    return candidates[0] if candidates else None
+
+
+def service_page_plan(thread):
+    frame = thread.GetFrameAtIndex(0)
+    process = thread.GetProcess()
+    def register(name):
+        value = frame.FindRegister(name)
+        error = lldb.SBError()
+        number = value.GetValueAsUnsigned(error)
+        if not value.IsValid() or error.Fail():
+            raise LoaderError(f'cannot read page-plan register {name}')
+        return number
+    if (register('x1'), register('x2'), register('x3')) != (1337, 1337, 3):
+        raise LoaderError('unrecognized Frida breakpoint protocol')
+    size, address = register('x4'), register('x5')
+    if not 4 <= size <= MAX_PAGE_PLAN_SIZE:
+        raise LoaderError('invalid page plan size')
+    try:
+        writes = page_plan_writes(read_memory(process, address, size))
+    except ValueError as error:
+        raise LoaderError(f'invalid page plan: {error}') from error
+    # Validate every original byte before any write. Writes intentionally
+    # re-store identical bytes through debugserver to prepare executable pages.
+    for destination, data in writes:
+        if read_memory(process, destination, len(data)) != data:
+            raise LoaderError('page bytes differ from the submitted plan')
+    for destination, data in writes:
+        error = lldb.SBError()
+        written = process.WriteMemory(destination, data, error)
+        if error.Fail() or written != len(data):
+            raise LoaderError(f'page-plan debugger write failed: {error}')
+    pc = frame.GetPC()
+    if not frame.FindRegister('x0').SetValueFromCString('0x1337') or not frame.SetPC(pc + 4):
+        raise LoaderError('cannot acknowledge page plan')
+    print('MEU_PAGE_PLAN ' + json.dumps({'thread': thread.GetThreadID(), 'writes': len(writes)}), flush=True)
+
+
+def evaluate_dlopen(target, expression, options, timeout_seconds, enable_page_plans):
+    if not enable_page_plans:
+        return target.EvaluateExpression(expression, options)
+    process = target.GetProcess()
+    error = lldb.SBError()
+    slot = process.AllocateMemory(8, lldb.ePermissionsReadable | lldb.ePermissionsWritable, error)
+    if error.Fail() or slot == lldb.LLDB_INVALID_ADDRESS:
+        raise LoaderError(f'cannot allocate dlopen result slot: {error}')
+    completed = False
+    try:
+        written = process.WriteMemory(slot, b'\0' * 8, error)
+        if error.Fail() or written != 8:
+            raise LoaderError('cannot initialize dlopen result slot')
+        options.SetUnwindOnError(False)
+        deadline = time.monotonic() + timeout_seconds
+        # Store the real return value before LLDB restores the expression frame.
+        # The expression is submitted once, even if initialization yields traps.
+        value = target.EvaluateExpression(f'*(void **){slot:#x} = ({expression})', options)
+        if value.GetError().Success():
+            handle = struct.unpack('<Q', read_memory(process, slot, 8))[0]
+            data = lldb.SBData.CreateDataFromUInt64Array(lldb.eByteOrderLittle, 8, [handle])
+            value = target.CreateValueFromData('dlopen_handle', data, target.GetBasicType(lldb.eBasicTypeVoid).GetPointerType())
+            completed = True
+            return value
+        handled = 0
+        while True:
+            thread = page_plan_thread(process)
+            if thread is None:
+                if not handled:
+                    return value
+                handle = struct.unpack('<Q', read_memory(process, slot, 8))[0]
+                if not handle:
+                    raise LoaderError('continued dlopen did not return a nonzero handle')
+                completed = True
+                # Materialize a host-owned value before freeing the remote slot.
+                data = lldb.SBData.CreateDataFromUInt64Array(lldb.eByteOrderLittle, 8, [handle])
+                return target.CreateValueFromData('dlopen_handle', data, target.GetBasicType(lldb.eBasicTypeVoid).GetPointerType())
+            if handled >= 128 or time.monotonic() >= deadline:
+                raise LoaderError('page-plan handling exceeded dlopen limit')
+            service_page_plan(thread)
+            handled += 1
+            debugger = target.GetDebugger()
+            was_async = debugger.GetAsync()
+            previous_stop = process.GetStopID(True)
+            # Synchronous Continue waits for LLDB to finish processing the stop
+            # and restoring the expression frame. Polling GetState/GetStopID
+            # asynchronously can expose a transient internal return breakpoint.
+            debugger.SetAsync(False)
+            expired = threading.Event()
+            def interrupt():
+                expired.set()
+                process.SendAsyncInterrupt()
+            timer = threading.Timer(max(0.1, deadline - time.monotonic()), interrupt)
+            timer.daemon = True
+            timer.start()
+            try:
+                continue_process(process)
+                if expired.is_set():
+                    raise LoaderError('page-plan continuation timed out')
+                wait_for_inferior_call_stop(process, previous_stop, max(0.1, deadline - time.monotonic()), 'dlopen page-plan continuation')
+            finally:
+                timer.cancel()
+                timer.join()
+                debugger.SetAsync(was_async)
+    finally:
+        if completed:
+            process.DeallocateMemory(slot)
+        # On failure the interrupted call may still refer to the slot. Leave it
+        # allocated rather than freeing storage from underneath that call.
+
+
+def load_image_with_sbtarget(target, path, timeout_seconds, all_threads=False):
     dlopen_address = loaded_function_address(
         target,
         "libdyld.dylib",
         "dlopen",
     )
-    options = expression_options(min(timeout_seconds, 10))
+    timeout_limit = 60 if posixpath.basename(path) == RUNTIME_IMAGE_NAME else 10
+    call_timeout = min(timeout_seconds, timeout_limit)
+    options = expression_options(call_timeout, all_threads)
     process = target.GetProcess()
     previous_stop_id = process.GetStopID(True)
-    value = target.EvaluateExpression(
+    started = time.monotonic()
+    value = evaluate_dlopen(
+        target,
         f"((void *(*)(const char *, int)){dlopen_address:#x})({json.dumps(path)}, 1)",
         options,
+        call_timeout,
+        posixpath.basename(path) == RUNTIME_IMAGE_NAME
+        and target.GetTriple().startswith('arm64'),
     )
+    error = value.GetError()
+    print("MEU_DLOPEN " + json.dumps({
+        "path": path, "seconds": time.monotonic() - started,
+        "error": error.GetCString(), "handle": value.GetValue(),
+        "allThreads": all_threads,
+    }), flush=True)
+    if error.Fail():
+        # Mapping an image does not prove that its initializers returned.
+        raise LoaderError(f"direct dlopen failed: {error.GetCString()}")
     wait_for_inferior_call_stop(
         process,
         previous_stop_id,
-        min(timeout_seconds, 10),
+        call_timeout,
         "direct dlopen",
     )
-    error = value.GetError()
-    if error.Fail():
-        load_state, _ = loaded_image_state(target)
-        if load_state in {"bridge-loaded", "already-loaded"}:
-            return
-        raise LoaderError(f"direct dlopen failed: {error.GetCString()}")
     if value.GetValueAsUnsigned(0) == 0:
         raise LoaderError("direct dlopen returned a null image handle")
 
@@ -372,12 +548,143 @@ def continue_process(process):
         raise LoaderError(f"continue failed: {error.GetCString()}")
 
 
+def read_memory(process, address, size):
+    error = lldb.SBError()
+    data = process.ReadMemory(address, size, error)
+    if error.Fail() or len(data) != size:
+        raise LoaderError(f"cannot read Mach-O at {address:#x}: {error.GetCString()}")
+    return data
+
+
+def parse_main_entry(header, commands, load_address):
+    """Parse the running arm64 slice, independent of symbols and local files."""
+    if len(header) != 32:
+        raise LoaderError("truncated Mach-O header")
+    magic, cpu, subtype, filetype, count, size, flags, reserved = struct.unpack("<8I", header)
+    if magic != 0xFEEDFACF or cpu != 0x0100000C or filetype != 2:
+        raise LoaderError("LC_MAIN cold loading requires an arm64 MH_EXECUTE")
+    if size != len(commands) or size > 1024 * 1024 or count > size // 8:
+        raise LoaderError("invalid Mach-O load command bounds")
+    entries, segments = [], []
+    offset = 0
+    for _ in range(count):
+        if offset + 8 > size:
+            raise LoaderError("truncated Mach-O load command")
+        command, command_size = struct.unpack_from("<II", commands, offset)
+        if command_size < 8 or command_size % 8 or offset + command_size > size:
+            raise LoaderError("invalid Mach-O load command size")
+        if command == 0x80000028:
+            if command_size != 24:
+                raise LoaderError("invalid LC_MAIN size")
+            entries.append(struct.unpack_from("<Q", commands, offset + 8)[0])
+        elif command == 0x19:
+            if command_size < 72:
+                raise LoaderError("truncated LC_SEGMENT_64")
+            segment = struct.unpack_from("<16sQQQQiiII", commands, offset + 8)
+            segments.append(segment)
+        offset += command_size
+    if offset != size or len(entries) != 1:
+        raise LoaderError("expected exactly one LC_MAIN; no symbol fallback")
+    headers = [s for s in segments if s[3] == 0 and s[4] >= 32 + size and s[6] & 1]
+    entryoff = entries[0]
+    containing = [s for s in segments if s[3] <= entryoff < s[3] + s[4] and s[6] & 4]
+    if len(headers) != 1 or len(containing) != 1:
+        raise LoaderError("LC_MAIN is not in a unique executable file-backed segment")
+    segment = containing[0]
+    delta = entryoff - segment[3]
+    if delta >= segment[2]:
+        raise LoaderError("LC_MAIN is outside the segment virtual size")
+    slide = load_address - headers[0][1]
+    entry = segment[1] + delta + slide
+    if entry % 4:
+        raise LoaderError("unaligned arm64 LC_MAIN address")
+    return {"entryoff": entryoff, "address": entry, "slide": slide,
+            "headerAddress": load_address, "cpuSubtype": subtype}
+
+
+def wait_for_main_entry(debugger, target, process, timeout_seconds):
+    initial_state, images = loaded_image_state(target)
+    print("MEU_AFTER_ATTACH " + json.dumps({
+        "pid": process.GetProcessID(), "images": images,
+    }), flush=True)
+    if initial_state != "absent":
+        raise LoaderError("a newly launched App requires both MobileEasyUse images absent after attach")
+    module = target.GetModuleAtIndex(0)
+    address = module.GetObjectFileHeaderAddress().GetLoadAddress(target)
+    if address == lldb.LLDB_INVALID_ADDRESS:
+        raise LoaderError("main executable Mach-O header is not mapped")
+    header = read_memory(process, address, 32)
+    size = struct.unpack_from("<I", header, 20)[0]
+    if size > 1024 * 1024:
+        raise LoaderError("Mach-O load commands exceed 1 MiB")
+    entry = parse_main_entry(header, read_memory(process, address + 32, size), address)
+    entry["module"] = module_identity(module)
+    # dyld startup may replace LLDB's provisional module object. Keep this
+    # one-process checkpoint absolute, rather than bound to that object's section.
+    absolute_address = lldb.SBAddress(lldb.SBSection(), entry["address"])
+    breakpoint = target.BreakpointCreateBySBAddress(absolute_address)
+    if not breakpoint.IsValid() or breakpoint.GetNumLocations() != 1:
+        target.BreakpointDelete(breakpoint.GetID())
+        raise LoaderError("could not install LC_MAIN address breakpoint")
+    print("MEU_ENTRY_RESOLVED " + json.dumps(entry), flush=True)
+    print("MEU_ENTRY_BREAKPOINT " + str(breakpoint), flush=True)
+    timed_out = threading.Event()
+
+    def interrupt():
+        timed_out.set()
+        process.SendAsyncInterrupt()
+
+    timer = threading.Timer(min(timeout_seconds, 30), interrupt)
+    debugger.SetAsync(False)
+    timer.start()
+    try:
+        started = time.monotonic()
+        continue_process(process)
+        print("MEU_ENTRY_STOP " + json.dumps({
+            "seconds": time.monotonic() - started,
+            "state": state_name(process.GetState()),
+            "threads": [{"id": thread.GetThreadID(),
+                         "reason": thread.GetStopDescription(256),
+                         "frames": [str(thread.GetFrameAtIndex(i))
+                                    for i in range(min(16, thread.GetNumFrames()))]}
+                        for thread in list(process)[:4]],
+            "breakpoint": str(breakpoint),
+            "currentHeaderAddress": module.GetObjectFileHeaderAddress().GetLoadAddress(target),
+        }), flush=True)
+        if timed_out.is_set():
+            raise LoaderError("LC_MAIN breakpoint timed out")
+        if process.GetState() != lldb.eStateStopped:
+            raise LoaderError("process did not stop at LC_MAIN")
+        for thread in process:
+            if thread.GetStopReason() != lldb.eStopReasonBreakpoint:
+                continue
+            reasons = [thread.GetStopReasonDataAtIndex(i)
+                       for i in range(0, thread.GetStopReasonDataCount(), 2)]
+            if breakpoint.GetID() in reasons and thread.GetFrameAtIndex(0).GetPC() == entry["address"]:
+                current_module = thread.GetFrameAtIndex(0).GetModule()
+                if (current_module.GetUUIDString() != entry["module"]["uuid"]
+                        or current_module.GetObjectFileHeaderAddress().GetLoadAddress(target) != address):
+                    raise LoaderError("main executable identity or mapping changed before LC_MAIN")
+                process.SetSelectedThread(thread)
+                entry["threadID"] = thread.GetThreadID()
+                if loaded_image_state(target)[0] != "absent":
+                    raise LoaderError("MobileEasyUse loaded before the LC_MAIN injection gate")
+                print("MEU_ENTRY_HIT " + json.dumps(entry), flush=True)
+                return entry
+        raise LoaderError("unexpected stop before LC_MAIN; refusing injection")
+    finally:
+        timer.cancel()
+        timer.join()
+        target.BreakpointDelete(breakpoint.GetID())
+
+
 def load_images_synchronously(
     debugger,
     target,
     process,
     timeout_seconds,
     wait_for_dyld,
+    all_threads=False,
 ):
     bridge_path = remote_bridge_path(target)
     runtime_path = posixpath.join(
@@ -391,14 +698,16 @@ def load_images_synchronously(
     if wait_for_dyld:
         wait_for_program_running(debugger, process, timeout_seconds)
     if initial_state == "absent":
-        load_image_with_sbtarget(target, bridge_path, timeout_seconds)
+        load_image_with_sbtarget(target, bridge_path, timeout_seconds, all_threads)
         bridge_state, _ = loaded_image_state(target)
-        if bridge_state != "bridge-loaded":
+        if bridge_state not in {"bridge-loaded", "already-loaded"}:
             raise LoaderError(
                 f"synchronous Bridge load produced unexpected image state: {bridge_state}"
             )
 
-    load_image_with_sbtarget(target, runtime_path, timeout_seconds)
+    # An explicit second dlopen also waits for initialization when the Bridge
+    # already brought Runtime in as a dependency.
+    load_image_with_sbtarget(target, runtime_path, timeout_seconds, all_threads)
     final_state, images = loaded_image_state(target)
     if final_state != "already-loaded":
         raise LoaderError(
@@ -445,10 +754,16 @@ def load_runtime(debugger):
     mode, target_name, expected_pid, timeout_seconds = required_environment()
     debugger.SetAsync(True)
     process = None
+    wait_for_main = os.environ.get(WAIT_FOR_MAIN_ENV) == "true"
+    entry = None
 
     try:
         target, process = wait_for_process(debugger, expected_pid, timeout_seconds)
         debugger.SetAsync(False)
+        if wait_for_main:
+            if mode != "device":
+                raise LoaderError("LC_MAIN cold loading currently supports devices only")
+            entry = wait_for_main_entry(debugger, target, process, timeout_seconds)
         image_path, image_token, images, load_state, load_method = (
             load_images_synchronously(
                 debugger,
@@ -456,6 +771,7 @@ def load_runtime(debugger):
                 process,
                 timeout_seconds,
                 wait_for_dyld=mode == "simulator",
+                all_threads=wait_for_main,
             )
         )
         detach_process(process)
@@ -468,7 +784,8 @@ def load_runtime(debugger):
             "imagePath": image_path,
             "imageToken": image_token,
             "loadState": load_state,
-            "loadMethod": load_method,
+            "loadMethod": "lc-main+all-threads-dlopen" if wait_for_main else load_method,
+            "entryCheckpoint": entry,
             "images": images,
             "detachState": "detached",
         }

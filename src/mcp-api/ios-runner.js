@@ -245,9 +245,6 @@ function resolveRunnerRoot(releaseVersion) {
   if (typeof releaseVersion !== 'string' || releaseVersion.length === 0) {
     throw new Error('The App runtime did not report a Release version for iOS Runner discovery.');
   }
-  if (process.env.MOBILE_EASY_USE_IOS_RUNNER_ROOT) {
-    return resolve(process.env.MOBILE_EASY_USE_IOS_RUNNER_ROOT);
-  }
   const meuHome = resolve(process.env.MEU_HOME || join(homedir(), '.meu'));
   return join(meuHome, 'ios', releaseVersion, 'runner');
 }

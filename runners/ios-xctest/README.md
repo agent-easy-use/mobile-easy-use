@@ -16,9 +16,9 @@ the internal Runner script for the selected simulator or physical device and sto
 that connection. Users do not start or retain a separate Runner process, and no public Runner command
 is exposed.
 
-The Host resolves the Runner artifact from `MOBILE_EASY_USE_IOS_RUNNER_ROOT` when explicitly set.
-Otherwise it reads the installed MobileEasyUse package version and requires
-`<MEU_HOME>/ios/<version>/runner`, where `MEU_HOME` defaults to `~/.meu`. Missing artifacts fail
+The Host reads `runtimeStatus.releaseVersion` from the target App's dylib and requires
+`<MEU_HOME>/ios/<releaseVersion>/runner`, where `MEU_HOME` defaults to `~/.meu`.
+It passes this directory to the startup script via `--runner-root`. Missing versions or artifacts fail
 immediately; the runtime does not download an artifact or fall back to the repository checkout.
 
 The script builds into a destination-specific directory under `.derived-data/` when no compatible
@@ -61,17 +61,15 @@ while the standalone Runner stays on `17.9.11` to avoid the unserviced `brk 1337
 
 ## Input contract
 
-The target App SDK sends one of these serializable targets through `requestController`:
+The target App SDK accepts an identifier, UIPath, UIView, or screen point. All targets
+are resolved on the App main thread to screen points, bounds and interface orientation;
+the App also computes scroll endpoints. Only the resulting coordinate command reaches
+the Runner through `requestController`. Identifier/label paths use the App's native
+UIView query. `class::` is unsupported.
 
-```js
-"loginButton"
-["identifier::form", "label::Login"]
-{ x: 120, y: 360 }
-```
-
-It also accepts a native `UIView`; only that form is resolved in the target App, on its main thread,
-to the View's current screen-center point. The Runner resolves identifier/label paths directly through
-the XCTest Accessibility tree. `class::` is intentionally unsupported.
+The Runner synthesizes touch/text records without querying XCTest elements. See
+[`sdk/runners/ios-input`](../../sdk/runners/ios-input/README.md) for event timelines,
+deadline handling and supported runtimes.
 
 Supported actions are `click`, `input`, `scroll`, and `longPress`. Runner operations are serialized,
 performed on the XCTest main thread, and never call `XCUIApplication.launch()`.

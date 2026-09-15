@@ -19,21 +19,10 @@ const maxCatalogBytes = 64 * 1024;
 const requestTimeoutMs = 30_000;
 const releaseAssetDownloadTimeoutMs = 10 * 60_000;
 
-function requestHeaders(binary = false) {
-  const headers = {
-    Accept: binary ? "application/octet-stream" : "application/vnd.github+json",
-    "User-Agent": "mobile-easy-use-artifact-installer",
-    "X-GitHub-Api-Version": "2022-11-28",
-  };
-  if (process.env.GITHUB_TOKEN) {
-    headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
-  }
-  return headers;
-}
-
-async function fetchChecked(url, binary = false, timeoutMs = requestTimeoutMs) {
+async function fetchChecked(url, timeoutMs = requestTimeoutMs) {
   const response = await fetch(url, {
-    headers: requestHeaders(binary), redirect: "follow", signal: AbortSignal.timeout(timeoutMs),
+    headers: { "User-Agent": "mobile-easy-use-artifact-installer" },
+    redirect: "follow", signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) {
     throw new Error(`Download failed (${response.status} ${response.statusText}): ${url}`);
@@ -70,7 +59,7 @@ async function sha256(path) {
 async function download(url, destination) {
   const temporary = `${destination}.part-${process.pid}`;
   await rm(temporary, { force: true });
-  const response = await fetchChecked(url, true, releaseAssetDownloadTimeoutMs);
+  const response = await fetchChecked(url, releaseAssetDownloadTimeoutMs);
   if (!response.body) throw new Error(`The response has no body: ${url}`);
   try {
     await pipeline(Readable.fromWeb(response.body), createWriteStream(temporary));
@@ -239,21 +228,13 @@ async function main() {
     return;
   }
 
-  const release = await (await fetchChecked(`https://api.github.com/repos/${repository}/releases/tags/v${version}`)).json();
-  const tag = String(release.tag_name || "");
-  if (tag.replace(/^v/, "") !== version) {
-    throw new Error(`Unexpected Release tag: ${tag || "<missing>"}`);
-  }
-
-  const assets = new Map(release.assets.map((asset) => [asset.name, asset]));
-  const checksumAsset = assets.get("SHA256SUMS");
-  if (!checksumAsset) throw new Error(`Release ${tag} does not contain SHA256SUMS.`);
-  const checksums = parseChecksums(await (await fetchChecked(checksumAsset.url, true)).text());
+  const tag = `v${version}`;
+  const releaseUrl = `https://github.com/${repository}/releases/download/${encodeURIComponent(tag)}`;
+  const checksums = parseChecksums(await (await fetchChecked(`${releaseUrl}/SHA256SUMS`)).text());
 
   const assetName = `mobile-easy-use-android-maven-${version}.tar.gz`;
-  const asset = assets.get(assetName);
   const expectedSha = checksums.get(assetName);
-  if (!asset || !expectedSha) throw new Error(`Release ${tag} is missing ${assetName} or its checksum.`);
+  if (!expectedSha) throw new Error(`Release ${tag} is missing the checksum for ${assetName}.`);
 
   const repositoryPath = join(meuHome, "android", "maven");
   const artifactBase = join(repositoryPath, "com", "agenteasyuse", "mobile-easy-use", version);
@@ -265,7 +246,7 @@ async function main() {
   const archive = join(downloads, assetName);
   await mkdir(downloads, { recursive: true });
   if (!(await exists(archive)) || (await sha256(archive)) !== expectedSha) {
-    await download(asset.url, archive);
+    await download(`${releaseUrl}/${encodeURIComponent(assetName)}`, archive);
   }
   const actualSha = await sha256(archive);
   if (actualSha !== expectedSha) {

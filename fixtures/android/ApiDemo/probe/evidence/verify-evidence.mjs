@@ -1,9 +1,9 @@
-import { verifyOverrideComposition } from '../../../../common/override-composition-contract.mjs';
-import { verifyUiState } from '../../../../common/ui-state-contract.mjs';
+import { verifyOverrideComposition } from './override-composition-contract.mjs';
+import { verifyUiState, verifyClassUi } from './ui-state-contract.mjs';
 import assert from 'node:assert/strict';
-import { verifyStateRuntime, verifyMethodMatching } from '../../../../common/state-runtime-contracts.mjs';
-import { verifyChainContext } from '../../../../common/chain-context-contracts.mjs';
-import { verifyCompleteCapture } from '../../../../common/chain-capture-contracts.mjs';
+import { verifyStateRuntime, verifyMethodMatching } from './state-runtime-contracts.mjs';
+import { verifyChainContext } from './chain-context-contracts.mjs';
+import { verifyCompleteCapture } from './chain-capture-contracts.mjs';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
@@ -139,6 +139,7 @@ function verifyChainCapture(document) {
 }
 
 function verifyEvidence(contract, document) {
+  if (contract === 'class-ui-v1') return verifyClassUi('android', document);
   if (contract === 'override-composition-v1') return verifyOverrideComposition('android', document);
   if (contract === 'ui-state-v1') return verifyUiState('android', document);
   if (contract.startsWith('state-runtime-')) return verifyStateRuntime(contract, document);

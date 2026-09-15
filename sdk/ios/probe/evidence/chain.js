@@ -8,6 +8,7 @@ import {
   writeEvidence,
 } from '../../common/reporting.js';
 import { requireObjCRuntime } from '../../common/main-thread.js';
+import { IOSRuntime } from '../../runtime.js';
 import { installNSLogEvidenceReplacement } from './native-log.js';
 import { runEvidenceAction } from './utils.js';
 
@@ -24,12 +25,14 @@ function installMethodHook(definition, actionDescription) {
     throw new Error('Interceptor is unavailable in the current iOS process');
   }
   const target = definition?.target;
-  const className = typeof target === 'string' ? target : target?.$className;
-  const targetClass = typeof target === 'string' ? ObjC.classes[target] : target;
+  const methodName = requireMethodName(definition.selector);
+  const targetClass = typeof target === 'string'
+    ? IOSRuntime.findClass(target, [methodName])
+    : target;
+  const className = targetClass?.$className ?? target?.$className ?? target;
   if (!targetClass || !className) {
     throw new Error(`Objective-C class not found: ${String(target)}`);
   }
-  const methodName = requireMethodName(definition.selector);
   const method = targetClass[methodName];
   if (!method?.implementation) {
     throw new Error(`Objective-C method not found: ${className} ${methodName}`);
