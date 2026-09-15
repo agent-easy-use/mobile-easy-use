@@ -358,7 +358,7 @@ test('AndroidExp.ui.find restores View methods on generic intermediate wrappers'
   );
 });
 
-test('AndroidExp.wait.until polls only synchronous boolean predicates', async () => {
+test('AndroidExp.wait.until polls synchronous and asynchronous boolean predicates', async () => {
   const fixture = createFixture();
   await loadSdk(fixture);
   let checks = 0;
@@ -374,8 +374,14 @@ test('AndroidExp.wait.until polls only synchronous boolean predicates', async ()
   assert.equal(success.ok, true);
   assert.equal(checks, 3);
 
-  const invalid = await fixture.context.AndroidExp.wait.until(
+  const asynchronous = await fixture.context.AndroidExp.wait.until(
     () => Promise.resolve(true),
+    { timeoutMs: 50, intervalMs: 1 },
+  );
+  assert.equal(asynchronous.ok, true);
+
+  const invalid = await fixture.context.AndroidExp.wait.until(
+    () => Promise.resolve('true'),
     { timeoutMs: 50, intervalMs: 1 },
   );
   assert.equal(invalid.ok, false);
@@ -418,23 +424,26 @@ test('AndroidExp.wait.ui re-resolves IDs in the focused Window and tracks View s
   }, 2);
   const appeared = await fixture.context.AndroidExp.wait.ui(
     3003,
-    'exist',
+    'exists',
     { timeoutMs: 50, intervalMs: 1 },
   );
   assert.equal(appeared.ok, true);
 
   fixture.button.isShown = javaMethod(() => false);
-  const gone = await fixture.context.AndroidExp.wait.ui(fixture.button, 'gone');
-  assert.equal(gone.ok, true);
+  const hidden = await fixture.context.AndroidExp.wait.ui(1001, 'hidden');
+  assert.equal(hidden.ok, true);
 
-  const invalidView = await fixture.context.AndroidExp.wait.ui(fixture.activity, 'exist');
+  const invalidView = await fixture.context.AndroidExp.wait.ui(fixture.button, 'exists', {
+    timeoutMs: 5, intervalMs: 1,
+  });
   assert.equal(invalidView.ok, false);
-  assert.equal(invalidView.error.code, 'INVALID_ARGUMENT');
+  assert.equal(invalidView.error.code, 'TIMEOUT');
+  assert.ok(invalidView.error.lastCheckError);
 
   fixture.rootView.hasWindowFocus = javaMethod(() => false);
   const noFocusedWindow = await fixture.context.AndroidExp.wait.ui(
     2002,
-    'gone',
+    'hidden',
     { timeoutMs: 5, intervalMs: 1 },
   );
   assert.equal(noFocusedWindow.ok, false);
@@ -455,6 +464,26 @@ test('AndroidExp.wait.ui and input actions resolve UI paths', async () => {
   assert.equal(visible.ok, true);
   assert.equal(clicked.ok, true);
   assert.equal(clicked.targetType, 'path');
+});
+
+test('Android Test.create wires runner and UI assertions to the SDK lookup and main-thread adapters', async () => {
+  const fixture = createFixture();
+  const sdk = await loadSdk(fixture);
+  assert.equal(sdk.Test, fixture.context.Test);
+  const suite = sdk.Test.create();
+  suite.describe('search', () => {
+    suite.test('visible', async () => {
+      await suite.expect(1001).toExist();
+      await suite.expect(['id::1001']).toBeVisible();
+      await suite.expect(1001).toSatisfy(async view => view.getWidth() === 200);
+      assert.equal(await fixture.context.AndroidExp.ui.checkUiState(1001, 'visible'), true);
+    });
+    suite.test('missing', () => suite.expect(9999).toExist());
+  });
+  const report = await suite.run();
+  assert.equal(report.passed, 1);
+  assert.equal(report.failed, 1);
+  assert.equal(report.tests[1].errors[0].matcher, 'toExist');
 });
 
 test('AndroidExp.input high-level actions accept resource ID, View, and screen location targets', async () => {
@@ -1224,6 +1253,17 @@ function createFixture({ modernLogSymbol = true, screenshotArtifactRecords = [] 
     getHeight: javaMethod(() => 100),
     isAttachedToWindow: javaMethod(() => true),
     isShown: javaMethod(() => true),
+    getWindowVisibility: javaMethod(() => 0),
+    getAlpha: javaMethod(() => 1),
+    getParent: javaMethod(() => null),
+    getRootView: javaMethod(() => rootView),
+    getGlobalVisibleRect: javaMethod((rect) => {
+      Object.assign(rect, { left: 100, top: 300, right: 300, bottom: 400 });
+      return true;
+    }),
+    getWindowVisibleDisplayFrame: javaMethod((rect) => {
+      Object.assign(rect, { left: 0, top: 0, right: 1080, bottom: 1920 });
+    }),
   });
   const listenerInterface = javaClass('android.view.View$OnClickListener', {});
   listenerInterface.class = {
@@ -1310,6 +1350,10 @@ function createFixture({ modernLogSymbol = true, screenshotArtifactRecords = [] 
   const rootView = javaObject('android.view.View', {
     hasWindowFocus: javaMethod(() => true),
     findViewById: javaMethod((id) => (id === 1001 ? button : null)),
+    getLocationOnScreen: javaMethod((location) => {
+      location[0] = 0;
+      location[1] = 0;
+    }),
   });
   const backgroundRootView = javaObject('android.view.View', {
     hasWindowFocus: javaMethod(() => false),
@@ -1434,6 +1478,20 @@ function createFixture({ modernLogSymbol = true, screenshotArtifactRecords = [] 
     ['android.hardware.input.InputManager', javaClass('android.hardware.input.InputManager')],
     ['android.graphics.Point', javaClass('android.graphics.Point', {
       $new: () => javaObject('android.graphics.Point', { x: { value: 0 }, y: { value: 0 } }),
+    })],
+    ['android.graphics.Rect', javaClass('android.graphics.Rect', {
+      $new: () => ({
+        offset(horizontal, vertical) {
+          this.left += horizontal;
+          this.right += horizontal;
+          this.top += vertical;
+          this.bottom += vertical;
+        },
+        intersect(other) {
+          return Math.max(this.left, other.left) < Math.min(this.right, other.right)
+            && Math.max(this.top, other.top) < Math.min(this.bottom, other.bottom);
+        },
+      }),
     })],
     ['android.view.MotionEvent', MotionEvent],
     ['android.view.KeyEvent', KeyEvent],

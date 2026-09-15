@@ -34,6 +34,7 @@ async function loadSdk(fixture) {
     return getModule(new URL(specifier, referencingModule.identifier));
   });
   await entry.evaluate();
+  return entry.namespace;
 }
 
 function createFixture() {
@@ -174,4 +175,42 @@ test('iOS runtimeStatus only reports the target App runtime', async () => {
   assert.equal(status.available, true);
   assert.equal(status.appId, 'com.example.app');
   assert.deepEqual(fixture.controllerRequests, []);
+});
+
+test('iOS Test.create wires runner and UI assertions to native lookup on the main queue', async () => {
+  const fixture = createFixture();
+  const view = { isFirstResponder: () => true };
+  const paths = [];
+  fixture.ObjC.classes.NSMutableArray = {
+    array() {
+      return { steps: [], addObject_(step) { this.steps.push(step); } };
+    },
+  };
+  fixture.ObjC.classes.MEUUIQuery = {
+    findUIView_(path) {
+      paths.push(path.steps);
+      return path.steps[0] === 'identifier::search' ? view : null;
+    },
+  };
+  const sdk = await loadSdk(fixture);
+  assert.equal(sdk.Test, fixture.context.Test);
+  const suite = sdk.Test.create();
+  suite.describe('search', () => {
+    suite.test('focused', async () => {
+      await suite.expect('search').toExist();
+      await suite.expect(['identifier::search']).toBeFocused();
+      await suite.expect('search').toSatisfy(async actual => actual === view);
+      assert.equal(await fixture.context.IOS.ui.checkUiState('search', 'focused'), true);
+    });
+    suite.test('missing', () => suite.expect('missing').toExist());
+  });
+  const report = await suite.run();
+  assert.equal(report.passed, 1);
+  assert.equal(report.failed, 1);
+  assert.equal(report.tests[1].errors[0].matcher, 'toExist');
+  assert.deepEqual(paths, [
+    ['identifier::search'], ['identifier::search'], ['identifier::search'],
+    ['identifier::search'], ['identifier::missing'],
+  ]);
+  assert.equal(fixture.scheduled(), 5);
 });
