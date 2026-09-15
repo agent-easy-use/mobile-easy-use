@@ -1,16 +1,16 @@
 # Mobile Easy Use
 
-**A tool for Android and iOS developers that gives AI agents runtime access to understand, explore, debug, and run automated UI tests for apps.**
+**Give AI agents runtime access to Android and iOS apps: inspect native objects and state, trace and override method calls, and control the UI.**
 
 Documentation: **English** · [简体中文](./docs/README.zh.md) · [Français](./docs/README.fr.md) · [Русский](./docs/README.ru.md) · [Español](./docs/README.es.md) · [العربية](./docs/README.ar.md)
 
-Compared with Web development, inspecting a mobile app's internal data, business state, and execution is harder. **“The data request succeeded—why didn't the list update?”** Questions like this depend on actual data, state, and timing that static source analysis alone often cannot explain.
-
-Mobile Easy Use gives AI agents runtime access through MCP, connecting source code with actual app behavior so development decisions can rely on runtime evidence.
+Mobile Easy Use exposes these capabilities through MCP, so AI agents can interact directly with a running app from their coding environment.
 
 https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
-## Explore app state and behavior
+## Why AI coding needs runtime exploration
+
+In complex projects, app behavior depends on runtime data, configuration, caches, and call timing. Source code explains the implementation; runtime exploration reveals which branch actually ran, what state objects are in, and where a failure occurred. Together, they give the agent evidence for coding decisions.
 
 Runtime observations guide the agent through the coding loop:
 
@@ -19,13 +19,10 @@ Runtime observations guide the agent through the coding loop:
 - **Investigate problems:** Reproduce the issue in the app and connect actual calls, state changes, and UI behavior to locate the failure.
 - **After coding:** Run the updated app and replay the scenario to verify the result. Confirmed expectations can become regression tests.
 
-For example, ask the agent to validate an approach:
+For example, ask the agent to investigate a list that does not update:
 
 ```text
-Inspect this page controlled by a configuration flag: check its current
-configuration and actual call path, then temporarily toggle the flag
-and verify data and UI in both states. Restore it when finished.
-Use the evidence to assess the approach and identify what remains unverified.
+Use to-android-probe to investigate why this list does not update after a successful request.
 ```
 
 The agent can inspect the following information, depending on the platform and app implementation:
@@ -41,7 +38,7 @@ The agent can inspect the following information, depending on the platform and a
 
 ## Enhanced UI automation testing
 
-Build on UI actions and screenshot checks to assert internal business state, temporarily override runtime behavior to set up scenarios, and trace actual calls and state changes to diagnose failures.
+Mobile Easy Use can also serve as an enhanced UI automation testing tool. Its access to app internals lets tests go beyond UI interactions and screenshot checks to verify business state, control runtime behavior, and investigate failures.
 
 1. **Deeper assertions:** Verify UI, screenshots, and native business state together. After refreshing a list, check both the displayed content and the underlying data and cache.
 2. **More control over scenarios:** Temporarily override fields or method returns to exercise empty data, failures, or specific configuration branches.
@@ -49,9 +46,11 @@ Build on UI actions and screenshot checks to assert internal business state, tem
 
 ### Example: one click, business state, UI, and screenshot checks
 
-Start on Android ApiDemo's **UI → Class names and subclasses** page in its initial state. Clicking `FIRST` should set the counter to 1, display `FIRST:1`, and match the reviewed appearance. Before running, open that initial page and prepare a reviewed post-click baseline at `baselines/first-clicked.jpg`, relative to the test file.
+```text
+Use to-android-test-script to generate an ApiDemo test: click FIRST and verify that the counter is 1, the button shows FIRST:1, and its screenshot matches the baseline.
+```
 
-See [Android tests](./fixtures/android/ApiDemo/tests/) and [iOS tests](./fixtures/ios/ApiDemo/tests/) for complete scenarios and cleanup. Use `expect().toHaveWindowScreenShot(...)` for window comparison.
+Run from the initial **UI → Class names and subclasses** page, with a reviewed post-click baseline at `baselines/first-clicked.jpg`, relative to the test file.
 
 ```javascript
 const { describe, test, expect, run } = Test.create();

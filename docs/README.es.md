@@ -1,16 +1,16 @@
 # Mobile Easy Use
 
-**Una herramienta para desarrolladores de Android e iOS que da a los agentes de IA acceso al runtime para explorar, depurar y ejecutar pruebas UI automatizadas.**
+**Da a los agentes de IA acceso al runtime de aplicaciones Android e iOS: inspeccionar objetos nativos y su estado, rastrear y sustituir llamadas a métodos y controlar la interfaz.**
 
 Documentación: [English](../README.md) · [简体中文](./README.zh.md) · [Français](./README.fr.md) · [Русский](./README.ru.md) · **Español** · [العربية](./README.ar.md)
 
-En comparación con el desarrollo web, es más difícil inspeccionar los datos internos, el estado de negocio y la ejecución de una aplicación móvil. **«La solicitud se completó, ¿por qué no se actualizó la lista?»** Este tipo de problema depende de los datos, el estado y los tiempos reales del dispositivo, que el análisis estático del código fuente no siempre puede explicar.
-
-Mobile Easy Use proporciona a los agentes de IA acceso al runtime mediante MCP. Así pueden relacionar el código fuente con el comportamiento real de la aplicación, leer objetos y estados, interceptar llamadas a métodos, cambiar temporalmente las condiciones de ejecución e interactuar con la interfaz.
+Mobile Easy Use expone estas capacidades mediante MCP para que los agentes de IA interactúen directamente con una aplicación en ejecución desde su entorno de desarrollo.
 
 https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
-## Explorar el estado y el comportamiento de la aplicación
+## Por qué programar con IA requiere explorar el runtime
+
+En proyectos complejos, el comportamiento depende de los datos, la configuración, la caché y el orden de las llamadas en ejecución. El código explica la implementación; explorar el runtime revela qué rama se ejecutó, en qué estado están los objetos y dónde ocurrió el fallo. Juntos aportan evidencias para las decisiones del agente.
 
 Las observaciones guían al agente durante el ciclo de desarrollo:
 
@@ -19,13 +19,10 @@ Las observaciones guían al agente durante el ciclo de desarrollo:
 - **Diagnóstico**: reproducir el problema en la aplicación y relacionar llamadas reales, cambios de estado e interfaz para localizar el fallo.
 - **Después de programar**: ejecutar la aplicación modificada y repetir el escenario para verificar el resultado real. Las expectativas confirmadas pueden convertirse en pruebas de regresión.
 
-Por ejemplo, pide al agente:
+Por ejemplo, pide al agente que investigue una lista que no se actualiza:
 
 ```text
-Examina esta página controlada por una opción: comprueba la configuración
-y la ruta de ejecución, cambia temporalmente la opción y verifica los datos
-y la interfaz en ambos estados. Restáurala al terminar.
-Evalúa la propuesta con las evidencias e indica qué queda sin verificar.
+Usa to-android-probe para investigar por qué esta lista no se actualiza tras una petición exitosa.
 ```
 
 El agente puede inspeccionar la siguiente información, según la plataforma y la implementación de la aplicación:
@@ -41,7 +38,7 @@ El agente puede inspeccionar la siguiente información, según la plataforma y l
 
 ## Pruebas UI automatizadas mejoradas
 
-Además de las acciones UI y las capturas, verifica directamente el estado de negocio interno, modifica temporalmente el comportamiento en ejecución para preparar escenarios y analiza llamadas reales y cambios de estado para diagnosticar fallos.
+Mobile Easy Use también puede utilizarse como una herramienta de pruebas UI automatizadas mejoradas. Su acceso al estado y al comportamiento internos de la aplicación permite, además de las interacciones UI y las capturas, verificar el estado de negocio, controlar el comportamiento en ejecución e investigar fallos.
 
 1. **Verificaciones más profundas**: comprueba la interfaz, las capturas y el estado de negocio nativo en conjunto. Tras actualizar una lista, verifica tanto el contenido mostrado como los datos internos y la caché.
 2. **Mayor control de los escenarios**: sustituye temporalmente campos o retornos de métodos para provocar datos vacíos, fallos o ramas de configuración específicas.
@@ -49,9 +46,11 @@ Además de las acciones UI y las capturas, verifica directamente el estado de ne
 
 ### Ejemplo: un clic, tres niveles de verificación
 
-En la página inicial **UI → Class names and subclasses** de Android ApiDemo, pulsar `FIRST` debe dejar el contador en 1 y mostrar `FIRST:1`. Antes de cada ejecución, abre esa página en su estado inicial y prepara una captura de referencia revisada, posterior al clic, en `baselines/first-clicked.jpg`, ruta relativa al archivo de prueba.
+```text
+Usa to-android-test-script para generar una prueba de ApiDemo: pulsa FIRST y verifica que el contador sea 1, el botón muestre FIRST:1 y su captura coincida con la referencia.
+```
 
-Consulta los [tests Android](../fixtures/android/ApiDemo/tests/) e [iOS](../fixtures/ios/ApiDemo/tests/) para ver escenarios completos con limpieza. Para comparar la ventana, usa `expect().toHaveWindowScreenShot(...)`.
+Ejecuta desde la página **UI → Class names and subclasses** en su estado inicial, con una captura de referencia revisada posterior al clic en `baselines/first-clicked.jpg`, relativa al archivo de prueba.
 
 ```javascript
 const { describe, test, expect, run } = Test.create();

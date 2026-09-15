@@ -1,16 +1,16 @@
 # Mobile Easy Use
 
-**面向 Android / iOS 开发者，让 AI Agent 访问 App 运行时，理解、探查、调试 App，并执行 UI 自动化测试。**
+**让 AI Agent 访问 Android / iOS App 运行时：读取原生对象与状态，追踪和覆盖方法调用，操控 UI。**
 
 文档：[English](../README.md) · **简体中文** · [Français](./README.fr.md) · [Русский](./README.ru.md) · [Español](./README.es.md) · [العربية](./README.ar.md)
 
-相比 Web，移动 App 更难直接查看内部数据、业务状态和执行过程。**“数据请求成功了，列表为什么没有更新？”** 这类问题取决于实际数据、状态和执行时序，仅靠静态源码分析往往无法判断。
-
-Mobile Easy Use 通过 MCP 让 AI Agent 访问 App 运行时，将源码与 App 的实际行为联系起来，让开发判断有真实运行信息可依。
+Mobile Easy Use 通过 MCP 提供这些能力，让 AI Agent 在编码环境中直接与运行中的 App 交互。
 
 https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
-## 探查 App 的状态与行为
+## 为什么 AI 编码需要运行时探查
+
+复杂项目的实际行为取决于运行时数据、配置、缓存和调用时序。源码帮助理解实现，运行时探查则确认当前场景实际走了哪个分支、对象处于什么状态、问题发生在哪里，让 Agent 的编码判断有实际依据。
 
 运行观测贯穿 Agent 的编码循环：
 
@@ -19,12 +19,10 @@ https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 - **问题定位**：在 App 中复现问题，关联实际调用、状态变化和 UI 表现，找出异常环节。
 - **编码后**：运行修改后的 App，重跑原场景，验证实际效果；确认后的预期可沉淀为回归测试。
 
-例如，让 Agent 验证一个方案：
+例如，让 Agent 排查列表未更新的问题：
 
 ```text
-检查这个受配置开关控制的页面：确认当前配置和实际调用路径，
-再临时切换开关，验证两种状态下的数据和 UI，完成后恢复。
-结合运行证据判断方案是否可行，并说明仍未验证的部分。
+使用 to-android-probe，查一下为什么请求成功了，列表却没更新。
 ```
 
 Agent 可探查以下信息，具体取决于平台和 App 实现：
@@ -40,7 +38,7 @@ Agent 可探查以下信息，具体取决于平台和 App 实现：
 
 ## 增强版 UI 自动化测试
 
-在 UI 操作和截图验证的基础上，直接断言 App 内部业务状态，临时覆盖运行行为构造场景，并通过真实调用与状态变化定位失败原因。
+Mobile Easy Use 也可以用作增强版 UI 自动化测试工具。基于对 App 内部状态与行为的访问能力，测试可以在 UI 操作和截图验证之外，进一步验证业务状态、控制运行行为、定位失败原因。
 
 1. **断言更深入**：同时验证 UI、截图和原生业务状态。刷新列表后，既检查界面显示，也检查内部数据和缓存。
 2. **场景更可控**：临时覆盖字段或方法返回值，触发空数据、失败或特定配置分支。
@@ -48,9 +46,11 @@ Agent 可探查以下信息，具体取决于平台和 App 实现：
 
 ### 示例：一次点击，验证业务状态、UI 和截图
 
-在 Android ApiDemo 的 **UI → Class names and subclasses** 初始页面，点击 `FIRST` 后，计数应为 1，按钮应显示 `FIRST:1`，外观应符合基准。运行前进入该初始页面，并准备已审核的点击后截图 `baselines/first-clicked.jpg`，路径相对于用例文件。
+```text
+使用 to-android-test-script 生成 ApiDemo 测试：点击 FIRST，验证计数为 1、按钮显示 FIRST:1，截图符合基准。
+```
 
-完整场景与清理示例见 [Android tests](../fixtures/android/ApiDemo/tests/) 和 [iOS tests](../fixtures/ios/ApiDemo/tests/)。窗口比较可用 `expect().toHaveWindowScreenShot(...)`。
+从 **UI → Class names and subclasses** 初始页面运行；准备已审核的点击后基准图 `baselines/first-clicked.jpg`，路径相对于用例文件。
 
 ```javascript
 const { describe, test, expect, run } = Test.create();

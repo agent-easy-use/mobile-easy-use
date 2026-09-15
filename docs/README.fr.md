@@ -1,16 +1,16 @@
 # Mobile Easy Use
 
-**Un outil pour les développeurs Android et iOS qui donne aux agents IA accès au runtime pour explorer, déboguer et exécuter des tests UI automatisés.**
+**Donnez aux agents IA accès au runtime des applications Android et iOS : inspecter les objets natifs et leur état, tracer et remplacer les appels de méthodes, et contrôler l’interface.**
 
 Documentation : [English](../README.md) · [简体中文](./README.zh.md) · **Français** · [Русский](./README.ru.md) · [Español](./README.es.md) · [العربية](./README.ar.md)
 
-Par rapport au Web, il est plus difficile d'examiner les données internes, l'état métier et l'exécution d'une application mobile. **« La requête a réussi, pourquoi la liste ne s'est-elle pas mise à jour ? »** Ce type de problème dépend des données, de l'état et de la chronologie réels sur l'appareil, que l'analyse statique du code source ne suffit souvent pas à expliquer.
-
-Mobile Easy Use donne aux agents IA un accès au runtime via MCP. Ils peuvent rapprocher le code source du comportement réel de l'application, lire les objets et l'état, intercepter les appels de méthodes, modifier temporairement les conditions d'exécution, puis manipuler et inspecter l'interface.
+Mobile Easy Use expose ces capacités via MCP, pour que les agents IA interagissent directement avec une application en cours d’exécution depuis leur environnement de développement.
 
 https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
-## Explorer l'état et le comportement de l'application
+## Pourquoi le développement avec l’IA a besoin d’explorer le runtime
+
+Dans les projets complexes, le comportement dépend des données, de la configuration, du cache et de l’ordre des appels à l’exécution. Le code explique l’implémentation ; l’exploration du runtime révèle la branche réellement exécutée, l’état des objets et l’origine d’un échec. Ensemble, ils étayent les décisions de l’agent.
 
 Les observations guident l’agent tout au long du cycle de développement :
 
@@ -19,13 +19,10 @@ Les observations guident l’agent tout au long du cycle de développement :
 - **Diagnostic** : reproduire le problème dans l’application et relier les appels réels, les changements d’état et l’interface pour localiser l’échec.
 - **Après modification** : exécuter l’application modifiée et rejouer le scénario pour vérifier le résultat réel. Les attentes confirmées peuvent devenir des tests de régression.
 
-Par exemple, demandez à l'agent :
+Par exemple, demandez à l’agent d’examiner une liste qui ne se met pas à jour :
 
 ```text
-Examine cette page contrôlée par un paramètre : vérifie la configuration
-et le chemin d'exécution, puis change temporairement le paramètre pour
-observer les données et l'interface dans les deux cas. Restaure-le ensuite.
-Évalue l'approche à partir des preuves et précise ce qui reste à vérifier.
+Utilise to-android-probe pour examiner pourquoi cette liste ne se met pas à jour après une requête réussie.
 ```
 
 L’agent peut examiner les informations suivantes, selon la plateforme et l’implémentation de l’application :
@@ -41,7 +38,7 @@ L’agent peut examiner les informations suivantes, selon la plateforme et l’i
 
 ## Tests UI automatisés enrichis
 
-Au-delà des actions UI et des captures, vérifiez directement l’état métier interne, modifiez temporairement le comportement à l’exécution pour préparer des scénarios et analysez les appels réels et les changements d’état pour diagnostiquer les échecs.
+Mobile Easy Use peut aussi servir d’outil de tests UI automatisés enrichis. Son accès à l’état et au comportement internes de l’application permet, au-delà des interactions UI et des captures, de vérifier l’état métier, de contrôler le comportement à l’exécution et de diagnostiquer les échecs.
 
 1. **Des vérifications plus approfondies** : vérifiez ensemble l’interface, les captures et l’état métier natif. Après une actualisation, contrôlez la liste affichée ainsi que les données internes et le cache.
 2. **Des scénarios mieux maîtrisés** : remplacez temporairement des champs ou des retours de méthodes pour déclencher des données vides, des échecs ou des branches de configuration spécifiques.
@@ -49,9 +46,11 @@ Au-delà des actions UI et des captures, vérifiez directement l’état métier
 
 ### Exemple : un clic, trois niveaux de vérification
 
-Sur la page initiale **UI → Class names and subclasses** d'Android ApiDemo, cliquer sur `FIRST` doit porter le compteur à 1 et afficher `FIRST:1`. Avant chaque exécution, ouvrez cette page dans son état initial et préparez une capture de référence après clic, vérifiée, à `baselines/first-clicked.jpg`, chemin relatif au fichier de test.
+```text
+Utilise to-android-test-script pour générer un test ApiDemo : cliquer sur FIRST, vérifier que le compteur vaut 1, que le bouton affiche FIRST:1 et que sa capture correspond à la référence.
+```
 
-Les [tests Android](../fixtures/android/ApiDemo/tests/) et [iOS](../fixtures/ios/ApiDemo/tests/) contiennent des scénarios complets avec nettoyage. Pour une fenêtre, utilisez `expect().toHaveWindowScreenShot(...)`.
+Exécutez depuis la page **UI → Class names and subclasses** dans son état initial, avec une capture de référence après clic vérifiée à `baselines/first-clicked.jpg`, relative au fichier de test.
 
 ```javascript
 const { describe, test, expect, run } = Test.create();
