@@ -13,8 +13,8 @@ async function home() {
   expect((await AndroidExp.wait.ui(R.id.api_menu_input, 'visible')).ok, 'Main ready').toBe(true);
 }
 
-// Absolute Host path; update when moving the checkout. See baselines/README.md for device configuration.
-const BASELINE = '/Users/bytedance/IdeaProjects/mobile-easy-use/fixtures/android/ApiDemo/tests/baselines/class-first.jpg';
+// Relative to this test module on the Host; see baselines/README.md.
+const BASELINE = 'baselines/class-first.jpg';
 
 describe('screenshot', () => {
   beforeEach(async () => {

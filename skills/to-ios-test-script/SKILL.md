@@ -34,7 +34,7 @@ Use `beforeEach`/`afterEach` for shared state preparation and restoration; clean
 Assert the App outcome, not just action delivery:
 
 - Prefer UI assertions for observable control state; use `toSatisfy` for native UI properties. Await assertions and wait for eventual state first.
-- Use `toHaveElementScreenShot` for element appearance or `toHaveWindowScreenShot` for window appearance, with a separately reviewed baseline. Never update the baseline in the test.
+- Use `toHaveElementScreenShot` for element appearance or `toHaveWindowScreenShot` for window appearance, with a separately reviewed baseline. Prefer baseline paths relative to the test module. Never update the baseline in the test.
 - Use ordinary value assertions for business data, action results, or observations UI and screenshots cannot express.
 
 ## 4. Direct Frida

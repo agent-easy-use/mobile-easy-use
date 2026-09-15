@@ -643,7 +643,8 @@ declare global {
      */
     toSatisfy(predicate: (view: Java.Wrapper) => boolean | Promise<boolean>): Promise<void>;
     /** Capture the current element through AndroidExp.screenshot, then compare on Host.
-     * Use expect(target); baselinePath must be an absolute Host path to an existing PNG/JPEG.
+     * Use expect(target); baselinePath points to an existing Host PNG/JPEG.
+     * Relative paths resolve against the call_function entry module directory; Inline requires an absolute path.
      * Handles platform thread dispatch internally. No baseline updates or diff images.
      * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
      * On mismatch, AssertionError actual/expected contain the captured/baseline Host paths.
@@ -655,7 +656,8 @@ declare global {
       maxDiffPixelRatio?: number;
     }): Promise<void>;
     /** Capture the current window through AndroidExp.screenshot, then compare on Host.
-     * Use expect(); baselinePath must be an absolute Host path to an existing PNG/JPEG.
+     * Use expect(); baselinePath points to an existing Host PNG/JPEG.
+     * Relative paths resolve against the call_function entry module directory; Inline requires an absolute path.
      * Handles platform thread dispatch internally. No baseline updates or diff images.
      * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
      * On mismatch, AssertionError actual/expected contain the captured/baseline Host paths.

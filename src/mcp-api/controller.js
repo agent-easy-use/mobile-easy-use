@@ -5,11 +5,21 @@ import { compareScreenshot } from './compare-screenshot.js';
 
 const CONTROLLER_ACTIONS = new Map([
   ['file.write', writeFileAction],
-  ['screenshot.compare', ({ actualPath, baselinePath, options }) => (
-    compareScreenshot(actualPath, baselinePath, options)
-  )],
+  ['screenshot.compare', compareScreenshotAction],
   ...IOS_CONTROLLER_ACTIONS,
 ]);
+
+async function compareScreenshotAction({ actualPath, baselinePath, options }, _data, _owner, connection) {
+  if (typeof baselinePath !== 'string' || baselinePath.length === 0) {
+    throw new TypeError('baselinePath must be a non-empty Host path');
+  }
+  if (!isAbsolute(baselinePath)) {
+    const filePath = connection?.activeCall?.filePath;
+    if (!filePath) throw new Error('Relative baseline paths require call_function; use an absolute Host path for inline scripts');
+    baselinePath = resolve(dirname(filePath), baselinePath);
+  }
+  return { ...await compareScreenshot(actualPath, baselinePath, options), baselinePath };
+}
 
 export async function handleControllerMessage(
   script,

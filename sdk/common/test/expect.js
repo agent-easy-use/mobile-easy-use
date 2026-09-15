@@ -103,7 +103,7 @@ export function createExpect(findUiView, runOnMainThread, checkUiState, screensh
       });
       if (!ok) throw new Error(responsePayload.error.message);
       const detail = [message, responsePayload.message].filter(Boolean).join(': ');
-      check(responsePayload.matches, name, baselinePath, detail, actualPath);
+      check(responsePayload.matches, name, responsePayload.baselinePath ?? baselinePath, detail, actualPath);
     }
     methods.toHaveElementScreenShot = async (baselinePath, options = {}) => {
       if (actual == null) throw new TypeError('toHaveElementScreenShot requires a UI target');

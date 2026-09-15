@@ -103,11 +103,11 @@ function nativeViewState(resourceId) {
 /** Wait for an already attached View to exist. */
 export async function probeImmediateExist() {
   return navigate('immediate', async () => {
-  const result = await AndroidExp.wait.ui(R.id.api_wait_existing, 'exist');
+  const result = await AndroidExp.wait.ui(R.id.api_wait_existing, 'exists');
   const oracle = nativeViewState(R.id.api_wait_existing);
   return {
     passed: result.ok === true && oracle.found && oracle.attached,
-    api: 'AndroidExp.wait.ui(exist)',
+    api: 'AndroidExp.wait.ui(exists)',
     result,
     oracle,
   };
@@ -119,27 +119,27 @@ export async function probeImmediateExistByPath() {
   return navigate('immediate', async () => {
     const result = await AndroidExp.wait.ui(
       [`id::${R.id.api_wait_existing}`],
-      'exist',
+      'exists',
     );
     const oracle = nativeViewState(R.id.api_wait_existing);
     return {
       passed: result.ok === true && oracle.found && oracle.attached,
-      api: 'AndroidExp.wait.ui(path, exist)',
+      api: 'AndroidExp.wait.ui(path, exists)',
       result,
       oracle,
     };
   });
 }
 
-/** Wait for an already attached resolved View instance to exist. */
+/** Wait for an already attached resolved View through a getter path to exist. */
 export async function probeImmediateExistByView() {
   return navigate('immediate', async () => {
     const view = AndroidExp.ui.find(R.id.api_wait_existing);
-    const result = await AndroidExp.wait.ui(view, 'exist');
+    const result = await AndroidExp.wait.ui([() => view], 'exists');
     const oracle = nativeViewState(R.id.api_wait_existing);
     return {
       passed: result.ok === true && oracle.found && oracle.attached,
-      api: 'AndroidExp.wait.ui(view, exist)',
+      api: 'AndroidExp.wait.ui(getter path, exists)',
       result,
       oracle,
     };
@@ -184,39 +184,39 @@ export async function probeDelayedVisibleByPath() {
   });
 }
 
-/** Wait through a resolved View instance until it becomes visible. */
+/** Wait through a getter path returning a resolved View until it becomes visible. */
 export async function probeDelayedVisibleByView() {
   return navigate('delayed_visible', async () => {
     const view = AndroidExp.ui.find(R.id.api_wait_hidden);
     controllerCall('showAfter', 'api_wait_hidden', 250);
     const result = await AndroidExp.wait.ui(
-      view,
+      [() => view],
       'visible',
       { timeoutMs: 2000, intervalMs: 50 },
     );
     const oracle = nativeViewState(R.id.api_wait_hidden);
     return {
       passed: result.ok === true && oracle.shown && oracle.width > 0 && oracle.height > 0,
-      api: 'AndroidExp.wait.ui(view, visible)',
+      api: 'AndroidExp.wait.ui(getter path, visible)',
       result,
       oracle,
     };
   });
 }
 
-/** Schedule a visible View to become GONE, then wait for gone. */
+/** Schedule a visible View to become GONE, then wait for hidden. */
 export async function probeDelayedGone() {
   return navigate('delayed_gone', async () => {
   controllerCall('hideAfter', 'api_wait_gone', 250);
   const result = await AndroidExp.wait.ui(
     R.id.api_wait_gone,
-    'gone',
+    'hidden',
     { timeoutMs: 2000, intervalMs: 50 },
   );
   const oracle = nativeViewState(R.id.api_wait_gone);
   return {
     passed: result.ok === true && oracle.found && !oracle.shown,
-    api: 'AndroidExp.wait.ui(gone)',
+    api: 'AndroidExp.wait.ui(hidden)',
     result,
     oracle,
   };
@@ -229,13 +229,13 @@ export async function probeDelayedGoneByPath() {
     controllerCall('hideAfter', 'api_wait_gone', 250);
     const result = await AndroidExp.wait.ui(
       [`id::${R.id.api_wait_gone}`],
-      'gone',
+      'hidden',
       { timeoutMs: 2000, intervalMs: 50 },
     );
     const oracle = nativeViewState(R.id.api_wait_gone);
     return {
       passed: result.ok === true && oracle.found && !oracle.shown,
-      api: 'AndroidExp.wait.ui(path, gone)',
+      api: 'AndroidExp.wait.ui(path, hidden)',
       result,
       oracle,
     };
@@ -248,34 +248,31 @@ export async function probeDelayedAttach() {
   controllerCall('attachAfter', 'api_wait_attach_target', 250);
   const result = await AndroidExp.wait.ui(
     R.id.api_wait_attach_target,
-    'exist',
+    'exists',
     { timeoutMs: 2000, intervalMs: 50 },
   );
   const oracle = nativeViewState(R.id.api_wait_attach_target);
   return {
     passed: result.ok === true && oracle.found && oracle.attached,
-    api: 'AndroidExp.wait.ui(exist)',
+    api: 'AndroidExp.wait.ui(exists)',
     result,
     oracle,
   };
   });
 }
 
-/** Save a View instance, schedule its detach and wait through the View overload. */
+/** Schedule detach and use wait.until to check that the target no longer exists. */
 export async function probeDelayedDetach() {
   return navigate('attach_detach', async () => {
-  const view = AndroidExp.ui.find(R.id.api_wait_detach_target);
   controllerCall('detachAfter', 'api_wait_detach_target', 250);
-  const result = await AndroidExp.wait.ui(
-    view,
-    'gone',
+  const result = await AndroidExp.wait.until(
+    async () => !(await AndroidExp.ui.checkUiState(R.id.api_wait_detach_target, 'exists')),
     { timeoutMs: 2000, intervalMs: 50 },
   );
-  let attached;
-  Java.performNow(() => { attached = Boolean(view.isAttachedToWindow()); });
+  const attached = await AndroidExp.ui.checkUiState(R.id.api_wait_detach_target, 'exists');
   return {
     passed: result.ok === true && attached === false,
-    api: 'AndroidExp.wait.ui(view, gone)',
+    api: 'AndroidExp.wait.until(detached)',
     result,
     oracle: { attached },
   };
@@ -320,7 +317,7 @@ export async function probeTimeout() {
   });
 }
 
-/** Verify wait.until polls only a synchronous boolean predicate. */
+/** Verify wait.until polls a boolean predicate. */
 export async function probeUntil() {
   return navigate('immediate', async () => {
   let checks = 0;

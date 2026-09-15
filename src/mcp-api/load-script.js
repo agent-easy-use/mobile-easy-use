@@ -27,6 +27,7 @@ export async function loadScript(filePath) {
 
   const sourceSha256 = createHash('sha256').update(source).digest('hex');
   return {
+    filePath: canonicalPath,
     source,
     modulePath: `${canonicalPath}?sha256=${sourceSha256}`,
   };

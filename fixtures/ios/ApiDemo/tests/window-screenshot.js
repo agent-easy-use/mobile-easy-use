@@ -10,8 +10,8 @@ async function home() {
   expect((await IOS.wait.ui('api.menu.input', 'visible')).ok, 'Main ready').toBe(true);
 }
 
-// Absolute Host path; see baselines/README.md for the reviewed device configuration.
-const BASELINE = '/Users/bytedance/IdeaProjects/mobile-easy-use/fixtures/ios/ApiDemo/tests/baselines/home-window.jpg';
+// Relative to this test module on the Host; see baselines/README.md.
+const BASELINE = 'baselines/home-window.jpg';
 
 describe('window screenshot', () => {
   beforeEach(home);

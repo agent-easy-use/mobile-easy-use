@@ -24,7 +24,8 @@ export async function callFunction(owner, { filePath, functionName, args = [] } 
   let didFail = false;
   try {
     try {
-      const { modulePath, source } = await loadScript(filePath);
+      const { modulePath, source, filePath: canonicalPath } = await loadScript(filePath);
+      activeCall.filePath = canonicalPath;
       if (owner.currentConnection !== connection || owner.state !== 'connected'
           || connection.sdkScript.isDestroyed === true) {
         throw new Error('MobileEasyUse session detached before calling the function');

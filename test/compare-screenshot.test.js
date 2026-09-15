@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -9,6 +9,7 @@ import { compareScreenshot } from '../src/mcp-api/compare-screenshot.js';
 import { handleControllerMessage } from '../src/mcp-api/controller.js';
 import { AssertionError, createExpect } from '../sdk/common/test/expect.js';
 import { create } from '../sdk/common/test/index.js';
+import { callFunction } from '../src/mcp-api/call-function.js';
 
 async function images(context) {
   const directory = await mkdtemp(join(tmpdir(), 'meu-screenshot-test-'));
@@ -107,7 +108,9 @@ for (const matcher of ['toHaveElementScreenShot', 'toHaveWindowScreenShot']) {
         receivers.delete(message.type);
         callback(message);
       } };
-      return handleControllerMessage(script, { type: 'send', payload: event }, null, {});
+      return handleControllerMessage(script, { type: 'send', payload: event }, null, {
+        currentConnection: { activeCall: { filePath: join(directory, 'test.js') } },
+      });
     };
     const captures = [];
     const target = matcher === 'toHaveElementScreenShot' ? 123 : undefined;
@@ -131,9 +134,14 @@ for (const matcher of ['toHaveElementScreenShot', 'toHaveWindowScreenShot']) {
       return true;
     });
     await assert.rejects(expect(target).not[matcher](actual), AssertionError);
+    await assert.rejects(expect(target)[matcher]('baseline.png'), error => {
+      assert.equal(error.actual, JSON.stringify(actual));
+      assert.equal(error.expected, JSON.stringify(baseline));
+      return error instanceof AssertionError;
+    });
     await assert.rejects(expect(target).not[matcher](join(directory, 'missing.png')), /ENOENT/);
     await assert.rejects(expect(target).not[matcher](actual, { maxDiffPixelRatio: 2 }), /\[0, 1\]/);
-    assert.equal(captures.length, 7);
+    assert.equal(captures.length, 8);
     for (const options of captures) {
       assert.deepEqual(options, matcher === 'toHaveElementScreenShot'
         ? { includeWindow: false, targets: { element: target } }
@@ -177,3 +185,36 @@ for (const matcher of ['toHaveElementScreenShot', 'toHaveWindowScreenShot']) {
   });
 
 }
+
+test('call_function resolves baselines per entry module across checkout directories', async context => {
+  for (let index = 0; index < 2; index += 1) {
+    const { directory, write } = await images(context);
+    const actual = await write('actual.png', 4, 4, [0, 0, 0, 255]);
+    const baseline = await write('baseline.png', 4, 4, [0, 0, 0, 255]);
+    const filePath = join(directory, 'test.js');
+    await writeFile(filePath, 'export function run() {}');
+    const connection = { activeCall: null };
+    const owner = { state: 'connected', currentConnection: connection };
+    async function compare(baselinePath) {
+      let reply;
+      await handleControllerMessage({ post: message => { reply = message.payload; } }, {
+        type: 'send', payload: { source: 'mobile-easy-use', channel: 'controller.request',
+          payload: { requestId: 'relative', action: 'screenshot.compare',
+            payload: { actualPath: actual, baselinePath } } },
+      }, null, owner);
+      return reply;
+    }
+    connection.sdkScript = { exports: { callFunction: async () => compare('baseline.png') } };
+    const response = await callFunction(owner, { filePath, functionName: 'run' });
+    assert.equal(response.result.ok, true);
+    assert.equal(response.result.responsePayload.matches, true);
+    assert.equal(response.result.responsePayload.baselinePath, await realpath(baseline));
+    assert.equal(connection.activeCall, null);
+    // No module context after completion: Inline must not fall back to process.cwd().
+    const inline = await compare('baseline.png');
+    assert.equal(inline.ok, false);
+    assert.match(inline.responsePayload.error.message, /require call_function/);
+    assert.equal((await compare(baseline)).ok, true);
+    assert.equal((await compare('')).ok, false);
+  }
+});

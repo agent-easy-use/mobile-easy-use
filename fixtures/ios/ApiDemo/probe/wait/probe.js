@@ -54,8 +54,8 @@ async function navigate(scenario, action) {
 /** Wait for an already attached UIKit view to exist. */
 export async function probeImmediateExist() {
   return navigate('immediate', async () => {
-    const result = await IOS.wait.ui('api.wait.immediate', 'exist');
-    return { passed: result.ok === true, api: 'IOS.wait.ui(exist)', result, oracle: { initiallyExists: true } };
+    const result = await IOS.wait.ui('api.wait.immediate', 'exists');
+    return { passed: result.ok === true, api: 'IOS.wait.ui(exists)', result, oracle: { initiallyExists: true } };
   });
 }
 
@@ -69,13 +69,13 @@ export async function probeDelayedVisible() {
   });
 }
 
-/** Schedule a visible view to become hidden, then wait for the current gone contract. */
+/** Schedule a visible view to become hidden, then wait for hidden. */
 export async function probeDelayedGone() {
   return navigate('delayed_gone', async () => {
     await controllerCall('hideAfter_delayMs_', 'delayed-gone', 250);
-    const result = await IOS.wait.ui('api.wait.delayed-gone', 'gone', { timeoutMs: 2000, intervalMs: 50 });
+    const result = await IOS.wait.ui('api.wait.delayed-gone', 'hidden', { timeoutMs: 2000, intervalMs: 50 });
     const oracle = await viewState('api.wait.delayed-gone');
-    return { passed: result.ok === true && oracle.exists && oracle.hidden === true, api: 'IOS.wait.ui(gone)', result, oracle };
+    return { passed: result.ok === true && oracle.exists && oracle.hidden === true, api: 'IOS.wait.ui(hidden)', result, oracle };
   });
 }
 
@@ -83,17 +83,17 @@ export async function probeDelayedGone() {
 export async function probeDelayedAttach() {
   return navigate('attach_detach', async () => {
     await controllerCall('attachAfter_delayMs_', 'attach-target', 250);
-    const result = await IOS.wait.ui('api.wait.attach-target', 'exist', { timeoutMs: 2000, intervalMs: 50 });
+    const result = await IOS.wait.ui('api.wait.attach-target', 'exists', { timeoutMs: 2000, intervalMs: 50 });
     return { passed: result.ok === true && IOS.ui.find('api.wait.attach-target') !== null, api: 'IOS.wait.ui(attach)', result, oracle: { attached: true } };
   });
 }
 
-/** Schedule an attached view to leave the hierarchy and wait for gone. */
+/** Schedule detach and use wait.until to check that the target no longer exists. */
 export async function probeDelayedDetach() {
   return navigate('attach_detach', async () => {
     await controllerCall('detachAfter_delayMs_', 'detach-target', 250);
-    const result = await IOS.wait.ui('api.wait.detach-target', 'gone', { timeoutMs: 2000, intervalMs: 50 });
-    return { passed: result.ok === true && IOS.ui.find('api.wait.detach-target') === null, api: 'IOS.wait.ui(detach)', result, oracle: { attached: false } };
+    const result = await IOS.wait.until(async () => !(await IOS.ui.checkUiState('api.wait.detach-target', 'exists')), { timeoutMs: 2000, intervalMs: 50 });
+    return { passed: result.ok === true && IOS.ui.find('api.wait.detach-target') === null, api: 'IOS.wait.until(detached)', result, oracle: { attached: false } };
   });
 }
 
@@ -118,7 +118,7 @@ export async function probeTimeout() {
   });
 }
 
-/** Verify wait.until accepts only a synchronous boolean predicate. */
+/** Verify wait.until polls a boolean predicate. */
 export async function probeUntil() {
   return navigate('immediate', async () => {
     let checks = 0;
