@@ -11,7 +11,7 @@ Run exactly one supplied iOS operation. Require `appId`; accept optional canonic
 2. `scriptPath + functionName`: one named Module export.
 3. `scriptPath + naturalDescription`: read the matching `probe.d.ts` completely and select exactly one export. Stop on no match, ambiguity, or missing required arguments.
 
-Optional positional `args` apply only to Module. Do not convert between Inline and Module. If code is missing, first use `to-ios-script`.
+Optional positional `args` apply only to Module. Do not convert between Inline and Module. If code is missing, first use `to-ios-probe-script`.
 
 ## Target
 

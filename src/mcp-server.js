@@ -247,7 +247,7 @@ function parseTarget(input) {
 export const toolDefinitions = [
   {
     name: 'get_sdk_declarations',
-    description: 'Locate local SDK, platform bridge, and Frida Gum declaration files for to-script. Requires a shared filesystem, not a device connection.',
+    description: 'Locate local SDK, platform bridge, and Frida Gum declaration files for script generation. Requires a shared filesystem, not a device connection.',
     annotations: { readOnlyHint: true, openWorldHint: false },
     inputSchema: {
       type: 'object',

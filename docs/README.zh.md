@@ -177,7 +177,7 @@ Probe 会结合源码和已有 Presets 生成探查逻辑，通过 MCP 连接 Ap
 | **Probe** | 用自然语言发起一次运行时调查，完成探查生成、执行及证据分析 | [to-android-probe](../skills/to-android-probe/SKILL.md) / [to-ios-probe](../skills/to-ios-probe/SKILL.md) |
 | **Presets** | 把常用页面导航、业务操作和状态读取沉淀为带类型声明的可复用能力，构建后供后续 Probe 使用 | [to-android-presets](../skills/to-android-presets/SKILL.md) / [to-ios-presets](../skills/to-ios-presets/SKILL.md) |
 
-Probe 内部组合对应平台的 `to-*-script` 和 `to-*-run`，分别负责生成与执行；日常使用从 Probe 入口提出问题即可。
+Probe 内部组合对应平台的 `to-*-probe-script` 和 `to-*-run`，分别负责生成与执行；日常使用从 Probe 入口提出问题即可。
 
 ### Observable：以极低侵入性改善配合（可选）
 

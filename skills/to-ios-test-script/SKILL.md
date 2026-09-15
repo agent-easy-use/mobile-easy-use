@@ -5,7 +5,7 @@ description: Generate iOS mobile-easy-use test modules for explicit expectations
 
 # To iOS Test Script
 
-Compose Driver, Override, Expect, and Direct Frida into repeatable tests. Reuse `to-ios-script` generation rules for actions and observations; compare observations with expectations through the collection's `expect`. Generate files only; do not connect or execute.
+Compose Driver, Override, Expect, and Direct Frida into repeatable tests. Reuse `to-ios-probe-script` generation rules for actions and observations; compare observations with expectations through the collection's `expect`. Generate files only; do not connect or execute.
 
 ## Before generating code
 
@@ -15,13 +15,13 @@ Compose Driver, Override, Expect, and Direct Frida into repeatable tests. Reuse 
 
 ## 1. Driver
 
-Drive the App into the target scene and perform the tested interactions, following [Driver generation](../to-ios-script/references/driver-generation.md). Default to starting from home; put shared navigation in `beforeEach` and case-specific actions in `test`.
+Drive the App into the target scene and perform the tested interactions, following [Driver generation](../to-ios-probe-script/references/driver-generation.md). Default to starting from home; put shared navigation in `beforeEach` and case-specific actions in `test`.
 
 Prefer `IOS.input` with source-resolved accessibility identifiers, await bounded completion waits, and assert input/wait results before continuing. Failure screenshots must preserve the original assertion failure.
 
 ## 2. Override
 
-Temporarily replace Objective-C method behavior or instance ivar values to establish conditions unavailable through normal configuration or Driver actions. Follow [Override generation](../to-ios-script/references/override-generation.md); do not replace the business result being tested.
+Temporarily replace Objective-C method behavior or instance ivar values to establish conditions unavailable through normal configuration or Driver actions. Follow [Override generation](../to-ios-probe-script/references/override-generation.md); do not replace the business result being tested.
 
 Use exact `- ` or `+ ` selectors and native-compatible values from the SDK contract; object returns require native objects/handles, such as NSString for text, rather than JS strings.
 
@@ -39,7 +39,7 @@ Assert the App outcome, not just action delivery:
 
 ## 4. Direct Frida
 
-Read native properties, invoke App methods, prepare state, or drive advanced business entries when the SDK has no suitable interface. Follow [Direct Frida generation](../to-ios-script/references/direct-frida-generation.md), using `ObjC` or Gum APIs and passing observations to `expect`.
+Read native properties, invoke App methods, prepare state, or drive advanced business entries when the SDK has no suitable interface. Follow [Direct Frida generation](../to-ios-probe-script/references/direct-frida-generation.md), using `ObjC` or Gum APIs and passing observations to `expect`.
 
 Use `IOS.runOnMainThread` for direct UIKit access; respect business queues and Objective-C object lifetimes. `ObjC` requires runtime-exposed classes and selectors, not arbitrary pure Swift symbols. Direct calls verify behavior from that entry onward; use Driver for user interaction paths.
 

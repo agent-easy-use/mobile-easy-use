@@ -1,6 +1,0 @@
-interface:
-  display_name: "To iOS Script"
-  short_description: "Generate inline or reusable iOS runtime code"
-  default_prompt: "Use $to-ios-script to generate iOS runtime code in the appropriate Inline or Module form."
-policy:
-  allow_implicit_invocation: false

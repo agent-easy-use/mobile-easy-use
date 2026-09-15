@@ -9,10 +9,10 @@ Turn one natural-language iOS runtime question into a generated probe, one contr
 
 ## Workflow
 
-1. Read the complete sibling `../to-ios-script/SKILL.md` and follow its generation contract.
+1. Read the complete sibling `../to-ios-probe-script/SKILL.md` and follow its generation contract.
 2. Read the complete sibling `../to-ios-run/SKILL.md` and follow its connection and execution contract.
 3. Resolve the target device or simulator, bundle identifier, target scene, starting scene, allowed interactions, and required Objective-C chain, TAG-prefixed NSLog, state, or UIKit UI evidence. Inspect the target App source when selectors, accessibility identifiers, labels, classes, or business symbols are unknown; never guess them. Ask only when missing information makes execution unsafe or materially ambiguous.
-4. Use `to-ios-script` to generate the smallest probe that answers the original question. Use a task-specific directory under the workspace `artifacts/` for Module output unless the user supplies another directory.
+4. Use `to-ios-probe-script` to generate the smallest probe that answers the original question. Use a task-specific directory under the workspace `artifacts/` for Module output unless the user supplies another directory.
 5. Use `to-ios-run` to resolve or launch the App, idempotently load MobileEasyUse, and execute exactly one generated Inline operation or one Module export. Preserve its single-operation and no-unsafe-retry rules.
 6. After execution returns, inspect its result and only the evidence files it returned. Read only the references matching the returned evidence types: [chain](references/chain-evidence.md), [state](references/state-evidence.md), or [UI](references/ui-evidence.md).
 7. Relate observed Objective-C events and UIKit state to original App source, distinguish observed facts from source-based inference, and decide whether the question is answered.

@@ -11,7 +11,7 @@ Run exactly one supplied Android operation. Require `appId`; accept optional can
 2. `scriptPath + functionName`: one named Module export.
 3. `scriptPath + naturalDescription`: read the matching `probe.d.ts` completely and select exactly one export. Stop on no match, ambiguity, or missing required arguments.
 
-Optional positional `args` apply only to Module. Do not convert between Inline and Module. If code is missing, first use `to-android-script`.
+Optional positional `args` apply only to Module. Do not convert between Inline and Module. If code is missing, first use `to-android-probe-script`.
 
 ## Target
 

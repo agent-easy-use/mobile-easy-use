@@ -184,7 +184,7 @@ These four capabilities cover coding, integration, everyday exploration, and reu
 | **Probe** | Start a runtime investigation in natural language, including probe generation, execution, and evidence analysis | [to-android-probe](./skills/to-android-probe/SKILL.md) / [to-ios-probe](./skills/to-ios-probe/SKILL.md) |
 | **Presets** | Turn common navigation, business actions, and state queries into reusable capabilities with type declarations, bundled for future probes | [to-android-presets](./skills/to-android-presets/SKILL.md) / [to-ios-presets](./skills/to-ios-presets/SKILL.md) |
 
-Probe composes the platform's `to-*-script` and `to-*-run` Skills for generation and execution. For everyday use, start with Probe and describe your question.
+Probe composes the platform's `to-*-probe-script` and `to-*-run` Skills for generation and execution. For everyday use, start with Probe and describe your question.
 
 ### Observable: minimal changes for better integration (optional)
 

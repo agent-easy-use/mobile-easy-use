@@ -1,0 +1,6 @@
+interface:
+  display_name: "To iOS Probe Script"
+  short_description: "Generate inline or reusable iOS probes"
+  default_prompt: "Use $to-ios-probe-script to generate iOS probe code in the appropriate Inline or Module form."
+policy:
+  allow_implicit_invocation: false

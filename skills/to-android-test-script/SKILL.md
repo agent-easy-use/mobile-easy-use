@@ -5,7 +5,7 @@ description: Generate Android mobile-easy-use test modules for explicit expectat
 
 # To Android Test Script
 
-Compose Driver, Override, Expect, and Direct Frida into repeatable tests. Reuse `to-android-script` generation rules for actions and observations; compare observations with expectations through the collection's `expect`. Generate files only; do not connect or execute.
+Compose Driver, Override, Expect, and Direct Frida into repeatable tests. Reuse `to-android-probe-script` generation rules for actions and observations; compare observations with expectations through the collection's `expect`. Generate files only; do not connect or execute.
 
 ## Before generating code
 
@@ -15,13 +15,13 @@ Compose Driver, Override, Expect, and Direct Frida into repeatable tests. Reuse 
 
 ## 1. Driver
 
-Drive the App into the target scene and perform the tested interactions, following [Driver generation](../to-android-script/references/driver-generation.md). Default to starting from home; put shared navigation in `beforeEach` and case-specific actions in `test`.
+Drive the App into the target scene and perform the tested interactions, following [Driver generation](../to-android-probe-script/references/driver-generation.md). Default to starting from home; put shared navigation in `beforeEach` and case-specific actions in `test`.
 
 Prefer `AndroidExp.input`, await bounded completion waits, and assert input/wait results before continuing. Failure screenshots must preserve the original assertion failure.
 
 ## 2. Override
 
-Temporarily replace method behavior or field values to establish conditions unavailable through normal configuration or Driver actions. Follow [Override generation](../to-android-script/references/override-generation.md); do not replace the business result being tested.
+Temporarily replace method behavior or field values to establish conditions unavailable through normal configuration or Driver actions. Follow [Override generation](../to-android-probe-script/references/override-generation.md); do not replace the business result being tested.
 
 Await `Override.run(definitions, action)` around all dependent actions, waits, and assertions. It restores overrides on success or failure. A scope completed in `beforeEach` does not remain active during `test`.
 
@@ -37,7 +37,7 @@ Assert the App outcome, not just action delivery:
 
 ## 4. Direct Frida
 
-Read native properties, invoke App methods, prepare state, or drive advanced business entries when the SDK has no suitable interface. Follow [Direct Frida generation](../to-android-script/references/direct-frida-generation.md), using `Java` or Gum APIs and passing observations to `expect`.
+Read native properties, invoke App methods, prepare state, or drive advanced business entries when the SDK has no suitable interface. Follow [Direct Frida generation](../to-android-probe-script/references/direct-frida-generation.md), using `Java` or Gum APIs and passing observations to `expect`.
 
 Use `AndroidExp.runOnMainThread` for direct native UI access; respect other APIs' required threads. Direct calls verify behavior from that entry onward; use Driver for user interaction paths.
 

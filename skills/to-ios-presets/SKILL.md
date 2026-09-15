@@ -6,7 +6,7 @@ description: Generate reusable iOS App probes and declarations in the configured
 # To iOS Presets
 
 Generate reusable probe code and declarations for the user's request. Use
-[to-ios-script](../to-ios-script/SKILL.md) for generation, and
+[to-ios-probe-script](../to-ios-probe-script/SKILL.md) for generation, and
 [to-ios-run](../to-ios-run/SKILL.md) for verification when a device is available.
 
 ## Directory
@@ -46,7 +46,7 @@ Never edit `presets.dist.js`.
 ## Workflow
 
 1. Resolve identifiers from App source and generate/update `<feature>/probe.js` and `probe.d.ts`.
-   Tell to-script to skip presets declaration lookup and `/meu/presets.js` imports for this source
+   Tell `to-ios-probe-script` to skip presets declaration lookup and `/meu/presets.js` imports for this source
    generation; reuse local source modules through relative imports.
 2. This skill creates and maintains `presets.entry.js`: create it on first use, then add, remove
    or update explicit exports for the current feature changes while preserving other existing

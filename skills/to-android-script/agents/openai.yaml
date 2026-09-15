@@ -1,6 +1,0 @@
-interface:
-  display_name: "To Android Script"
-  short_description: "Generate inline or reusable Android runtime code"
-  default_prompt: "Use $to-android-script to generate Android runtime code in the appropriate Inline or Module form."
-policy:
-  allow_implicit_invocation: false

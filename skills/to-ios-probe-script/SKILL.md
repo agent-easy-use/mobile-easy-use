@@ -1,18 +1,18 @@
 ---
-name: to-android-script
-description: Generate Android mobile-easy-use runtime code as either a temporary inline async IIFE or a reusable ES module with matching TypeScript declarations. Use for runtime discovery, inspection, instrumentation, App driving, temporary Java method or field overrides, scoped evidence, or other bounded Frida work; prefer Inline for small one-off exploration and Module for larger or relatively stable work.
+name: to-ios-probe-script
+description: Generate iOS mobile-easy-use probe code as either a temporary inline async IIFE or a reusable ES module with matching TypeScript declarations. Use for runtime discovery, UIKit inspection, instrumentation, App driving, temporary Objective-C method or field overrides, scoped evidence, or other bounded Frida work; prefer Inline for small one-off exploration and Module for larger or relatively stable work.
 ---
 
-# To Android Script
+# To iOS Probe Script
 
-Generate the smallest Android runtime code that answers the requested runtime question. Prefer Driver for requested user-visible actions, use Override only when normal App configuration or Driver actions cannot establish a required condition, add Evidence only when needed to answer the question, and use Direct Frida only when the encapsulated capabilities are insufficient. Driver, Override, Evidence, and Direct Frida can compose within their API boundaries; use only what the question requires and avoid unnecessary probing. Generate code only; do not connect to a device or execute it.
+Generate the smallest iOS runtime code that answers the requested runtime question. Prefer Driver for requested user-visible actions, use Override only when normal App configuration or Driver actions cannot establish a required condition, add Evidence only when needed to answer the question, and use Direct Frida only when the encapsulated capabilities are insufficient. Driver, Override, Evidence, and Direct Frida can compose within their API boundaries; use only what the question requires and avoid unnecessary probing. Generate code only; do not connect to a device or execute it.
 
 ## Before generating code
 
-Call `get_sdk_declarations({"platform":"android"})` to obtain declaration paths in `files[].path`. It returns `sdk` (platform SDK), `bridge` (Frida Java bridge), and `gum` (native Frida APIs) declarations. The capability sections below specify which declarations to read.
+Call `get_sdk_declarations({"platform":"ios"})` to obtain declaration paths in `files[].path`. It returns `sdk` (platform SDK), `bridge` (Frida Objective-C bridge), and `gum` (native Frida APIs) declarations. The capability sections below specify which declarations to read.
 
 Resolve `presets.directory` from `<project-root>/.meu/config.json`
-relative to the project root, defaulting to `.meu/presets`. If `<base-directory>/android/`
+relative to the project root, defaulting to `.meu/presets`. If `<base-directory>/ios/`
 contains `presets.dist.js`, read `presets.entry.js` to identify public exports and the
 corresponding feature `probe.d.ts` files for their contracts. Prefer reusing capabilities that
 satisfy the request; import only names exported by the entry, including any aliases.
@@ -35,7 +35,7 @@ Use Inline for temporary, one-off exploration implemented by a small, self-conta
 })()
 ```
 
-Do not create files or declarations, and do not use imports or exports. Keep temporary hooks, timers, and listeners scoped to the IIFE and clean them up with `try/finally`. Return only values that Frida RPC can transport.
+Do not create files or declarations, and do not use imports or exports. Keep temporary hooks, timers, listeners, and retained Objective-C objects scoped to the IIFE and clean them up with `try/finally`. Return only values that Frida RPC can transport.
 
 ### Module
 
@@ -48,7 +48,7 @@ probe.d.ts
 
 Declare only module exports in `probe.d.ts`. Keep exported names and signatures consistent with `probe.js`, and add JSDoc for every exported method and parameter. Do not declare internal actions, helpers, or SDK globals.
 
-A module may export multiple scenario or probe methods. Module top level must only define helpers and exports: do not perform business actions or install persistent hooks while loading. Put behavior inside exported functions and clean up temporary hooks before each function settles, because loading changed content does not unload older module versions.
+A module may export multiple scenario or probe methods. Module top level must only define helpers and exports: do not perform business actions, retain lifecycle objects, or install persistent hooks while loading. Put behavior inside exported functions and clean up temporary hooks, listeners, timers, and retained objects before each function settles, because loading changed content does not unload older module versions.
 
 `probe.js` is a standard JavaScript ES Module. Export every callable entry with named ESM syntax:
 
@@ -62,21 +62,20 @@ export async function openTargetPage() {
 }
 ```
 
-Never use CommonJS `exports.name = ...` or `module.exports`, and never use Frida
-`rpc.exports`. The Android SDK agent owns `rpc.exports`; probe loading rejects these
-forms with an explicit error.
+Never use CommonJS `exports.name = ...` or `module.exports`, and never use Frida `rpc.exports`. The shared iOS SDK agent owns `rpc.exports`; probe loading rejects these forms.
 
 ## Execution thread
 
-- Do not assume the execution thread; generated code generally does not run on the Android main thread.
-- For direct Android UI or another main-thread-only API, wrap the work with `await AndroidExp.runOnMainThread(() => ...)`.
-- Keep non-UI work on its required thread when source or API contracts specify one; never move arbitrary business calls to the main thread merely because they use Java.
+- Do not assume the execution thread for generated code.
+- `IOS.ui`, `IOS.input`, `IOS.wait.ui`, and UIKit Evidence own their required main-queue dispatch.
+- For direct UIKit or another main-thread-only Objective-C API, wrap the work with `await IOS.runOnMainThread(() => ...)`.
+- Keep non-UI work on its required queue when source or API contracts specify one; never move arbitrary business calls to the main queue merely because they use Objective-C.
 
 ## 1. Driver
 
 Unless the caller specifies another initial scene, assume the App starts on its home page. Generate Driver code from that state to each requested scene. Resolve page and control identifiers from source instead of guessing. Prefer high-level input because it reproduces real user behavior; use routing or business methods only when the requested scenario explicitly requires them.
 
-1. Read [references/driver-generation.md](references/driver-generation.md) and `sdk` declarations for `AndroidExp.input`, plus `ui` and `wait` as needed. For direct business calls, also read `bridge`.
+1. Read [references/driver-generation.md](references/driver-generation.md) and `sdk` declarations for `IOS.input`, plus `ui` and `wait` as needed. For direct business calls, also read `bridge`.
 2. In Module mode, export only the entry methods the caller needs. In Inline mode, put the requested flow directly in the IIFE. One operation may compose multiple driver steps.
 3. Stop a flow when an input or wait result has `ok: false`.
 
@@ -84,7 +83,7 @@ Unless the caller specifies another initial scene, assume the App starts on its 
 
 Add Override code only when the requested condition cannot reasonably be established through normal App configuration or Driver actions. Override controls a test precondition; it does not drive the App or prove the result.
 
-Read [references/override-generation.md](references/override-generation.md) and `sdk` declarations for `Override`. Read `bridge` when definitions or the action use Java objects or business methods. Wrap the complete dependent Driver and Evidence work in one `Override.run(definitions, action)` call. Never install an Override at Module top level or leave one active after the generated operation settles.
+Read [references/override-generation.md](references/override-generation.md) and `sdk` declarations for `Override`. Read `bridge` when definitions or the action use Objective-C objects or business methods. Wrap the complete dependent Driver and Evidence work in one `Override.run(definitions, action)` call. Never install an Override at Module top level or leave one active after the generated operation settles.
 
 ## 3. Evidence
 
@@ -101,21 +100,21 @@ Treat an action as the smallest evidence boundary:
 
 Read only the evidence references needed by the probe:
 
-- critical method execution or fixed-TAG logs: [references/critical-chain-evidence.md](references/critical-chain-evidence.md);
+- Objective-C method execution or TAG-prefixed `NSLog`: [references/critical-chain-evidence.md](references/critical-chain-evidence.md);
 - state snapshots before and after an action: [references/critical-state-evidence.md](references/critical-state-evidence.md);
-- UI snapshots before and after an action: [references/critical-ui-evidence.md](references/critical-ui-evidence.md).
+- UIKit snapshots before and after an action: [references/critical-ui-evidence.md](references/critical-ui-evidence.md).
 
-Generate evidence with the matching `Probe.evidence.withChainEvidence()`, `Probe.evidence.withStateEvidence()`, or `Probe.evidence.withUiEvidence()` wrapper. These APIs clean up their temporary instrumentation after the wrapped action returns, throws, or its Promise settles, so the wrapper leaves no active Hook or cleanup work behind. This guarantee applies to the evidence instrumentation, not to effects produced by the wrapped business action.
+Generate evidence with the matching `Probe.evidence.withChainEvidence()`, `Probe.evidence.withStateEvidence()`, or `Probe.evidence.withUiEvidence()` wrapper. These APIs clean up their temporary instrumentation after the wrapped action returns, throws, or its Promise settles, so the wrapper leaves no active Hook or cleanup work behind. This guarantee applies to evidence instrumentation, not to effects produced by the wrapped business action.
 
 ## 4. Direct Frida
 
 Prefer Driver, Override, and Evidence when they accurately express the request. Do not use Direct Frida merely because it is shorter.
 
-Use `globalThis.Java` or other Frida Gum APIs for runtime work not covered by encapsulated capabilities, including calling App methods to read state, prepare conditions, or trigger business behavior. Use Driver to verify user interaction paths; direct calls verify behavior from the chosen code entry onward. Direct Frida may run alone or compose with Driver, Override, and Evidence.
+Use `globalThis.ObjC` or other Frida Gum APIs for runtime work not covered by encapsulated capabilities, including calling App methods to read state, prepare conditions, or trigger business behavior. Use Driver to verify user interaction paths; direct calls verify behavior from the chosen code entry onward. Direct Frida may run alone or compose with Driver, Override, and Evidence.
 
-Read [references/direct-frida-generation.md](references/direct-frida-generation.md). Read `bridge` (`frida-java-bridge`) for Java APIs and `gum` for native Frida APIs; read both when needed.
+Read [references/direct-frida-generation.md](references/direct-frida-generation.md). Read `bridge` (`frida-objc-bridge`) for Objective-C APIs and `gum` for native Frida APIs; read both when needed.
 
-Follow native Frida semantics; use `Java.registerClass()` to implement Java interfaces. Resolve business symbols from source instead of guessing.
+Follow native Frida semantics. Resolve Objective-C classes and selectors from source and ensure they are runtime-visible; do not claim access to pure Swift ABI symbols through `ObjC.classes`.
 
 ## Composition example
 
