@@ -1,13 +1,23 @@
 ---
 name: to-ios-presets
-description: Generate reusable iOS App probes and declarations in the configured presets directory, build the bundle, and verify on-device when a device is available.
+description: Generate reusable iOS App actions, state access, and scoped overrides for Test and Probe in the configured presets directory, build the bundle, and verify on-device when a device is available.
 ---
 
 # To iOS Presets
 
-Generate reusable probe code and declarations for the user's request. Use
-[to-ios-probe-script](../to-ios-probe-script/SKILL.md) for generation, and
-[to-ios-run](../to-ios-run/SKILL.md) for verification when a device is available.
+Build reusable App capabilities for Test and Probe. Presets provide actions, state access,
+and scoped condition setup; callers own evidence collection, test registration, and assertions.
+
+## Generation rules
+
+Call `get_sdk_declarations({"platform":"ios"})` and read the required SDK, bridge, and Gum
+contracts. Reuse only the relevant rules from the probe-script references:
+
+- [Driver](../to-ios-probe-script/references/driver-generation.md): navigation, UI interactions, and business flows.
+- [Override](../to-ios-probe-script/references/override-generation.md): return definitions for callers to scope, or accept an action and return/await `Override.run`. Restore changes when the action settles.
+- [Direct Frida](../to-ios-probe-script/references/direct-frida-generation.md): native state reads, internal calls, and condition setup.
+
+Follow platform thread and lifetime contracts. Use this skill's source contract and workflow.
 
 ## Directory
 
@@ -27,27 +37,28 @@ Generate reusable probe code and declarations for the user's request. Use
 ```text
 <base-directory>/ios/
 ├── page-state/
-│   ├── probe.js
-│   └── probe.d.ts
+│   ├── index.js
+│   └── index.d.ts
 ├── network-request/
-│   ├── probe.js
-│   └── probe.d.ts
+│   ├── index.js
+│   └── index.d.ts
 ├── presets.entry.js
 └── presets.dist.js
 ```
 
 Use one feature directory per coherent capability. `presets.entry.js` explicitly re-exports
-public functions from `./<feature>/probe.js`; each feature's `probe.d.ts` describes its exports.
-Keep feature declarations consistent with their implementations.
+public functions from `./<feature>/index.js`; each feature's `index.d.ts` describes its exports.
+Keep declarations accurate, including preconditions, state effects, and cleanup.
+Run App actions only inside functions and stop on failure.
 
 Read the entry, feature declarations and relevant sources before generating equivalents.
 Never edit `presets.dist.js`.
 
 ## Workflow
 
-1. Resolve identifiers from App source and generate/update `<feature>/probe.js` and `probe.d.ts`.
-   Tell `to-ios-probe-script` to skip presets declaration lookup and `/meu/presets.js` imports for this source
-   generation; reuse local source modules through relative imports.
+1. Resolve identifiers from App source and generate/update `<feature>/index.js` and `index.d.ts`.
+   Reuse existing declarations and local source modules through relative imports inside the
+   platform presets directory. Do not import `/meu/presets.js` into its own source bundle.
 2. This skill creates and maintains `presets.entry.js`: create it on first use, then add, remove
    or update explicit exports for the current feature changes while preserving other existing
    exports. Export only the intended public capabilities; do not put business logic in this file.
@@ -58,9 +69,10 @@ Never edit `presets.dist.js`.
    node <skill-directory>/scripts/build-presets.mjs
    ```
 
-4. If a target device is available, read the platform run skill, connect the App and actually
+4. If a target device is available, follow [to-ios-run](../to-ios-run/SKILL.md), connect the App and actually
    execute the changed capabilities via `/meu/presets.js` imports. Disconnect/reconnect an existing
-   session first to load the new bundle. Check the expected results; fix failures and rebuild.
+   session first to load the new bundle. Verify changed capabilities with a separate script;
+   fix failures and rebuild.
    Do not retry a timed-out mutation without restoring a known starting state.
 5. Report generated capabilities and build/verification results. Without a device, complete
    generation and bundling, explicitly state that actual runtime behavior remains unverified,

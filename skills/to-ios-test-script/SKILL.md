@@ -11,7 +11,7 @@ Compose Driver, Override, Expect, and Direct Frida into repeatable tests. Reuse 
 
 - Call `get_sdk_declarations({"platform":"ios"})`. Read `Test` and the required SDK APIs; read returned `bridge` declarations for Objective-C work and `gum` for native Frida work. SDK declarations govern API details.
 - Resolve scenes, targets, and observations from App source. Derive expectations from requirements or confirmed behavior; clarify missing expectations that determine pass or fail.
-- Reuse presets: resolve `presets.directory` in `.meu/config.json` (default `.meu/presets`), read the iOS entry and relevant feature declarations, and import declared exports from `/meu/presets.js`.
+- Reuse presets: resolve `presets.directory` in `.meu/config.json` (default `.meu/presets`), read the iOS entry and relevant feature `index.d.ts` declarations, and import declared exports from `/meu/presets.js`.
 
 ## 1. Driver
 

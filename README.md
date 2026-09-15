@@ -202,7 +202,7 @@ Use to-android-presets to create reusable capabilities for opening a list page,
 refreshing its content, and reading its data state.
 ```
 
-The target project's `.meu/config.json` sets the base directory through `presets.directory`, defaulting to `.meu/presets`, with separate `android/` and `ios/` subdirectories. The Skill generates `probe.js`, `probe.d.ts`, and an export entry, then builds `presets.dist.js`. MCP loads the platform bundle when connecting.
+The target project's `.meu/config.json` sets the base directory through `presets.directory`, defaulting to `.meu/presets`, with separate `android/` and `ios/` subdirectories. Each capability contains `index.js` and `index.d.ts`. `presets.entry.js` exports the public capabilities; the build produces `presets.dist.js`. MCP loads the platform bundle when connecting.
 
 Disconnect and reconnect after updates to load the new bundle. With a device available, the Skill executes the capabilities for verification. Without one, it can generate and build them but explicitly reports runtime behavior as unverified. See the Presets Skills above for directory and build details.
 

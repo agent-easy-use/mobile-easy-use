@@ -10,7 +10,7 @@
 - `inspectElement(identifier)`：单个控件快照；未找到返回 `null`。
   Android 使用资源名（如 `api_menu_ui`），iOS 使用 accessibility identifier（如 `api.menu.ui`）。
 
-准确的参数、字段及限制见各功能的 `probe.d.ts`。入口只负责显式导出，修改源文件后从仓库根目录构建：
+准确的参数、字段及限制见各功能的 `index.d.ts`。入口只负责显式导出，修改源文件后从仓库根目录构建：
 
 ```bash
 node skills/to-android-presets/scripts/build-presets.mjs

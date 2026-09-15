@@ -143,6 +143,14 @@ npx skills add agent-easy-use/mobile-easy-use --skill '*'
 
 راجع Skills الخاصة بـ[Android](../skills/to-android-probe/SKILL.md) و[iOS](../skills/to-ios-probe/SKILL.md) للاطلاع على مسارات العمل الكاملة.
 
+### إعادة استخدام الإمكانات عبر Presets
+
+يجمع Presets التنقل وإجراءات الأعمال وقراءة الحالة والتغييرات المؤقتة للسلوك لخدمة Probe وTest. استخدم Skills الخاصة بـPresets على [Android](../skills/to-android-presets/SKILL.md) أو [iOS](../skills/to-ios-presets/SKILL.md).
+
+يحدد `presets.directory` في `.meu/config.json` المجلد الأساسي، وافتراضيًا هو `.meu/presets`، مع مجلدَي `android/` و`ios/`. تحتوي كل إمكانية على `index.js` و`index.d.ts`. يصدّر `presets.entry.js` الإمكانات العامة، وينتج البناء ملف `presets.dist.js` الذي يحمّله MCP باسم `/meu/presets.js` عند الاتصال.
+
+بعد التعديل، أعد البناء ثم الاتصال. عند توفر جهاز، يتحقق Skill من الإمكانات بتشغيلها؛ وإلا يوضح أن سلوكها لم يُتحقق منه بعد.
+
 ## مصادر الإلهام
 
 استُلهم Mobile Easy Use من **quickjs-android** و**xLua** و**Frida**. تمثل Frida أساس التنفيذ: يعتمد Runtime المضمّن على Frida Gadget، ويستخدم MCP جسور Java وObjective-C للوصول إلى كائنات المنصة.

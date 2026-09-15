@@ -192,7 +192,7 @@ When writing or modifying iOS App code, apply the ios-observable-code skill.
 使用 to-android-presets，把进入列表页、刷新内容和读取数据状态沉淀为可复用能力。
 ```
 
-Presets 的基础目录由目标项目 `.meu/config.json` 中的 `presets.directory` 配置，默认 `.meu/presets`，下面按 `android/` 和 `ios/` 分开维护。Skill 生成 `probe.js`、`probe.d.ts` 和导出入口，并构建 `presets.dist.js`；MCP 在连接时加载对应平台的产物。
+Presets 的基础目录由目标项目 `.meu/config.json` 中的 `presets.directory` 配置，默认 `.meu/presets`，下面按 `android/` 和 `ios/` 分开维护。每个能力目录包含 `index.js` 和 `index.d.ts`，由 `presets.entry.js` 导出公共能力，并构建为 `presets.dist.js`；MCP 在连接时加载对应平台的产物。
 
 更新后需要断开并重新连接才能加载新产物。有设备时会执行验证；没有设备时可以完成生成和构建，但会明确注明运行效果尚未验证。具体目录与构建约定见上表的 Presets Skill。
 

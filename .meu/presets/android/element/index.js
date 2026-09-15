@@ -1,4 +1,4 @@
-import { inspectRuntime } from '../runtime/probe.js';
+import { inspectRuntime } from '../runtime/index.js';
 
 export async function inspectElement(resourceName) {
   if (typeof resourceName !== 'string' || !/^[a-z][a-z0-9_]{0,127}$/.test(resourceName)) {

@@ -1,4 +1,4 @@
-import { inspectRuntime } from '../runtime/probe.js';
+import { inspectRuntime } from '../runtime/index.js';
 
 export async function inspectPageState() {
   inspectRuntime();

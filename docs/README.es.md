@@ -144,6 +144,14 @@ Ejecuta el directorio tests y resume los casos aprobados, fallidos y no ejecutad
 
 Consulta los Skills de [Android](../skills/to-android-probe/SKILL.md) e [iOS](../skills/to-ios-probe/SKILL.md) para conocer los flujos completos.
 
+### Reutilizar capacidades con Presets
+
+Presets reúne navegación, acciones de negocio, lectura de estado y cambios temporales de comportamiento para Probe y Test. Usa los Skills Presets de [Android](../skills/to-android-presets/SKILL.md) o [iOS](../skills/to-ios-presets/SKILL.md).
+
+`presets.directory` en `.meu/config.json` define el directorio base, por defecto `.meu/presets`, con subdirectorios `android/` e `ios/`. Cada capacidad contiene `index.js` e `index.d.ts`. `presets.entry.js` exporta las capacidades públicas; la compilación genera `presets.dist.js`, que MCP carga como `/meu/presets.js` al conectar.
+
+Después de un cambio, reconstruye el bundle y vuelve a conectar. Si hay un dispositivo disponible, el Skill verifica las capacidades ejecutándolas; en caso contrario, indica que su comportamiento sigue sin verificar.
+
 ## Inspiración
 
 Mobile Easy Use se inspira en **quickjs-android**, **xLua** y **Frida**. Frida es la base de la implementación: el Runtime integrado usa Frida Gadget y MCP utiliza los puentes de Java y Objective-C para acceder a los objetos de la plataforma.

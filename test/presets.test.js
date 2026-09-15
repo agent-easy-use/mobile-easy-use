@@ -69,11 +69,11 @@ for (const [platform, runBuild] of [['android', buildAndroid], ['ios', buildIOS]
       const config = base === '.meu/presets' ? null : await configure(root, base);
       const directory = resolve(root, base, platform);
       await mkdir(resolve(directory, 'page-state'), { recursive: true });
-      const feature = resolve(directory, 'page-state/probe.js');
+      const feature = resolve(directory, 'page-state/index.js');
       const implementation = 'export function inspectPageState(value) { return { title: value }; }';
       await writeFile(feature, implementation);
       const entry = resolve(directory, 'presets.entry.js');
-      const exports = 'export * from "./page-state/probe.js";';
+      const exports = 'export * from "./page-state/index.js";';
       await writeFile(entry, exports);
       // No .d.ts is required to bundle JavaScript.
       const { stdout } = await promisify(execFile)(process.execPath, [

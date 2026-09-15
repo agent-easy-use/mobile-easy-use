@@ -1,4 +1,4 @@
-import { inspectRuntime } from '../runtime/probe.js';
+import { inspectRuntime } from '../runtime/index.js';
 
 export async function inspectElement(identifier) {
   if (typeof identifier !== 'string' || !identifier.trim() || identifier.length > 128) {

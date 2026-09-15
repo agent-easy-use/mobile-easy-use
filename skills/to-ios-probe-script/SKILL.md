@@ -14,7 +14,7 @@ Call `get_sdk_declarations({"platform":"ios"})` to obtain declaration paths in `
 Resolve `presets.directory` from `<project-root>/.meu/config.json`
 relative to the project root, defaulting to `.meu/presets`. If `<base-directory>/ios/`
 contains `presets.dist.js`, read `presets.entry.js` to identify public exports and the
-corresponding feature `probe.d.ts` files for their contracts. Prefer reusing capabilities that
+corresponding feature `index.d.ts` files for their contracts. Prefer reusing capabilities that
 satisfy the request; import only names exported by the entry, including any aliases.
 
 When reusing a preset, use Module mode and import its declared export, for example:
