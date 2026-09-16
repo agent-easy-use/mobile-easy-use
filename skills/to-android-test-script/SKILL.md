@@ -43,6 +43,8 @@ Use `AndroidExp.runOnMainThread` for direct native UI access; respect other APIs
 
 ## Test structure and output
 
+Follow [Code generation constraints](../to-android-probe-script/SKILL.md#code-generation-constraints) for runtime module loading and bundling of relative imports.
+
 Write ESM `.js` files in the requested directory, defaulting to the App's `tests/`. Name files after the tested behavior, such as `class-click.js`. Do not generate `.d.ts` files; `run` uses the SDK's existing Test collection signature.
 
 Create one collection per file, register non-nested groups at top level, and directly export `run`. App actions belong in callbacks; cleanup must tolerate partial setup. Replace the example's names and assertion with the requested scenario:
