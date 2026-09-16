@@ -43,8 +43,6 @@ Use `AndroidExp.runOnMainThread` for direct native UI access; respect other APIs
 
 ## Test structure and output
 
-Follow [Code generation constraints](../to-android-probe-script/SKILL.md#code-generation-constraints) for runtime module loading and bundling of relative imports.
-
 Write ESM `.js` files in the requested directory, defaulting to the App's `tests/`. Name files after the tested behavior, such as `class-click.js`. Do not generate `.d.ts` files; `run` uses the SDK's existing Test collection signature.
 
 Create one collection per file, register non-nested groups at top level, and directly export `run`. App actions belong in callbacks; cleanup must tolerate partial setup. Replace the example's names and assertion with the requested scenario:
@@ -71,3 +69,11 @@ describe('xxx', () => {
 ```
 
 Files share the App and JS environment: run serially and restore state between cases.
+
+## Code generation constraints
+
+Generated code runs in Frida: use the provided SDK globals and Frida APIs, without Node.js
+built-ins or npm module resolution.
+
+Imports must resolve within the Frida runtime; adjacent Host files are not loaded automatically.
+Use relative source imports only when the code will be bundled before execution, as with presets.
