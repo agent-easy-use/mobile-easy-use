@@ -6,7 +6,7 @@
 
 让 AI Agent 通过 MCP 访问 Android / iOS App 运行时：读取原生对象与状态，追踪和覆盖方法调用，操控 UI，并直接与运行中的 App 交互。
 
-下面的录屏展示了 AI Agent 操作运行中的移动 App，查看真实的调用链路，并探查方法执行耗时等运行时信息。
+下面的录屏展示了 AI Agent 操作移动 App，查看调用链路和方法耗时。
 
 https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 

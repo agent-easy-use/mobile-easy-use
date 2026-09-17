@@ -6,7 +6,7 @@
 
 Da a los agentes de IA acceso al runtime de aplicaciones Android e iOS mediante MCP: inspeccionar objetos nativos y su estado, rastrear y sustituir llamadas a métodos, controlar la interfaz e interactuar directamente con una aplicación en ejecución.
 
-La grabación muestra a un agente de IA operando una aplicación móvil en ejecución, siguiendo las rutas de llamadas reales y consultando datos del runtime, como el tiempo de ejecución de los métodos.
+La grabación muestra a un agente de IA operando una aplicación móvil, siguiendo las rutas de llamadas y el tiempo de ejecución de los métodos.
 
 https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 

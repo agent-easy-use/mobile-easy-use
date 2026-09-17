@@ -6,7 +6,7 @@
 
 Give AI agents runtime access to Android and iOS apps through MCP: inspect native objects and state, trace and override method calls, control the UI, and interact directly with a running app.
 
-The recording shows an AI agent operating a running mobile app, tracing real call paths, and inspecting runtime details such as method execution time.
+The recording shows an AI agent operating a mobile app, tracing call paths and method timing.
 
 https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
