@@ -4,9 +4,9 @@
 
 [English](../README.md) · [简体中文](./README.zh.md) · **Français** · [Русский](./README.ru.md) · [Español](./README.es.md) · [العربية](./README.ar.md)
 
-Donnez aux agents IA accès au runtime des applications Android et iOS : inspecter les objets natifs et leur état, tracer et remplacer les appels de méthodes, et contrôler l’interface.
+Donnez aux agents IA accès au runtime des applications Android et iOS via MCP : inspecter les objets natifs et leur état, tracer et remplacer les appels de méthodes, contrôler l’interface et interagir directement avec une application en cours d’exécution.
 
-Mobile Easy Use expose ces capacités via MCP, pour que les agents IA interagissent directement avec une application en cours d’exécution.
+La vidéo montre un agent IA qui utilise une application mobile en cours d’exécution, suit les chemins d’appel réels et examine des informations runtime telles que la durée d’exécution des méthodes.
 
 https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 

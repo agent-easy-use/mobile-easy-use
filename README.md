@@ -4,9 +4,9 @@
 
 [English](README.md) · [简体中文](./docs/README.zh.md) · [Français](./docs/README.fr.md) · [Русский](./docs/README.ru.md) · [Español](./docs/README.es.md) · [العربية](./docs/README.ar.md)
 
-Give AI agents runtime access to Android and iOS apps: inspect native objects and state, trace and override method calls, and control the UI.
+Give AI agents runtime access to Android and iOS apps through MCP: inspect native objects and state, trace and override method calls, control the UI, and interact directly with a running app.
 
-Mobile Easy Use exposes these capabilities through MCP, so AI agents can interact directly with a running app.
+The recording shows an AI agent operating a running mobile app, tracing real call paths, and inspecting runtime details such as method execution time.
 
 https://github.com/user-attachments/assets/e956fdbf-da6a-4608-a877-11a107f70760
 
