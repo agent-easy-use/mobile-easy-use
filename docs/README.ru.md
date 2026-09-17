@@ -1,8 +1,10 @@
 # Mobile Easy Use
 
-**Дайте ИИ-агентам доступ к runtime приложений Android и iOS: исследовать нативные объекты и состояние, отслеживать и подменять вызовы методов, управлять интерфейсом.**
+**Beyond UI control. Deep runtime exploration.**
 
-Документация: [English](../README.md) · [简体中文](./README.zh.md) · [Français](./README.fr.md) · **Русский** · [Español](./README.es.md) · [العربية](./README.ar.md)
+[English](../README.md) · [简体中文](./README.zh.md) · [Français](./README.fr.md) · **Русский** · [Español](./README.es.md) · [العربية](./README.ar.md)
+
+Дайте ИИ-агентам доступ к runtime приложений Android и iOS: исследовать нативные объекты и состояние, отслеживать и подменять вызовы методов, управлять интерфейсом.
 
 Mobile Easy Use предоставляет эти возможности через MCP, чтобы ИИ-агенты могли напрямую взаимодействовать с работающим приложением.
 

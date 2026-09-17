@@ -1,8 +1,10 @@
 # Mobile Easy Use
 
-**Donnez aux agents IA accès au runtime des applications Android et iOS : inspecter les objets natifs et leur état, tracer et remplacer les appels de méthodes, et contrôler l’interface.**
+**Beyond UI control. Deep runtime exploration.**
 
-Documentation : [English](../README.md) · [简体中文](./README.zh.md) · **Français** · [Русский](./README.ru.md) · [Español](./README.es.md) · [العربية](./README.ar.md)
+[English](../README.md) · [简体中文](./README.zh.md) · **Français** · [Русский](./README.ru.md) · [Español](./README.es.md) · [العربية](./README.ar.md)
+
+Donnez aux agents IA accès au runtime des applications Android et iOS : inspecter les objets natifs et leur état, tracer et remplacer les appels de méthodes, et contrôler l’interface.
 
 Mobile Easy Use expose ces capacités via MCP, pour que les agents IA interagissent directement avec une application en cours d’exécution.
 

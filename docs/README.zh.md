@@ -1,8 +1,10 @@
 # Mobile Easy Use
 
-**让 AI Agent 访问 Android / iOS App 运行时：读取原生对象与状态，追踪和覆盖方法调用，操控 UI。**
+**Beyond UI control. Deep runtime exploration.**
 
-文档：[English](../README.md) · **简体中文** · [Français](./README.fr.md) · [Русский](./README.ru.md) · [Español](./README.es.md) · [العربية](./README.ar.md)
+[English](../README.md) · **简体中文** · [Français](./README.fr.md) · [Русский](./README.ru.md) · [Español](./README.es.md) · [العربية](./README.ar.md)
+
+让 AI Agent 访问 Android / iOS App 运行时：读取原生对象与状态，追踪和覆盖方法调用，操控 UI。
 
 Mobile Easy Use 通过 MCP 提供这些能力，让 AI Agent 直接与运行中的 App 交互。
 

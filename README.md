@@ -1,8 +1,10 @@
 # Mobile Easy Use
 
-**Give AI agents runtime access to Android and iOS apps: inspect native objects and state, trace and override method calls, and control the UI.**
+**Beyond UI control. Deep runtime exploration.**
 
-Documentation: **English** · [简体中文](./docs/README.zh.md) · [Français](./docs/README.fr.md) · [Русский](./docs/README.ru.md) · [Español](./docs/README.es.md) · [العربية](./docs/README.ar.md)
+[English](README.md) · [简体中文](./docs/README.zh.md) · [Français](./docs/README.fr.md) · [Русский](./docs/README.ru.md) · [Español](./docs/README.es.md) · [العربية](./docs/README.ar.md)
+
+Give AI agents runtime access to Android and iOS apps: inspect native objects and state, trace and override method calls, and control the UI.
 
 Mobile Easy Use exposes these capabilities through MCP, so AI agents can interact directly with a running app.
 

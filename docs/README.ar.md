@@ -1,8 +1,10 @@
 # Mobile Easy Use
 
-**امنح وكلاء الذكاء الاصطناعي وصولًا إلى وقت تشغيل تطبيقات Android وiOS: فحص الكائنات الأصلية والحالة، وتتبع استدعاءات الدوال واستبدال سلوكها، والتحكم في الواجهة.**
+**Beyond UI control. Deep runtime exploration.**
 
-الوثائق: [English](../README.md) · [简体中文](./README.zh.md) · [Français](./README.fr.md) · [Русский](./README.ru.md) · [Español](./README.es.md) · **العربية**
+[English](../README.md) · [简体中文](./README.zh.md) · [Français](./README.fr.md) · [Русский](./README.ru.md) · [Español](./README.es.md) · **العربية**
+
+امنح وكلاء الذكاء الاصطناعي وصولًا إلى وقت تشغيل تطبيقات Android وiOS: فحص الكائنات الأصلية والحالة، وتتبع استدعاءات الدوال واستبدال سلوكها، والتحكم في الواجهة.
 
 يتيح Mobile Easy Use هذه الإمكانات عبر MCP، ليتمكن وكلاء الذكاء الاصطناعي من التفاعل مباشرةً مع التطبيق أثناء تشغيله.
 
