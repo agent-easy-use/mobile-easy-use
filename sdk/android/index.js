@@ -7,6 +7,7 @@ import { findUiView } from './exp/ui.js';
 import { R } from './framework/index.js';
 import { Override } from './override/index.js';
 import { Probe } from './probe/index.js';
+import { stopDebuggers } from './probe/debugger/index.js';
 import { checkUiStateNow } from './exp/ui-state.js';
 
 const Test = { create: () => createTest(findUiView, runOnMainThread, checkUiStateNow, options => AndroidExp.screenshot(options)) };
@@ -41,7 +42,7 @@ globalThis.runtimeStatus = () => {
   };
 };
 
-installRuntimeRpc();
+installRuntimeRpc({ dispose: stopDebuggers });
 
 export {
   AndroidExp,

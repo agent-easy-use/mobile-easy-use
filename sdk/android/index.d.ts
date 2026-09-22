@@ -571,7 +571,138 @@ declare global {
     ): Promise<Awaited<TResult>>;
   }
 
+  /** Only the stopped method's current frame. No implicit this/field/closure/outer-instance lookup. */
+  type AndroidDebuggerBinding =
+    | { kind: 'local'; name: string }
+    | { kind: 'argument'; index: number };
+
+  /** Runtime primitives or live Frida Java wrappers, indexed by binding alias. */
+  type AndroidDebuggerValues = Readonly<Record<string, any>>;
+
+  interface AndroidDebuggerCondition {
+    /** Required, possibly {}. Keys are binding aliases. */
+    bindings: Readonly<Record<string, AndroidDebuggerBinding>>;
+    /** Synchronous, read-only JS function returning boolean. false produces no hit record;
+     * failures produce hit.condition and skip observations. Java/Kotlin source syntax is not evaluated.
+     */
+    predicate: (bindings: AndroidDebuggerValues) => boolean;
+  }
+
+  /** Passed to customRun.run; valid only during its synchronous invocation. */
+  interface AndroidDebuggerContext {
+    /** Write the named binding's actual frame slot now. The already-read JS binding value is unchanged.
+     * Does not undo earlier computation or update the caller's own slots. Completed writes survive run errors.
+     * Objects must be assignment-compatible Java wrappers or null; JS strings become java.lang.String.
+     * char is one UTF-16 code unit; boolean requires boolean; long requires Int64 or a safe integer.
+     */
+    setBinding(name: string, value: boolean | number | string | Int64 | Java.Wrapper | null): void;
+    /** Stage an early return, applied after all observations and serialization, outside the JS callback.
+     * Skips remaining method code INCLUDING finally. Omit value only for void. Same value rules as setBinding.
+     * A second request fails without replacing the first; failure of the owning run/serialization cancels
+     * that run's pending request. Earlier writes are not rolled back. Deferred native failure is recorded
+     * in the requesting observation. No constructor/class-initializer support.
+     */
+    forceReturn(value?: boolean | number | string | Int64 | Java.Wrapper | null): void;
+  }
+
+  type AndroidDebuggerObservation =
+    | { name: string; kind: 'value'; source: AndroidDebuggerBinding }
+    | { name: string; kind: 'customRun'; bindings: Readonly<Record<string, AndroidDebuggerBinding>>;
+        run: (bindings: AndroidDebuggerValues, ctx: AndroidDebuggerContext) => unknown }
+    | { name: string; kind: 'stack'; maxDepth?: number };
+
+  /** Configuration is used directly. Follow the declared constraints and do not mutate it until stop completes. */
+  interface AndroidDebuggerDefinition {
+    /** Java class name or Frida class/instance wrapper. Requires debuggable Android API 28+ and
+     * the AAR's libmobile_easy_use_native.so. ART must grant breakpoint/local/early-return capabilities.
+     */
+    target: string | Java.Wrapper;
+    /** Exact runtime method, including Kotlin-generated class/method names. No constructors or class initializers. */
+    method: string;
+    /** Select one exact overload; required if ambiguous. Runtime Kotlin synthetic parameters count too. */
+    argumentTypes?: readonly string[];
+    /** Positive absolute source line within the selected method's line table. Installs only its smallest
+     * jlocation. Missing line/debug info fails; no nearest-line fallback, global file lookup, or inline mapping.
+     */
+    fileLine: number;
+    condition?: AndroidDebuggerCondition;
+    /** Non-empty; names must be unique. Each observation reads and executes in declaration order.
+     * Later value/bindings reads see earlier setBinding writes; stack is captured when its item executes.
+     * Functions run synchronously in declaration order on the breakpoint thread, preserving closures and Frida globals.
+     * run may return data or omit return. Functions are defined in the App-side Frida module, not sent through Host RPC.
+     * No async/generator functions, Promise results, Host waits, main-thread dispatch-and-wait, or nested
+     * debugger registration/stop from a callback. Reentry into debugger callbacks is skipped, not recursively observed.
+     * Object bindings are live Frida wrappers, valid during this hit; they are not deep snapshots. Retain explicitly
+     * with Java.retain if needed beyond the callback. Other App threads continue running.
+     * stack.maxDepth defaults to 3, must be a positive integer; frames start at the target method. No truncated field,
+     * native/JS frames, reconstructed inline/coroutine stack, or automatic variable expansion.
+     * argument.index starts at 0 excluding this, uses the runtime signature and current ART parameter registers;
+     * it is not necessarily the entry-time value. local resolves by name + active scope in this frame only.
+     */
+    observations: readonly AndroidDebuggerObservation[];
+  }
+
+  interface AndroidDebuggerStackFrame {
+    className: string;
+    methodName: string;
+    sourceFile: string | null;
+    line: number | null;
+  }
+
+  interface AndroidDebuggerError { status: 'error'; message: string }
+  type AndroidDebuggerObservationResult =
+    | { status: 'ok'; value: ProbeJsonValue }
+    | AndroidDebuggerError;
+
+  interface AndroidDebuggerHit {
+    /** Registration-local sequence. Gaps are possible when conditions exclude hits. */
+    hitId: string;
+    /** ISO timestamp at callback entry. Concurrent hit order is not business causal order. */
+    timestamp: string;
+    /** Native thread ID as a decimal string, and Java thread name if available. */
+    thread: { id: string; name: string | null };
+    observations: Record<string, AndroidDebuggerObservationResult>;
+    /** Condition error; observations is empty. */
+    condition?: AndroidDebuggerError;
+    /** Failure outside a specific observation, including native callback setup failure. */
+    error?: AndroidDebuggerError;
+  }
+
+  /** Clears the breakpoint, drains entered callbacks, releases its environment, and returns raw hit records.
+   * Repeated successful calls share one Promise/result. Close/dispose failures propagate directly without hits;
+   * subsequent cleanup steps are skipped on failure. If the native environment remains alive, cleanup can be retried.
+   * No detach or rollback.
+   * Data is buffered in memory until stop, with no sampling/truncation/summaries. Return the array from a probe
+   * module export to transport it to Host through normal RPC; no separate file mode or background persistence.
+   * Await stop in finally before unloading a script. Normal MCP disconnect stops active debuggers first;
+   * abrupt Host/network/process termination does not guarantee result delivery or cleanup.
+   */
+  type AndroidDebuggerStop = () => Promise<AndroidDebuggerHit[]>;
+
   interface ProbeApi {
+    /** Install one ART/JVMTI line breakpoint; resolves to an async cleanup/result closure.
+     * Owns an independent JVMTI environment; no Host JDK, JDWP or IDE required at runtime.
+     * Installation failures roll back. JS observation errors are recorded and execution continues.
+     * Results contain only configured observations. Primitives/plain JSON are copied; long becomes
+     * {type:'long',value:decimalString}, undefined becomes {type:'undefined'}, nonfinite numbers become
+     * {type:'number',value:'NaN'|'Infinity'|'-Infinity'}. Java String becomes a JS string; other Java objects
+     * become {type:'java-object',className}, without recursively reading fields. Use customRun to return
+     * selected fields as plain JSON. Cycles, unsupported JS objects and thenables are observation errors.
+     * Blocking Java/native code cannot be safely cancelled; stop waits for in-flight callbacks without a timeout.
+     * @example
+     * const stop = await Probe.debugger({
+     *   target: 'com.example.PriceKt', method: 'calculate', argumentTypes: ['int'], fileLine: 42,
+     *   observations: [
+     *     { name: 'price', kind: 'value', source: { kind: 'argument', index: 0 } },
+     *     { name: 'caller', kind: 'stack' },
+     *     { name: 'adjust', kind: 'customRun', bindings: { price: { kind: 'argument', index: 0 } },
+     *       run: ({ price }, ctx) => { ctx.setBinding('price', 100); return { originalPrice: price }; } }
+     *   ]
+     * });
+     * try { await triggerBusinessOperation(); } finally { await stop(); }
+     * return await stop(); // Raw records, no summary.
+     */
+    debugger(definition: AndroidDebuggerDefinition): Promise<AndroidDebuggerStop>;
     readonly evidence: ProbeEvidenceApi;
   }
 
@@ -584,7 +715,7 @@ declare global {
   /** Action-scoped Java method return overrides. */
   const Override: Readonly<AndroidOverrideApi>;
 
-  /** Action-scoped chain, state, and UI evidence capture. */
+  /** Android debugger observations and action-scoped chain, state, and UI evidence capture. */
   const Probe: Readonly<ProbeApi>;
 
   const Test: Readonly<AndroidTestApi>;
