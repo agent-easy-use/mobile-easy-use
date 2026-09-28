@@ -117,7 +117,9 @@ int earlyReturn(Hit* hit) {
         case 'F': return ti->ForceEarlyReturnFloat(hit->thread, hit->result.f);
         case 'D': return ti->ForceEarlyReturnDouble(hit->thread, hit->result.d);
         case 'L': case '[': return ti->ForceEarlyReturnObject(hit->thread, hit->result.l);
-        default: return ti->ForceEarlyReturnInt(hit->thread, hit->result.i);
+        case 'Z': case 'B': case 'C': case 'S': case 'I':
+            return ti->ForceEarlyReturnInt(hit->thread, hit->result.i);
+        default: return JVMTI_ERROR_ILLEGAL_ARGUMENT;
     }
 }
 /**
@@ -346,7 +348,9 @@ JNIEXPORT int meu_debug_read(Hit* hit, int slot, int type, jvalue* value) {
         case 'F': return ti->GetLocalFloat(hit->thread, 0, slot, &value->f);
         case 'D': return ti->GetLocalDouble(hit->thread, 0, slot, &value->d);
         case 'L': case '[': return ti->GetLocalObject(hit->thread, 0, slot, &value->l);
-        default: return ti->GetLocalInt(hit->thread, 0, slot, &value->i);
+        case 'Z': case 'B': case 'C': case 'S': case 'I':
+            return ti->GetLocalInt(hit->thread, 0, slot, &value->i);
+        default: return JVMTI_ERROR_ILLEGAL_ARGUMENT;
     }
 }
 // ctx.setBinding → native.js 编码为 jvalue → 此处立即 SetLocal*。
@@ -360,7 +364,9 @@ JNIEXPORT int meu_debug_write(Hit* hit, int slot, int type, const jvalue* value)
         case 'F': return ti->SetLocalFloat(hit->thread, 0, slot, value->f);
         case 'D': return ti->SetLocalDouble(hit->thread, 0, slot, value->d);
         case 'L': case '[': return ti->SetLocalObject(hit->thread, 0, slot, value->l);
-        default: return ti->SetLocalInt(hit->thread, 0, slot, value->i);
+        case 'Z': case 'B': case 'C': case 'S': case 'I':
+            return ti->SetLocalInt(hit->thread, 0, slot, value->i);
+        default: return JVMTI_ERROR_ILLEGAL_ARGUMENT;
     }
 }
 // ctx.forceReturn → 此处仅保存意图/返回值，绝不在 JS 尚未退出时执行 ForceEarlyReturn。

@@ -286,6 +286,9 @@ export async function debuggerProbe(definition) {
   if (isInBreakpointCallback()) throw new Error('Do not register a debugger from a breakpoint callback');
   if (shuttingDown) throw new Error('Debugger runtime is shutting down');
   if (definition.condition) requireSynchronous(definition.condition.predicate);
+  for (const observation of definition.observations) {
+    if (observation.kind === 'customRun') requireSynchronous(observation.run);
+  }
 
   let stop;
   Java.performNow(() => { stop = install(definition); });

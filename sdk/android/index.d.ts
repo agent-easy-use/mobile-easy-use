@@ -576,7 +576,11 @@ declare global {
     | { kind: 'local'; name: string }
     | { kind: 'argument'; index: number };
 
-  /** Runtime primitives or live Frida Java wrappers, indexed by binding alias. */
+  /** Runtime primitives or live Frida Java wrappers, indexed by binding alias.
+   * Actual java.lang.String values become JS string, even when declared Object/CharSequence.
+   * JS strings written through setBinding/forceReturn become java.lang.String when assignable.
+   * null remains null; other objects are not implicitly stringified.
+   */
   type AndroidDebuggerValues = Readonly<Record<string, any>>;
 
   interface AndroidDebuggerCondition {
@@ -617,12 +621,15 @@ declare global {
      * the AAR's libmobile_easy_use_native.so. ART must grant breakpoint/local/early-return capabilities.
      */
     target: string | Java.Wrapper;
-    /** Exact runtime method, including Kotlin-generated class/method names. No constructors or class initializers. */
+    /** Exact runtime method, including Kotlin-generated class/method names. No constructors or class initializers.
+     * Kotlin inline calls are not targetable as logical methods; target the generated caller runtime method instead.
+     */
     method: string;
     /** Select one exact overload; required if ambiguous. Runtime Kotlin synthetic parameters count too. */
     argumentTypes?: readonly string[];
     /** Positive absolute source line within the selected method's line table. Installs only its smallest
-     * jlocation. Missing line/debug info fails; no nearest-line fallback, global file lookup, or inline mapping.
+     * jlocation. Missing line/debug info fails; no nearest-line fallback, global file lookup, Kotlin SMAP,
+     * or inline source mapping.
      */
     fileLine: number;
     condition?: AndroidDebuggerCondition;

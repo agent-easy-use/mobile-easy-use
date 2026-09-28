@@ -81,13 +81,19 @@ export function readBinding(api, hit, source, factory, wrappers) {
       // Objects and arrays arrive as JNI references. Wrap the runtime type for JS field/method access.
       const object = buffer.readPointer();
       if (object.isNull()) { binding.value = null; break; }
-      const className = Java.vm.getEnv().getObjectClassName(object);
+      const env = Java.vm.getEnv();
+      const className = env.getObjectClassName(object);
+      if (className === 'java.lang.String') {
+        binding.value = env.stringFromJni(object);
+        break;
+      }
       binding.value = Java.cast(object, factory.use(className));
       wrappers.push(binding.value);
       break;
     }
     // B/S/I (byte/short/int) are returned through GetLocalInt as signed 32-bit values.
-    default: binding.value = buffer.readS32();
+    case 'B': case 'S': case 'I': binding.value = buffer.readS32(); break;
+    default: throw new Error(`Unsupported JVM type: ${signature}`);
   }
   return binding;
 }
@@ -126,7 +132,10 @@ export function encode(value, signature, factory, wrappers) {
     case 'L': case '[': {
       // Convert JS strings explicitly, then check reference assignment against the destination type.
       if (value === null) { buffer.writePointer(ptr(0)); break; }
-      if (typeof value === 'string') { value = factory.use('java.lang.String').$new(value); wrappers.push(value); }
+      if (typeof value === 'string') {
+        value = factory.use('java.lang.String').$new(value);
+        wrappers.push(value);
+      }
       if (!value?.$h) throw new Error('Expected a Java object or null');
       const className = signature[0] === 'L' ? signature.slice(1, -1).replaceAll('/', '.') : signature.replaceAll('/', '.');
       if (!factory.use(className).class.isInstance(value)) throw new Error(`Object is not assignable to ${className}`);
@@ -146,8 +155,11 @@ export function snapshot(value, seen = new Set()) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : { type: 'number', value: String(value) };
   if (value instanceof Int64) return { type: 'long', value: value.toString() };
   if (value?.$h) {
-    const className = Java.vm.getEnv().getObjectClassName(value.$h);
-    if (className === 'java.lang.String') return Java.vm.getEnv().stringFromJni(value.$h);
+    const env = Java.vm.getEnv();
+    const className = env.getObjectClassName(value.$h);
+    if (className === 'java.lang.String') {
+      return env.stringFromJni(value.$h);
+    }
     return { type: 'java-object', className };
   }
   if (value && typeof value.then === 'function') throw new Error('Debugger observations must be synchronous');
