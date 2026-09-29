@@ -1,28 +1,30 @@
 import Java from 'frida-java-bridge';
 import { errorMessage, safeEmit } from '../../common/reporting.js';
-import { backend, check, takeString, readBinding, encode, snapshot } from './native.js';
+import { backend, check, takeString, readVariable, writeVariable, encode, snapshot } from './native.js';
 
 /**
- * 本文件负责 Probe.debugger 的 JS 编排；JVMTI 的 JS 调用接口封装在 native.js，原生实现位于 debugger.cpp。
+ * This file orchestrates Probe.debugger in JS; native.js wraps the JVMTI bridge implemented in debugger.cpp.
  *
- * 注册：确认同步回调 → 选择方法并读取返回类型 → open 创建并启用断点 → 返回 stop。
- * 命中：native → onHit（条件、取值、用户脚本）→ native（执行提前返回）
- *             → onFinish（补充原生错误、保存记录）。
- * 清理：stop → 关闭新命中 → 等待在途回调 → 释放环境 → 返回记录数组。
+ * Registration: validate synchronous callbacks → resolve method/return type → open breakpoint → return stop.
+ * Hit: native → onHit (condition, reads, user callbacks) → native (apply early return)
+ *             → onFinish (append native errors and save the record).
+ * Cleanup: stop → reject new hits → drain active callbacks → dispose environment → return records.
  *
- * onHit/onFinish 都在命中的业务线程上同步执行。stop 是异步的，不能在自己的
- * 断点回调里等待它，否则会等待当前回调结束，形成死锁。
+ * onHit/onFinish run synchronously on the thread that hit the breakpoint. stop is asynchronous;
+ * waiting for it inside a breakpoint callback would deadlock while waiting for that callback to finish.
  */
 
-// SDK 级状态：供正常断连时统一清理，同时强引用仍被 native 使用的回调函数。
+// SDK state for disconnect cleanup; also keeps callbacks alive while native code can invoke them.
 const registrations = new Set();
 let shuttingDown = false;
-// 必须按线程判断，不能用全局 boolean：某个线程正在命中时，Host 仍应能调用 stop。
+// Track threads separately: the Host must still be able to call stop while another thread handles a hit.
 const callbackThreads = new Set();
 const isInBreakpointCallback = () => callbackThreads.has(Process.getCurrentThreadId());
-const failure = error => ({ status: 'error', message: errorMessage(error) });
+const addError = (record, stage, error, name) => {
+  (record.errors ??= []).push({ stage, ...(name === undefined ? {} : { name }), message: errorMessage(error) });
+};
 
-// 配置结构由公开类型约定；只阻止不能在断点同步阶段执行的函数。
+// The public types define the configuration shape; reject functions that cannot run synchronously.
 function requireSynchronous(fn) {
   const kind = Object.prototype.toString.call(fn);
   if (['[object AsyncFunction]', '[object GeneratorFunction]', '[object AsyncGeneratorFunction]'].includes(kind)) {
@@ -30,13 +32,7 @@ function requireSynchronous(fn) {
   }
 }
 
-// 从按别名保存的 {slot, signature, value} 中提取用户函数接收的 {别名: value}。
-// 槽位信息仅由 ctx 使用；用户拿到的对象不暴露 native 地址或 frame 操作细节。
-function bindingValues(bindings) {
-  return Object.fromEntries(Object.entries(bindings).map(([name, binding]) => [name, binding.value]));
-}
-
-// 返回一个精确重载，以及它所属 ClassLoader 的工厂，供绑定对象的类型转换使用。
+// Resolve one exact overload and its ClassLoader factory for Java object type conversions.
 function resolveMethod(definition) {
   const target = typeof definition.target === 'string' ? Java.use(definition.target) : definition.target;
   const name = definition.method;
@@ -55,239 +51,189 @@ function resolveMethod(definition) {
 }
 
 /**
- * 创建一次 debugger 注册。下面的回调和 stop 共用此闭包，避免将一份注册状态拆散。
- * 原生环境、在途记录、最终结果都属于这次注册，不跨 debugger 共享。
+ * Create one debugger registration. Callbacks and stop share this closure to keep its state together.
+ * The native environment, pending hits, and completed records belong only to this registration.
+ *
+ * Hit lifecycle (onHit/onFinish run synchronously on the thread that hit the breakpoint):
+ * 1. Native code receives the event, creates a temporary Hit and JNI reference scope, then calls onHit.
+ *    JS assigns a hitId and entry order, and stores the state in pendingHits by Hit* for onFinish.
+ * 2. Create the shared get function for this hit, read thread information, then run condition if present.
+ *    A false condition skips the remaining stages and discards the record. A thrown error or
+ *    non-boolean result also skips the stages, but preserves the record with a condition error.
+ * 3. Collect stack if requested, then run observations → overrides → earlyReturn:
+ *    - observations: read a name or call source({ get }), then immediately serialize the value.
+ *    - overrides: compute the value, resolve the target, and write it; later get calls see the write.
+ *    - earlyReturn: compute and encode the return value, then stage it in native code without returning yet.
+ *    All three stages are optional. Each observation, override, stack collection, and earlyReturn
+ *    records its own errors without blocking other items or later stages. Completed writes remain.
+ * 4. The onHit finally block expires get, disposes temporary Java wrappers, and clears the thread marker.
+ *    A framework exception outside the stage handlers cancels any staged return and records a framework error.
+ * 5. After onHit returns, native code checks the target frame and applies any staged ForceEarlyReturn.
+ *    It then calls onFinish to append native errors, remove the state from pendingHits, and
+ *    save it in completedHits when shouldRecord is true. onFinish does not access the target frame.
+ *    If JNI reference scope creation fails, onHit is skipped and onFinish creates the error record.
+ * 6. Native code releases hit references and decrements the active count. After closing new hits, stop
+ *    waits for this cleanup, disposes the environment, and returns records in onHit entry order.
  */
 function install(definition) {
-  const { method, factory } = resolveMethod(definition);
+  const { method, factory } = resolveMethod(definition.breakpoint);
   const api = backend();
-  // Frida 已有返回类型描述符，无需再向 C++ 查询。首次命中前就要准备好。
+  // Frida already provides the return descriptor; prepare it before the first hit without querying C++.
   const returnType = method.returnType.name;
-  // handle 是本次注册的 jvmtiEnv*，不是 method.handle（jmethodID）。
-  // 回调只使用 native 传入的 Hit*，不依赖 open 返回后的 handle 赋值。
+  // handle is this registration's jvmtiEnv*, not method.handle (a jmethodID).
+  // Callbacks use the native Hit* and do not depend on handle being assigned after open returns.
   let handle = null;
   let hitSequence = 0;
   let stopPromise;
 
-  // pendingHits: native Hit* 地址 → JS 命中状态，连接 onHit 与稍后的 onFinish。
-  // completedHits: 原生收尾已结束的记录；不同线程可能按不同于进入顺序的次序完成。
+  // pendingHits: native Hit* address → JS hit state, connecting onHit to the later onFinish.
+  // completedHits: records after native completion; concurrent hits may finish in a different order.
   const pendingHits = new Map();
   const completedHits = [];
   const makeHit = () => ({
     hitId: `h${++hitSequence}`,
     timestamp: new Date().toISOString(),
     thread: { id: String(Process.getCurrentThreadId()), name: null },
-    observations: Object.create(null),
   });
-  // 阶段一：仍可访问目标 frame。native 传入的 hit 是仅本次回调有效的 Hit*。
+  // get belongs to this hit and expires before its native frame is released.
   const onHit = new NativeCallback(hit => {
     callbackThreads.add(Process.getCurrentThreadId());
-    const hitState = {
-      record: makeHit(),
-      order: hitSequence,
-      // 记录哪个 observation 提交了提前返回，便于取消意图、归属延迟执行的错误。
-      returnObservationName: null,
-      // 条件 false 时不保存；条件错误和框架错误仍需保存。
-      shouldRecord: true,
-    };
-    pendingHits.set(hit.toString(), hitState);
-    // 暂存本次读取/转换时创建的 Java wrapper，退出 onHit 前统一释放。
-    // 记录中保存的是 snapshot 后的数据，不能持有这些临时 wrapper。
+    const state = { record: makeHit(), order: hitSequence, returning: false, shouldRecord: true };
+    pendingHits.set(hit.toString(), state);
+    const { record } = state;
     const wrappers = [];
-    const read = source => readBinding(api, hit, source, factory, wrappers);
-    const readBindings = bindings => {
-      const result = Object.create(null);
-      for (const [name, source] of Object.entries(bindings)) {
-        result[name] = read(source);
-      }
-      return result;
+    let active = true;
+    const get = name => {
+      if (!active) throw new Error('get is only valid during this breakpoint hit');
+      return readVariable(api, hit, name, factory, wrappers);
     };
     try {
-      hitState.record.thread.name = takeString(api, api.thread(hit));
-      // 1. 先执行条件。false 和条件报错都不再执行 observations，但报错会留记录。
-      if (definition.condition) {
+      record.thread.name = takeString(api, api.thread(hit));
+      const condition = definition.breakpoint.condition;
+      if (condition !== undefined) {
         try {
-          const values = bindingValues(readBindings(definition.condition.bindings));
-          const predicate = definition.condition.predicate;
-          const matched = predicate(values);
-          if (typeof matched !== 'boolean') {
-            throw new Error('Condition must synchronously return boolean');
-          }
-          if (!matched) {
-            hitState.shouldRecord = false;
-            return;
-          }
-        } catch (error) {
-          hitState.record.condition = failure(error);
-          return;
+          const matched = condition({ get });
+          if (typeof matched !== 'boolean') throw new Error('Condition must return boolean');
+          if (!matched) { state.shouldRecord = false; return; }
+        } catch (error) { addError(record, 'condition', error); return; }
+      }
+      if (definition.stack !== undefined) {
+        try {
+          const output = Memory.alloc(Process.pointerSize);
+          check(api.stack(hit, definition.stack, output), 'Read stack');
+          record.stack = JSON.parse(takeString(api, output.readPointer()));
+        } catch (error) { addError(record, 'stack', error); }
+      }
+      if (definition.observations !== undefined) {
+        record.observations = Object.create(null);
+        for (const [name, source] of Object.entries(definition.observations)) {
+          try { record.observations[name] = snapshot(typeof source === 'string' ? get(source) : source({ get })); }
+          catch (error) { addError(record, 'observations', error, name); }
         }
       }
-      // 2. 按配置顺序逐项读取、执行和保存。后续项可以读到前序 setBinding 的写入。
-      // 一项失败只记录该项错误，不中止后续项；forceReturn 仍等整个 onHit 结束后执行。
-      for (const option of definition.observations) {
+      for (const [name, source] of Object.entries(definition.overrides ?? {})) {
         try {
-          if (option.kind === 'value') {
-            hitState.record.observations[option.name] = { status: 'ok', value: snapshot(read(option.source).value) };
-            continue;
-          }
-          if (option.kind === 'stack') {
-            const output = Memory.alloc(Process.pointerSize);
-            check(api.stack(hit, option.maxDepth ?? 3, output), 'Read stack');
-            hitState.record.observations[option.name] = { status: 'ok', value: JSON.parse(takeString(api, output.readPointer())) };
-            continue;
-          }
-          if (option.kind !== 'customRun') {
-            throw new Error(`Unsupported debugger observation kind: ${option.kind}`);
-          }
-          const bindings = readBindings(option.bindings);
-          let running = true;
-          const assertRunning = () => {
-            if (!running) {
-              throw new Error('ctx is only valid during this synchronous run invocation');
-            }
-          };
-          const ctx = Object.freeze({
-            // 立即写入原 frame 的槽位；传给用户函数的 JS 实参不会随之刷新。
-            setBinding(name, value) {
-              assertRunning();
-              const selected = bindings[name];
-              if (!selected) {
-                throw new Error(`Unknown binding: ${name}`);
-              }
-              const buffer = encode(value, selected.signature, factory, wrappers);
-              check(api.write(hit, selected.slot, selected.signature.charCodeAt(0), buffer), 'setBinding');
-            },
-            // 这里只向 native 保存返回意图。真正的 ForceEarlyReturn 要等 onHit 完全退出。
-            forceReturn(value) {
-              assertRunning();
-              if (hitState.returnObservationName !== null) {
-                throw new Error('forceReturn was already requested for this hit');
-              }
-              const buffer = encode(value, returnType, factory, wrappers);
-              check(api.return(hit, buffer), 'forceReturn');
-              hitState.returnObservationName = option.name;
-            },
-          });
-          const values = bindingValues(bindings);
-          let value;
-          try {
-            const run = option.run;
-            value = run(values, ctx);
-          } finally {
-            // 即使用户保存了 ctx，函数返回之后也不能再读写本次 frame。
-            running = false;
-          }
-          hitState.record.observations[option.name] = { status: 'ok', value: snapshot(value) };
-        } catch (error) {
-          // 只取消当前失败 observation 自己的意图，不取消其他 observation 的成功请求。
-          // 已执行的 setBinding 不回滚；序列化失败也按当前 observation 失败处理。
-          if (hitState.returnObservationName === option.name) {
-            api.cancelReturn(hit);
-            hitState.returnObservationName = null;
-          }
-          hitState.record.observations[option.name] = failure(error);
-        }
+          const value = typeof source === 'function' ? source({ get }) : source;
+          writeVariable(api, hit, name, value, factory, wrappers);
+        } catch (error) { addError(record, 'overrides', error, name); }
+      }
+      if (Object.hasOwn(definition, 'earlyReturn')) {
+        try {
+          const source = definition.earlyReturn;
+          const value = typeof source === 'function' ? source({ get }) : source;
+          const buffer = encode(value, returnType, factory, wrappers);
+          check(api.return(hit, buffer), 'Prepare earlyReturn');
+          state.returning = true;
+        } catch (error) { addError(record, 'earlyReturn', error); }
       }
     } catch (error) {
-      // 框架级失败：取消未执行的返回意图，保留已收集内容，并让 native 正常退出回调。
       api.cancelReturn(hit);
-      hitState.returnObservationName = null;
-      hitState.record.error = failure(error);
+      state.returning = false;
+      addError(record, 'framework', error);
     } finally {
+      active = false;
       for (const wrapper of wrappers) {
-        try {
-          wrapper.$dispose();
-        } catch (_) {
-          // 单个 wrapper 的释放异常不能阻止其他 wrapper 清理，也不能冒泡到业务线程。
-        }
+        try { wrapper.$dispose(); } catch (_) { /* Keep releasing the remaining wrappers. */ }
       }
       callbackThreads.delete(Process.getCurrentThreadId());
     }
   }, 'void', ['pointer']);
-  // 阶段二：native 完成收尾（若有提前返回请求，也已尝试执行），把最终错误码交回 JS。
-  // 这里仅整理 JS 数据，不能再访问 Java/frame，也不能再执行用户脚本。
+  // Only native completion can tell us whether ForceEarlyReturn actually succeeded.
   const onFinish = new NativeCallback((hit, error) => {
     const key = hit.toString();
-    // native 建立 JNI local frame 失败时不会调用 onHit，此处补一条框架错误记录。
-    const hitState = pendingHits.get(key) ?? {
-      record: makeHit(),
-      order: hitSequence,
-      returnObservationName: null,
-      shouldRecord: true,
-    };
+    const state = pendingHits.get(key) ?? { record: makeHit(), order: hitSequence, shouldRecord: true };
     pendingHits.delete(key);
     if (error !== 0) {
-      let diagnostic;
-      try {
-        check(error, 'Complete breakpoint');
-      } catch (cause) {
-        diagnostic = failure(cause);
-      }
-      if (hitState.returnObservationName !== null) {
-        hitState.record.observations[hitState.returnObservationName] = diagnostic;
-      } else {
-        hitState.record.error = diagnostic;
-      }
+      try { check(error, 'Complete breakpoint'); }
+      catch (cause) { addError(state.record, state.returning ? 'earlyReturn' : 'framework', cause); }
     }
-    if (hitState.shouldRecord) completedHits.push(hitState);
+    if (state.shouldRecord) completedHits.push(state);
   }, 'void', ['pointer', 'int']);
 
-  // 必须强引用 NativeCallback，直到原生事件已关闭且所有在途回调结束。
+  // Keep NativeCallbacks alive until native events are closed and all active callbacks have finished.
   const registration = { stop, onHit, onFinish };
   function stop() {
     if (isInBreakpointCallback()) {
       throw new Error('Do not await/stop a debugger from a breakpoint callback');
     }
     if (stopPromise) return stopPromise;
-    // 先保存 Promise，再进入清理。native 调用可能释放 JS 锁，重复 stop 要复用同一任务。
+    // Save the Promise before cleanup. Native calls may release the JS lock; repeated stop calls share this task.
     stopPromise = Promise.resolve().then(async () => {
-      // 1. 关闭新命中、清除断点；失败直接抛出。
+      // 1. Reject new hits and clear the breakpoint; propagate any failure.
       check(api.close(handle), 'Clear breakpoint');
-      // 2. 异步等待 onHit + 原生收尾 + onFinish 全部结束，不能阻塞 JS 线程等待。
+      // 2. Wait for onHit, native completion, and onFinish without blocking the JS thread.
       while (api.active(handle) !== 0) {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
       const skipped = api.reentrant(handle);
       if (skipped) safeEmit('probe.debugger.reentrant', { count: skipped });
-      // 3. 释放环境需要 JNI 线程上下文。成功之后才允许释放回调。
+      // 3. Disposal requires a JNI thread context. Release callbacks only after it succeeds.
       Java.performNow(() => check(api.dispose(handle), 'Dispose debugger'));
       registrations.delete(registration);
-      // 4. 按进入 JS 回调的顺序返回原始记录；并发完成次序可能不同，不做汇总或去重。
+      // 4. Return raw records in JS callback entry order, without aggregation or deduplication.
       return completedHits.sort((a, b) => a.order - b.order).map(hitState => hitState.record);
     }).catch(error => {
-      // 仅在环境还存活时允许重试清理；已完成的 stop 保留同一 Promise/result。
+      // Retry only while the environment still exists; a completed stop keeps the same Promise/result.
       if (registrations.has(registration)) stopPromise = undefined;
       throw error;
     });
     return stopPromise;
   }
-  // open 内完成注册和启用；此时回调所需的 JS 状态已准备好。
-  // 安装过程中的局部引用保住 onHit/onFinish；成功后由 registrations 继续持有。
-  // 原生层保证失败时回滚且不向 JS 派发命中，因此这里只检查错误码。
-  // Pass Frida's JVM descriptors as const char*[]; native copies them during open.
-  const argumentTypes = method.argumentTypes.map(type => Memory.allocUtf8String(type.name));
-  const argumentTypePointers = argumentTypes.length === 0
-    ? ptr(0)
-    : Memory.alloc(argumentTypes.length * Process.pointerSize);
-  argumentTypes.forEach((type, index) => {
-    argumentTypePointers.add(index * Process.pointerSize).writePointer(type);
-  });
-  const returnTypePointer = Memory.allocUtf8String(returnType);
+  // open installs and enables the breakpoint; callback state must already be ready.
+  // Local references keep onHit/onFinish alive during installation; registrations retains them afterward.
+  // Native code rolls back failed installation without dispatching JS hits, so only check the error code.
   const output = Memory.alloc(Process.pointerSize);
-  check(api.open(Java.vm.handle, method.handle, argumentTypePointers, argumentTypes.length,
-    returnTypePointer, definition.fileLine, onHit, onFinish, output), 'Register debugger');
+  check(api.open(Java.vm.handle, method.handle, Memory.allocUtf8String(returnType),
+    definition.breakpoint.fileLine, onHit, onFinish, output), 'Register debugger');
   handle = output.readPointer();
   registrations.add(registration);
   return stop;
 }
 
-// 公开入口：Java.performNow 为安装代码提供 JNI 上下文，不会切换到 Android 主线程。
+// Public entry: Java.performNow supplies a JNI context without switching to the Android main thread.
 export async function debuggerProbe(definition) {
   if (isInBreakpointCallback()) throw new Error('Do not register a debugger from a breakpoint callback');
   if (shuttingDown) throw new Error('Debugger runtime is shutting down');
-  if (definition.condition) requireSynchronous(definition.condition.predicate);
-  for (const observation of definition.observations) {
-    if (observation.kind === 'customRun') requireSynchronous(observation.run);
+  if (!definition.breakpoint || !Number.isSafeInteger(definition.breakpoint.fileLine) || definition.breakpoint.fileLine < 1) {
+    throw new Error('breakpoint requires a positive fileLine');
+  }
+  if (definition.stack !== undefined && (!Number.isInteger(definition.stack) || definition.stack < 1 || definition.stack > 0x7fffffff)) {
+    throw new Error('stack must be a positive 32-bit integer');
+  }
+  const condition = definition.breakpoint.condition;
+  if (condition !== undefined && typeof condition !== 'function') throw new Error('condition must be a function');
+  for (const key of ['observations', 'overrides']) {
+    const entries = definition[key];
+    if (entries !== undefined && (!entries || typeof entries !== 'object' || Array.isArray(entries))) {
+      throw new Error(`${key} must be an object`);
+    }
+  }
+  for (const source of Object.values(definition.observations ?? {})) {
+    if (typeof source !== 'string' && typeof source !== 'function') throw new Error('Observation must be a name or function');
+  }
+  for (const fn of [condition, ...Object.values(definition.observations ?? {}),
+    ...Object.values(definition.overrides ?? {}), definition.earlyReturn]) {
+    if (typeof fn === 'function') requireSynchronous(fn);
   }
 
   let stop;
@@ -295,10 +241,10 @@ export async function debuggerProbe(definition) {
   return stop;
 }
 
-// 正常断连的 SDK 级清理：禁止新注册，然后清理已有注册。
+// SDK cleanup on normal disconnect: reject new registrations, then dispose existing ones.
 export async function stopDebuggers() {
   shuttingDown = true;
-  // 尝试清理所有注册；其中一个失败也不能让其他注册跳过清理。
+  // Attempt every registration even if another one fails to stop.
   const results = await Promise.allSettled([...registrations].map(registration => registration.stop()));
   const failed = results.find(result => result.status === 'rejected');
   if (failed) throw failed.reason;

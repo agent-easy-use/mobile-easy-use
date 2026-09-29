@@ -571,82 +571,63 @@ declare global {
     ): Promise<Awaited<TResult>>;
   }
 
-  /** Only the stopped method's current frame. No implicit this/field/closure/outer-instance lookup. */
-  type AndroidDebuggerBinding =
-    | { kind: 'local'; name: string }
-    | { kind: 'argument'; index: number };
-
-  /** Runtime primitives or live Frida Java wrappers, indexed by binding alias.
-   * Actual java.lang.String values become JS string, even when declared Object/CharSequence.
-   * JS strings written through setBinding/forceReturn become java.lang.String when assignable.
-   * null remains null; other objects are not implicitly stringified.
+  /** Available during synchronous processing of the current breakpoint hit.
+   * Looks up the current frame and receiver's instance fields; no implicit closure/outer-instance lookup.
    */
-  type AndroidDebuggerValues = Readonly<Record<string, any>>;
-
-  interface AndroidDebuggerCondition {
-    /** Required, possibly {}. Keys are binding aliases. */
-    bindings: Readonly<Record<string, AndroidDebuggerBinding>>;
-    /** Synchronous, read-only JS function returning boolean. false produces no hit record;
-     * failures produce hit.condition and skip observations. Java/Kotlin source syntax is not evaluated.
-     */
-    predicate: (bindings: AndroidDebuggerValues) => boolean;
-  }
-
-  /** Passed to customRun.run; valid only during its synchronous invocation. */
   interface AndroidDebuggerContext {
-    /** Write the named binding's actual frame slot now. The already-read JS binding value is unchanged.
-     * Does not undo earlier computation or update the caller's own slots. Completed writes survive run errors.
-     * Objects must be assignment-compatible Java wrappers or null; JS strings become java.lang.String.
-     * char is one UTF-16 code unit; boolean requires boolean; long requires Int64 or a safe integer.
+    /** Read a name in the current frame: local/parameter first, then an instance field.
+     * `this` reads the receiver directly. Member paths/expressions are not accepted.
+     * Missing debug information, ambiguous or unavailable variables are errors.
+     * Actual Java Strings become JS strings; other objects are live Frida wrappers.
+     * Each call reads fresh values. Saved get functions cannot be used after the hit finishes.
      */
-    setBinding(name: string, value: boolean | number | string | Int64 | Java.Wrapper | null): void;
-    /** Stage an early return, applied after all observations and serialization, outside the JS callback.
-     * Skips remaining method code INCLUDING finally. Omit value only for void. Same value rules as setBinding.
-     * A second request fails without replacing the first; failure of the owning run/serialization cancels
-     * that run's pending request. Earlier writes are not rolled back. Deferred native failure is recorded
-     * in the requesting observation. No constructor/class-initializer support.
-     */
-    forceReturn(value?: boolean | number | string | Int64 | Java.Wrapper | null): void;
+    get(name: string): any;
   }
 
-  type AndroidDebuggerObservation =
-    | { name: string; kind: 'value'; source: AndroidDebuggerBinding }
-    | { name: string; kind: 'customRun'; bindings: Readonly<Record<string, AndroidDebuggerBinding>>;
-        run: (bindings: AndroidDebuggerValues, ctx: AndroidDebuggerContext) => unknown }
-    | { name: string; kind: 'stack'; maxDepth?: number };
+  type AndroidDebuggerCallback<T = unknown> = (context: AndroidDebuggerContext) => T;
+  type AndroidDebuggerValue = boolean | number | string | Int64 | Java.Wrapper | null | undefined;
+  type AndroidDebuggerValueSource = AndroidDebuggerValue | AndroidDebuggerCallback<AndroidDebuggerValue>;
 
-  /** Configuration is used directly. Follow the declared constraints and do not mutate it until stop completes. */
   interface AndroidDebuggerDefinition {
-    /** Java class name or Frida class/instance wrapper. Requires debuggable Android API 28+ and
-     * the AAR's libmobile_easy_use_native.so. ART must grant breakpoint/local/early-return capabilities.
+    breakpoint: {
+      /** Java class name or Frida wrapper. Requires a debuggable Android API 28+ app and the SDK AAR. */
+      target: string | Java.Wrapper;
+      /** Exact runtime method name. Constructors/class initializers are unsupported.
+       * Kotlin inline/SMAP and coroutine logical-frame reconstruction are unsupported.
+       */
+      method: string;
+      /** Required for ambiguous overloads. Uses the runtime signature, including synthetic parameters. */
+      argumentTypes?: readonly string[];
+      /** Positive source line in this method. Installs its smallest jlocation; no nearest-line fallback. */
+      fileLine: number;
+      /** False excludes the hit. Errors are recorded and skip all configured stages. */
+      condition?: AndroidDebuggerCallback<boolean>;
+    };
+    /** Keys name output values; strings name variables, functions compute values using get(name).
+     * Runs before overrides. Each failed item is omitted and diagnosed in errors; other items continue.
+     * No ordering/dependency guarantee between items in the same stage.
      */
-    target: string | Java.Wrapper;
-    /** Exact runtime method, including Kotlin-generated class/method names. No constructors or class initializers.
-     * Kotlin inline calls are not targetable as logical methods; target the generated caller runtime method instead.
+    observations?: Readonly<Record<string, string | AndroidDebuggerCallback>>;
+    /** Keys name writable locals/parameters or instance fields, resolved exactly as get(name).
+     * Values are literals (including literal strings) or synchronous callbacks returning a value.
+     * Cannot replace this. Types must be assignment-compatible; integral values are range checked.
+     * char is one UTF-16 code unit; long accepts Int64 or a safe integer; JS string becomes Java String.
+     * Runs after observations, with no dependency guarantee between entries.
+     * Failed items do not prevent other writes; completed writes are not rolled back.
+     * Failures do not suppress earlyReturn. Callback values are computed before resolving the write target.
      */
-    method: string;
-    /** Select one exact overload; required if ambiguous. Runtime Kotlin synthetic parameters count too. */
-    argumentTypes?: readonly string[];
-    /** Positive absolute source line within the selected method's line table. Installs only its smallest
-     * jlocation. Missing line/debug info fails; no nearest-line fallback, global file lookup, Kotlin SMAP,
-     * or inline source mapping.
+    overrides?: Readonly<Record<string, AndroidDebuggerValueSource>>;
+    /** Literal or synchronous callback; get reads values after overrides. Presence requests a return;
+     * omit this property for normal continuation. For void use () => undefined.
+     * Native return runs after JS exits, skipping remaining method code INCLUDING finally.
+     * Failures appear in errors, including deferred native failures; success adds no output value.
      */
-    fileLine: number;
-    condition?: AndroidDebuggerCondition;
-    /** Non-empty; names must be unique. Each observation reads and executes in declaration order.
-     * Later value/bindings reads see earlier setBinding writes; stack is captured when its item executes.
-     * Functions run synchronously in declaration order on the breakpoint thread, preserving closures and Frida globals.
-     * run may return data or omit return. Functions are defined in the App-side Frida module, not sent through Host RPC.
-     * No async/generator functions, Promise results, Host waits, main-thread dispatch-and-wait, or nested
-     * debugger registration/stop from a callback. Reentry into debugger callbacks is skipped, not recursively observed.
-     * Object bindings are live Frida wrappers, valid during this hit; they are not deep snapshots. Retain explicitly
-     * with Java.retain if needed beyond the callback. Other App threads continue running.
-     * stack.maxDepth defaults to 3, must be a positive integer; frames start at the target method. No truncated field,
-     * native/JS frames, reconstructed inline/coroutine stack, or automatic variable expansion.
-     * argument.index starts at 0 excluding this, uses the runtime signature and current ART parameter registers;
-     * it is not necessarily the entry-time value. local resolves by name + active scope in this frame only.
+    earlyReturn?: AndroidDebuggerValueSource;
+    /** Maximum Java stack frames, positive 32-bit integer. Omitted means no stack collection.
+     * Captured after condition, before observations/overrides; starts at the target method.
+     * No native/JS frames or reconstructed inline/coroutine stack.
      */
-    observations: readonly AndroidDebuggerObservation[];
+    stack?: number;
   }
 
   interface AndroidDebuggerStackFrame {
@@ -656,23 +637,24 @@ declare global {
     line: number | null;
   }
 
-  interface AndroidDebuggerError { status: 'error'; message: string }
-  type AndroidDebuggerObservationResult =
-    | { status: 'ok'; value: ProbeJsonValue }
-    | AndroidDebuggerError;
+  interface AndroidDebuggerError {
+    stage: 'condition' | 'observations' | 'overrides' | 'earlyReturn' | 'stack' | 'framework';
+    /** Output key for observations; target variable name for overrides. */
+    name?: string;
+    message: string;
+  }
 
   interface AndroidDebuggerHit {
-    /** Registration-local sequence. Gaps are possible when conditions exclude hits. */
     hitId: string;
-    /** ISO timestamp at callback entry. Concurrent hit order is not business causal order. */
+    /** ISO timestamp at callback entry. */
     timestamp: string;
-    /** Native thread ID as a decimal string, and Java thread name if available. */
     thread: { id: string; name: string | null };
-    observations: Record<string, AndroidDebuggerObservationResult>;
-    /** Condition error; observations is empty. */
-    condition?: AndroidDebuggerError;
-    /** Failure outside a specific observation, including native callback setup failure. */
-    error?: AndroidDebuggerError;
+    /** Direct snapshots, no status/value envelope. Failed keys are omitted; null is a valid value. */
+    observations?: Record<string, ProbeJsonValue>;
+    /** Omitted when not requested or collection failed. */
+    stack?: AndroidDebuggerStackFrame[];
+    /** Omitted when there are no failures. Successful writes/returns add no result fields. */
+    errors?: AndroidDebuggerError[];
   }
 
   /** Clears the breakpoint, drains entered callbacks, releases its environment, and returns raw hit records.
@@ -687,27 +669,27 @@ declare global {
   type AndroidDebuggerStop = () => Promise<AndroidDebuggerHit[]>;
 
   interface ProbeApi {
-    /** Install one ART/JVMTI line breakpoint; resolves to an async cleanup/result closure.
-     * Owns an independent JVMTI environment; no Host JDK, JDWP or IDE required at runtime.
-     * Installation failures roll back. JS observation errors are recorded and execution continues.
-     * Results contain only configured observations. Primitives/plain JSON are copied; long becomes
-     * {type:'long',value:decimalString}, undefined becomes {type:'undefined'}, nonfinite numbers become
-     * {type:'number',value:'NaN'|'Infinity'|'-Infinity'}. Java String becomes a JS string; other Java objects
-     * become {type:'java-object',className}, without recursively reading fields. Use customRun to return
-     * selected fields as plain JSON. Cycles, unsupported JS objects and thenables are observation errors.
-     * Blocking Java/native code cannot be safely cancelled; stop waits for in-flight callbacks without a timeout.
+    /** Install a persistent ART/JVMTI line breakpoint; return async stop and raw hit records.
+     * All data/control stages are optional, including a registration with only breakpoint or stack.
+     * Stages: condition → stack → observations → overrides → earlyReturn → resume.
+     * Callbacks run synchronously on the hit thread. No async/generators, Promise/iterator results,
+     * Host waits, main-thread dispatch-and-wait, or debugger registration/stop inside callbacks.
+     * Other App threads continue running. Recursive hits on the same thread are skipped.
+     * Java wrappers are temporary and live, not snapshots; use Java.retain explicitly to retain them.
+     * User JS/Java calls can have side effects; no stage or failure rolls them back.
+     * Returned data is copied: long/nonfinite/undefined use tags, Java objects use class summaries.
+     * Cycles and unsupported JS objects fail the observation. No automatic field expansion.
+     * Configuration must not change until stop completes. Blocking callbacks cannot be cancelled.
      * @example
      * const stop = await Probe.debugger({
-     *   target: 'com.example.PriceKt', method: 'calculate', argumentTypes: ['int'], fileLine: 42,
-     *   observations: [
-     *     { name: 'price', kind: 'value', source: { kind: 'argument', index: 0 } },
-     *     { name: 'caller', kind: 'stack' },
-     *     { name: 'adjust', kind: 'customRun', bindings: { price: { kind: 'argument', index: 0 } },
-     *       run: ({ price }, ctx) => { ctx.setBinding('price', 100); return { originalPrice: price }; } }
-     *   ]
+     *   breakpoint: { target: 'com.example.Counter', method: 'update', fileLine: 42 },
+     *   observations: { before: 'count', field: ({get}) => get('this').count.value },
+     *   overrides: { count: 10 },
+     *   earlyReturn: ({get}) => get('count'),
+     *   stack: 3,
      * });
      * try { await triggerBusinessOperation(); } finally { await stop(); }
-     * return await stop(); // Raw records, no summary.
+     * return await stop();
      */
     debugger(definition: AndroidDebuggerDefinition): Promise<AndroidDebuggerStop>;
     readonly evidence: ProbeEvidenceApi;
