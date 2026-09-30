@@ -103,7 +103,8 @@ test('SDK exposes native, extension, resource, and probe namespaces', async () =
   assert.equal(typeof fixture.context.Probe.handles, 'undefined');
   assert.equal(typeof fixture.context.Probe.version, 'undefined');
   assert.equal(typeof fixture.context.Probe.hook, 'undefined');
-  assert.deepEqual(Array.from(Object.keys(fixture.context.Probe)), ['evidence']);
+  assert.deepEqual(Array.from(Object.keys(fixture.context.Probe).sort()), ['debugger', 'evidence']);
+  assert.equal(typeof fixture.context.Probe.debugger, 'function');
   assert.deepEqual(
     Array.from(Object.keys(fixture.context.Probe.evidence).sort()),
     ['withChainEvidence', 'withStateEvidence', 'withUiEvidence'],
