@@ -578,14 +578,13 @@ declare global {
     /** Read a name in the current frame: local/parameter first, then an instance field.
      * `this` reads the receiver directly. Member paths/expressions are not accepted.
      * Missing debug information, ambiguous or unavailable variables are errors.
-     * Actual Java Strings become JS strings; other objects are live Frida wrappers.
      * Each call reads fresh values. Saved get functions cannot be used after the hit finishes.
      */
     get(name: string): any;
   }
 
   type AndroidDebuggerCallback<T = unknown> = (context: AndroidDebuggerContext) => T;
-  type AndroidDebuggerValue = boolean | number | string | Int64 | Java.Wrapper | null | undefined;
+  type AndroidDebuggerValue = boolean | number | string | Int64 | Java.Wrapper | unknown[] | null | undefined;
   type AndroidDebuggerValueSource = AndroidDebuggerValue | AndroidDebuggerCallback<AndroidDebuggerValue>;
 
   interface AndroidDebuggerDefinition {
@@ -614,8 +613,7 @@ declare global {
     observations?: Readonly<Record<string, string | AndroidDebuggerCallback>>;
     /** Keys name writable locals/parameters or instance fields, resolved exactly as get(name).
      * Values are literals (including literal strings) or synchronous callbacks returning a value.
-     * Cannot replace this. Types must be assignment-compatible; integral values are range checked.
-     * char is one UTF-16 code unit; long accepts Int64 or a safe integer; JS string becomes Java String.
+     * Cannot replace this.
      * Runs after observations, with no dependency guarantee between entries.
      * Failed items do not prevent other writes; completed writes are not rolled back.
      * Failures do not suppress earlyReturn. Callback values are computed before resolving the write target.
@@ -679,9 +677,12 @@ declare global {
      * Callbacks run synchronously on the hit thread. No async/generators, Promise/iterator results,
      * Host waits, main-thread dispatch-and-wait, or debugger registration/stop inside callbacks.
      * Other App threads continue running. Recursive hits on the same thread are skipped.
-     * Java wrappers are temporary and live, not snapshots; use Java.retain explicitly to retain them.
+     * Java wrappers and array wrappers are temporary; their references are released after the hit.
+     * Use Java.retain for object wrappers or $clone(Java.vm.getEnv()) for primitive arrays.
+     * Retain object-array elements individually when needed; saving the JS array does not retain them.
      * User JS/Java calls can have side effects; no stage or failure rolls them back.
-     * Returned data is copied: long/nonfinite/undefined use tags, Java objects use class summaries.
+     * Returned data is copied: long/nonfinite/undefined use tags; Java wrappers (including boxed
+     * Strings and primitive arrays) use class summaries. Object arrays are snapshotted element-wise.
      * Cycles and unsupported JS objects fail the observation. No automatic field expansion.
      * Configuration must not change until stop completes. Blocking callbacks cannot be cancelled.
      * @example

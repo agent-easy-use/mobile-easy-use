@@ -134,14 +134,14 @@ function install(definition) {
       for (const [name, source] of Object.entries(definition.overrides ?? {})) {
         try {
           const value = typeof source === 'function' ? source({ get }) : source;
-          writeVariable(api, hit, name, value, factory, wrappers);
+          writeVariable(api, hit, name, value, factory);
         } catch (error) { addError(record, 'overrides', error, name); }
       }
       if (Object.hasOwn(definition, 'earlyReturn')) {
         try {
           const source = definition.earlyReturn;
           const value = typeof source === 'function' ? source({ get }) : source;
-          const buffer = encode(value, returnType, factory, wrappers);
+          const buffer = encode(value, returnType, factory);
           check(api.return(hit, buffer), 'Prepare earlyReturn');
           state.returning = true;
         } catch (error) { addError(record, 'earlyReturn', error); }

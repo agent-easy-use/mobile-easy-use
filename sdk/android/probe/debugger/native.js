@@ -68,10 +68,34 @@ function resolveVariable(api, hit, name) {
   return { slot: slot.readS32(), signature: takeString(api, type.readPointer()), field: field.readPointer() };
 }
 
-export function writeVariable(api, hit, name, value, factory, wrappers) {
+const primitiveNames = { Z: 'boolean', B: 'byte', C: 'char', S: 'short', I: 'int',
+  J: 'long', F: 'float', D: 'double', V: 'void' };
+
+// Descriptors come from JVMTI/Frida. Use Frida's internal converter with its default unboxing.
+function valueType(signature, factory) {
+  let name;
+  if (Object.hasOwn(primitiveNames, signature)) name = primitiveNames[signature];
+  else if (signature[0] === 'L') name = signature.slice(1, -1).replaceAll('/', '.');
+  else if (signature[0] === '[') name = signature.replaceAll('/', '.');
+  else throw new Error(`Unsupported JVM type: ${signature}`);
+  return factory._getType(name);
+}
+
+// Capture original wrappers before user code can mutate an object array. Never dispose the
+// array itself: Frida's array disposer traverses its current, potentially replaced elements.
+function trackWrappers(value, wrappers) {
+  if (Array.isArray(value)) {
+    for (const element of value) trackWrappers(element, wrappers);
+    if (value.$w) wrappers.push(value.$w);
+  } else if (value !== null && typeof value?.$dispose === 'function') {
+    wrappers.push(value);
+  }
+}
+
+export function writeVariable(api, hit, name, value, factory) {
   const binding = resolveVariable(api, hit, name);
   if (binding.slot === -1) throw new Error('Cannot replace this');
-  const buffer = encode(value, binding.signature, factory, wrappers);
+  const buffer = encode(value, binding.signature, factory);
   const type = binding.signature.charCodeAt(0);
   check(binding.slot === -2 ? api.fieldWrite(hit, binding.field, type, buffer)
     : api.localWrite(hit, binding.slot, type, buffer), 'Write variable');
@@ -80,83 +104,43 @@ export function writeVariable(api, hit, name, value, factory, wrappers) {
 // JNI references belong to the native callback's local frame; wrappers are disposed by onHit.
 export function readVariable(api, hit, name, factory, wrappers) {
   const { signature, slot, field } = resolveVariable(api, hit, name);
+  const type = valueType(signature, factory);
   const buffer = Memory.alloc(8);
   let error;
   if (slot === -1) error = api.receiver(hit, buffer);
   else if (slot === -2) error = api.fieldRead(hit, field, signature.charCodeAt(0), buffer);
   else error = api.localRead(hit, slot, signature.charCodeAt(0), buffer);
   check(error, `Read ${name}`);
+  let raw;
   switch (signature[0]) {
-    // Z/C use GetLocalInt; J stays an Int64 to avoid losing precision in a JS number.
-    case 'Z': return buffer.readS32() !== 0;
-    case 'C': return String.fromCharCode(buffer.readS32());
-    case 'J': return buffer.readS64();
-    case 'F': return buffer.readFloat();
-    case 'D': return buffer.readDouble();
-    case 'L': case '[': {
-      // Objects and arrays arrive as JNI references. Wrap the runtime type for JS field/method access.
-      const object = buffer.readPointer();
-      if (object.isNull()) return null;
-      const env = Java.vm.getEnv();
-      const className = env.getObjectClassName(object);
-      if (className === 'java.lang.String') {
-        return env.stringFromJni(object);
-      }
-      const value = Java.cast(object, factory.use(className));
-      wrappers.push(value);
-      return value;
-    }
-    // B/S/I (byte/short/int) are returned through GetLocalInt as signed 32-bit values.
-    case 'B': case 'S': case 'I': return buffer.readS32();
+    // Our ABI stores all small integral types in a 32-bit slot, including fields.
+    case 'Z': case 'B': case 'C': case 'S': case 'I': raw = buffer.readS32(); break;
+    case 'J': raw = buffer.readS64(); break;
+    case 'F': raw = buffer.readFloat(); break;
+    case 'D': raw = buffer.readDouble(); break;
+    case 'L': case '[': raw = buffer.readPointer(); break;
     default: throw new Error(`Unsupported JVM type: ${signature}`);
   }
+  const value = type.fromJni(raw, Java.vm.getEnv());
+  trackWrappers(value, wrappers);
+  return value;
 }
 
-/**
- * Encode a JS value as an 8-byte jvalue for overrides or earlyReturn.
- * signature is the destination's JVM descriptor, not a type inferred from value.
- * This only validates and encodes; the caller passes the buffer to native write/return.
- * factory resolves Java types; wrappers collects any Java String wrapper created here for cleanup.
- */
-export function encode(value, signature, factory, wrappers) {
+// Frida handles compatibility and conversion; we only adapt the native jvalue layout.
+// toJni's temporary local references are released by the native callback's PopLocalFrame.
+// Native earlyReturn retains its own global reference before onHit disposes wrappers.
+export function encode(value, signature, factory) {
+  const type = valueType(signature, factory);
+  if (!type.isCompatible(value)) throw new Error(`Value is incompatible with ${type.className}`);
+  const raw = type.toJni(value, Java.vm.getEnv());
   const buffer = Memory.alloc(8);
-  const range = (min, max) => {
-    if (!Number.isInteger(value) || value < min || value > max) throw new Error(`Value does not fit ${signature}`);
-    buffer.writeS32(value);
-  };
   switch (signature[0]) {
-    // Void has no payload. Small integral types use the int member consumed by native code.
-    case 'V': if (value !== undefined) throw new Error('void earlyReturn requires undefined'); break;
-    case 'Z': if (typeof value !== 'boolean') throw new Error('Expected boolean'); buffer.writeS32(value ? 1 : 0); break;
-    case 'B': range(-128, 127); break;
-    case 'S': range(-32768, 32767); break;
-    case 'I': range(-2147483648, 2147483647); break;
-    case 'C':
-      // Java char is one UTF-16 code unit, not necessarily a complete Unicode code point.
-      if (typeof value !== 'string' || value.length !== 1) throw new Error('Expected one UTF-16 code unit for char');
-      buffer.writeS32(value.charCodeAt(0)); break;
-    case 'J':
-      // Reject imprecise JS numbers; Int64 preserves the full Java long range.
-      if (!(value instanceof Int64) && !Number.isSafeInteger(value)) throw new Error('long requires Int64 or a safe integer');
-      buffer.writeS64(value); break;
-    case 'F': case 'D':
-      if (typeof value !== 'number') throw new Error('Expected number');
-      if (signature === 'F') buffer.writeFloat(value); else buffer.writeDouble(value);
-      break;
-    case 'L': case '[': {
-      // Convert JS strings explicitly, then check reference assignment against the destination type.
-      if (value === null) { buffer.writePointer(ptr(0)); break; }
-      if (typeof value === 'string') {
-        value = factory.use('java.lang.String').$new(value);
-        wrappers.push(value);
-      }
-      if (!value?.$h) throw new Error('Expected a Java object or null');
-      const className = signature[0] === 'L' ? signature.slice(1, -1).replaceAll('/', '.') : signature.replaceAll('/', '.');
-      if (!factory.use(className).class.isInstance(value)) throw new Error(`Object is not assignable to ${className}`);
-      // Store a JNI reference, not object bytes. Native return creates its own global ref if needed
-      // to keep the object alive until the deferred ForceEarlyReturn call.
-      buffer.writePointer(value.$h); break;
-    }
+    case 'V': break;
+    case 'Z': case 'B': case 'C': case 'S': case 'I': buffer.writeS32(raw); break;
+    case 'J': buffer.writeS64(raw); break;
+    case 'F': buffer.writeFloat(raw); break;
+    case 'D': buffer.writeDouble(raw); break;
+    case 'L': case '[': buffer.writePointer(raw); break;
     default: throw new Error(`Unsupported JVM type: ${signature}`);
   }
   return buffer;
@@ -171,9 +155,6 @@ export function snapshot(value, seen = new Set()) {
   if (value?.$h) {
     const env = Java.vm.getEnv();
     const className = env.getObjectClassName(value.$h);
-    if (className === 'java.lang.String') {
-      return env.stringFromJni(value.$h);
-    }
     return { type: 'java-object', className };
   }
   if (value && typeof value.then === 'function') throw new Error('Debugger observations must be synchronous');
