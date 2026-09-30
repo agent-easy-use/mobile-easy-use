@@ -596,7 +596,11 @@ declare global {
        * Kotlin inline/SMAP and coroutine logical-frame reconstruction are unsupported.
        */
       method: string;
-      /** Required for ambiguous overloads. Uses the runtime signature, including synthetic parameters. */
+      /** Required for ambiguous overloads. Matches the complete runtime parameter list in order.
+       * Include extra parameters: Continuation for Kotlin suspend, the receiver for extensions,
+       * and Composer/masks for @Composable. If selection fails, inspect the runtime overloads
+       * and supply their exact types; the SDK does not add parameters automatically.
+       */
       argumentTypes?: readonly string[];
       /** Positive source line in this method. Installs its smallest jlocation; no nearest-line fallback. */
       fileLine: number;
