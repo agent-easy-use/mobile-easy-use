@@ -40,6 +40,15 @@ export function handleDetached(owner, connection, reason, crash) {
 }
 
 export async function closeConnection(owner, connection) {
+  // Drain native debugger callbacks before releasing their Frida trampolines.
+  // If disposal fails, preserve the connection so the caller can inspect/retry.
+  if (
+    connection.sdkScript.isDestroyed !== true
+    && connection.platform === 'android'
+    && typeof connection.sdkScript.exports.dispose === 'function'
+  ) {
+    await connection.sdkScript.exports.dispose();
+  }
   if (owner.currentConnection === connection) {
     owner.currentConnection = null;
     owner.state = 'disconnected';
