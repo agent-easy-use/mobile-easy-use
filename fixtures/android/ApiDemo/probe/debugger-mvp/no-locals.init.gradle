@@ -1,0 +1,16 @@
+gradle.afterProject { project, state ->
+    if (project.path == ':app') {
+        project.tasks.withType(JavaCompile).configureEach { task ->
+            task.inputs.file(new File(project.projectDir, '../probe/debugger-mvp/strip-locals.py'))
+            task.doLast {
+                def fixture = new File(task.destinationDirectory.get().asFile,
+                    'com/agenteasyuse/mobileeasyuse/apidemo/state/DebuggerNoLocalsFixture.class')
+                if (fixture.exists()) {
+                    project.exec {
+                        commandLine 'python3', new File(project.projectDir, '../probe/debugger-mvp/strip-locals.py'), fixture
+                    }
+                }
+            }
+        }
+    }
+}

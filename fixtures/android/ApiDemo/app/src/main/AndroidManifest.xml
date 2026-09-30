@@ -9,6 +9,8 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.ApiDemo">
+        <activity android:name=".ui.JvmtiDebuggerActivity" android:exported="true" />
+        <activity android:name=".ui.DebuggerBridgeActivity" android:exported="true" />
         <activity android:name=".ui.EvidenceActivity" android:exported="true" />
         <activity android:name=".ui.OverrideActivity" android:exported="true" />
         <activity android:name=".ui.WindowActivity" android:exported="true" />

@@ -1,0 +1,92 @@
+{
+  "runs": [
+    {
+      "at": "2026-09-21T06:43:28.610Z",
+      "device": "SED0221812009951",
+      "pid": 27869,
+      "ready": {
+        "event": "ready",
+        "env": "0xb40000749690d700",
+        "capabilities": 31,
+        "fridaEnv": "0xb40000749690b480"
+      },
+      "passed": true,
+      "cleanup": {
+        "disposed": true,
+        "unloaded": true,
+        "detached": true,
+        "processAlive": true
+      },
+      "scenarios": [
+        "read",
+        "write",
+        "force",
+        "object",
+        "void",
+        "condition",
+        "condition-error",
+        "script-error",
+        "write-throw",
+        "duplicate-return",
+        "instance",
+        "kotlin",
+        "gc",
+        "missing-local",
+        "bad-slot",
+        "wide-write",
+        "missing-line",
+        "hook-conflict",
+        "concurrent",
+        "reentrant",
+        "inflight-stop"
+      ],
+      "nonReentrantHits": 199,
+      "reentrantSkipped": 3,
+      "artifact": "artifacts/benchmarks/jvmti-debugger-20260921/result-first.json"
+    },
+    {
+      "at": "2026-09-21T06:43:40.506Z",
+      "device": "SED0221812009951",
+      "pid": 27869,
+      "ready": {
+        "event": "ready",
+        "env": "0xb40000749690d580",
+        "capabilities": 31,
+        "fridaEnv": "0xb40000749690d700"
+      },
+      "passed": true,
+      "cleanup": {
+        "disposed": true,
+        "unloaded": true,
+        "detached": true,
+        "processAlive": true
+      },
+      "scenarios": [
+        "read",
+        "write",
+        "force",
+        "object",
+        "void",
+        "condition",
+        "condition-error",
+        "script-error",
+        "write-throw",
+        "duplicate-return",
+        "instance",
+        "kotlin",
+        "gc",
+        "missing-local",
+        "bad-slot",
+        "wide-write",
+        "missing-line",
+        "hook-conflict",
+        "concurrent",
+        "reentrant",
+        "inflight-stop"
+      ],
+      "nonReentrantHits": 199,
+      "reentrantSkipped": 3,
+      "artifact": "artifacts/benchmarks/jvmti-debugger-20260921/result.json"
+    }
+  ]
+}

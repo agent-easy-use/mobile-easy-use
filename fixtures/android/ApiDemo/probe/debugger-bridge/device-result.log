@@ -1,0 +1,18 @@
+TARGET {"pid":15443,"processes":[{"pid":15443,"name":"Gadget"}]}
+FRIDA {"type":"send","payload":{"event":"ready"}}
+BREAKPOINT_READY
+Starting: Intent { cmp=com.agenteasyuse.mobileeasyuse.apidemo/.ui.DebuggerBridgeActivity }
+Status: ok
+LaunchState: WARM
+Activity: com.agenteasyuse.mobileeasyuse.apidemo/.ui.DebuggerBridgeActivity
+TotalTime: 220
+WaitTime: 227
+Complete
+BREAKPOINT_HIT thread=debugger-bridge-proof targetID=7
+RESULT {"handledBy":"frida","call":1,"expression":"session.config.version","value":"bridge-proof-20260920","targetClass":"com.agenteasyuse.mobileeasyuse.apidemo.state.DebuggerBridgeFixture","thread":"debugger-bridge-proof"}
+INVOKE_MS 62.262
+FRIDA {"type":"send","payload":{"event":"inspect","handledBy":"frida","call":1,"expression":"session.config.version","value":"bridge-proof-20260920","targetClass":"com.agenteasyuse.mobileeasyuse.apidemo.state.DebuggerBridgeFixture","thread":"debugger-bridge-proof"}}
+FRIDA {"type":"send","payload":{"event":"inspect","handledBy":"frida","call":2,"expression":"session.getConfig().getVersion()","value":"bridge-proof-20260920","targetClass":"com.agenteasyuse.mobileeasyuse.apidemo.state.DebuggerBridgeFixture","thread":"debugger-bridge-proof"}}
+RESULT {"handledBy":"frida","call":2,"expression":"session.getConfig().getVersion()","value":"bridge-proof-20260920","targetClass":"com.agenteasyuse.mobileeasyuse.apidemo.state.DebuggerBridgeFixture","thread":"debugger-bridge-proof"}
+INVOKE_MS 48.612
+PROOF_PASSED

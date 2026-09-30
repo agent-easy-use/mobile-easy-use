@@ -1,4 +1,5 @@
 plugins {
+    id("org.jetbrains.kotlin.android")
     id("com.android.application")
 }
 
@@ -41,6 +42,8 @@ android {
             )
         }
     }
+
+    kotlinOptions { jvmTarget = "17" }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

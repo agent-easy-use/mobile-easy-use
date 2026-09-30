@@ -1,0 +1,6 @@
+gradle.afterProject { project, state ->
+    if (project.path == ':app') {
+        project.extensions.getByName('android').packaging.jniLibs.useLegacyPackaging =
+            project.providers.gradleProperty('agentTestLegacyPackaging').get().toBoolean()
+    }
+}
