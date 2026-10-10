@@ -55,7 +55,13 @@ export class IOSDebuggerSession {
 async function attach(payload, _data, _owner, connection) {
   if (connection?.platform !== 'ios') throw new Error('iOS debugger requires an iOS connection');
   if (connection.iosDebugger) throw new Error('Debugger is already attached or attaching');
-  connection.iosDebugger = IOSDebuggerSession.start(payload);
+  const { physical, destinationId } = connection.runnerPreparation;
+  connection.iosDebugger = IOSDebuggerSession.start({
+    pid: payload.pid,
+    build: payload.build,
+    // Reuse device resolution from connect; do not probe again during debugger attach.
+    device: { kind: physical ? 'device' : 'simulator', id: destinationId },
+  });
   try {
     return (await connection.iosDebugger).attachResult;
   } catch (error) {
