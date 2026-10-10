@@ -1,12 +1,13 @@
 /// <reference types="frida-gum" />
 
 import ObjCBridge from 'frida-objc-bridge';
+import SwiftBridge from 'frida-swift-bridge';
 
 export {};
 
 /**
  * Canonical API contract for generating iOS probe scripts. Load the built ios.js in Bootstrap,
- * then use ObjC, IOS, Override, Probe, and runtimeStatus as globals; do not import this file at runtime.
+ * then use ObjC, Swift, IOS, Override, Probe, and runtimeStatus as globals; do not import this file at runtime.
  * Load only this platform declaration; Android and iOS globals belong to separate runtimes.
  * Probe modules should export functions and perform actions when called, not at module load.
  * Await asynchronous SDK calls and check result.ok before relying on an action or wait.
@@ -16,6 +17,7 @@ export {};
  * dispatch unless a method JSDoc states a caller-thread requirement.
  */
 declare global {
+  const Swift: typeof SwiftBridge;
   // The ObjC global namespace is supplied by the frida-gum reference above.
   // The SDK binds it to frida-objc-bridge; UIKit calls retain their own thread requirements.
 
@@ -499,7 +501,108 @@ declare global {
     ): Promise<Awaited<TResult>>;
   }
 
+  /** JSON snapshot primitives. Wide integers and non-finite floats use strings.
+   * Native strings preserve content. Complex values use LLDB summary/value text;
+   * no recursive field expansion or automatic business description call.
+   */
+  type IOSDebuggerValue = null | boolean | number | string;
+
+  interface IOSDebuggerDefinition {
+    breakpoint:
+      | { kind: 'source'; file: string; line: number; condition?: string }
+      | { kind: 'address'; address: string; condition?: string };
+    /** Maximum original hit-thread frames, 1..256. Omit to skip stack collection. */
+    stack?: number;
+    /** Key → complete native LLDB expression, evaluated once in the hit frame.
+     * May contain function definitions/calls in a native expression block and have
+     * side effects. No JS callbacks, bindings or ordering/dependency between entries.
+     * Void/no-result expressions produce null. Failure omits the key and adds an
+     * errors entry; other observations continue unless the hit context is unsafe.
+     */
+    observations?: Readonly<Record<string, string>>;
+    /** Native assignment target → native value expression, evaluated as target = (expression).
+     * Targets may be locals, properties or subscripts (e.g. 'self.price', 'items[0]').
+     * LLDB resolves scope, types and writability; setters/subscripts may run target code.
+     * Like LLDB, writing a compiler debug-only copy may not affect resumed code.
+     * Runs after observations, with native assignment semantics and no entry order
+     * guarantee. Completed writes are not rolled back; ordinary failures do not skip earlyReturn.
+     */
+    overrides?: Readonly<Record<string, string>>;
+    /** Native expression evaluated unchanged after overrides; passes its SBValue directly
+     * to LLDB ReturnFromFrame. The caller must produce a suitable native type, e.g.
+     * 'Int32(42)'; no return-type inference, cast insertion or type/frame whitelist.
+     * Swift Void uses '()', OC void uses '(void)0'. Skips remaining code including
+     * defer/destructors. Actual type/frame support depends on LLDB; failures add errors.
+     * Apple LLDB 1703 behavior needs separate validation; no register workaround.
+     * Success adds no output field.
+     */
+    earlyReturn?: string;
+  }
+
+  interface IOSDebuggerError {
+    stage: 'condition' | 'stack' | 'observations' | 'overrides' | 'earlyReturn' | 'framework';
+    name?: string;
+    message: string;
+  }
+
+  interface IOSDebuggerHit {
+    hitId: string;
+    /** Unix seconds. */
+    timestamp?: number;
+    thread?: { id: string; name: string | null };
+    observations?: Record<string, IOSDebuggerValue>;
+    stack?: Array<{ index: number; function: string | null; module: string | null;
+      address: string; file: string | null; line: number | null }>;
+    errors?: IOSDebuggerError[];
+  }
+
+  interface IOSDebuggerApi {
+    /** Host LLDB breakpoint; requires a debug-enabled App, Host Xcode and matching symbols.
+     * No debugger native bridge required. Source: existing absolute Host file, positive
+     * exact executable line resolvable by LLDB using loaded symbols/source mappings. Address: hex loaded address.
+     * Native condition belongs in breakpoint.condition; LLDB evaluates it before stopping.
+     * Stages: condition → stack → observations → overrides → earlyReturn → resume.
+     * At least one stage must be configured. Expressions use the frame's language,
+     * run with other threads stopped and have a 2-second evaluation timeout.
+     * Text snapshots are limited to 64 KiB; oversized/unreadable items add errors.
+     * Worker buffers records until stop(); no streaming or App publication.
+     * stop() removes the breakpoint without pausing and returns already-collected
+     * records; pending hits may be omitted. Concurrent/repeated calls share the result.
+     * Stop before detach; uncollected records are lost on detach
+     * or Worker failure. Ordinary unrelated stops resume automatically. Serious
+     * target exceptions/unsafe expression state end debugging and attempt detach;
+     * records (including detach failures) remain available to stop(). New adds fail.
+     * Overlapping mutating hits are rejected. Lifecycle API automation is undecided.
+     * @example
+     * await Probe.debugger.attach();
+     * const stop = await Probe.debugger({
+     *   breakpoint: { kind: 'source', file: '/project/Price.swift', line: 42, condition: 'price > 100' },
+     *   stack: 5,
+     *   observations: { before: 'price', computed: '{ let x = price * 2; return x }()' },
+     *   overrides: { price: 'price * 2' },
+     * });
+     * const records = await stop();
+     * await Probe.debugger.detach();
+     */
+    (definition: IOSDebuggerDefinition): Promise<() => Promise<IOSDebuggerHit[]>>;
+    /** Explicit lifecycle retained pending API review. Uses Process.id and the Host
+     * connection's resolved device type/UDID; no caller arguments. Sends optional
+     * MobileEasyUseDebug.plist symbol-path hints. Uses LLDB-discovered line tables first,
+     * then tries dsymPath and executable in order if needed. Returns symbolSource
+     * identifying the successful route; lldb also covers debug info without a separate dSYM.
+     * LLDB discovers symbols by UUID;
+     * missing or stale hints do not prevent automatic discovery. Requires compile-unit line tables for the main
+     * executable; a separate dSYM is not mandatory. Missing debug info rejects with
+     * module/UUID after Host attempts detach. Other modules/locations are checked on add.
+     * Await before registration; after failure detach before retrying. */
+    attach(): Promise<{ symbolSource: 'lldb' | 'dsymPath' | 'executable' }>;
+    /** Removes all breakpoints and closes LLDB; does not collect records.
+     * Idempotent after success. Call each stop() first if records are needed. */
+    detach(): Promise<void>;
+  }
+
   interface IOSProbeApi {
+    readonly debugger: IOSDebuggerApi;
     readonly evidence: IOSProbeEvidenceApi;
   }
 

@@ -1,10 +1,12 @@
 import ObjC from 'frida-objc-bridge';
+import Swift from 'frida-swift-bridge';
 import { installRuntimeRpc } from '../common/runtime.js';
 import { create as createTest } from '../common/test/index.js';
 import { runOnMainThread } from './common/main-thread.js';
 import { IOSInput } from './input.js';
 import { Override } from './override/index.js';
 import { Probe } from './probe/index.js';
+import { disposeDebugger } from './probe/debugger.js';
 import { IOSRuntime } from './runtime.js';
 import { screenshot } from './screenshot.js';
 import { checkUiState, checkUiStateNow } from './ui/state.js';
@@ -29,6 +31,7 @@ const IOS = Object.freeze({
 });
 
 globalThis.ObjC = ObjC;
+globalThis.Swift = Swift;
 globalThis.IOS = IOS;
 globalThis.Override = Override;
 globalThis.Probe = Probe;
@@ -59,6 +62,6 @@ globalThis.runtimeStatus = () => {
   };
 };
 
-installRuntimeRpc();
+installRuntimeRpc({ dispose: disposeDebugger });
 
 export { IOS, Override, Probe, Test };
