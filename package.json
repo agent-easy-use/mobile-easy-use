@@ -35,6 +35,7 @@
     "frida": "17.16.4",
     "frida-java-bridge": "^7.0.12",
     "frida-objc-bridge": "8.0.6",
+    "frida-swift-bridge": "3.0.2",
     "jpeg-js": "0.4.4",
     "pixelmatch": "7.2.0",
     "pngjs": "7.0.0"
