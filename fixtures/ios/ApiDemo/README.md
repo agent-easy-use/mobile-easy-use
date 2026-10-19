@@ -102,3 +102,9 @@ The Release App must contain no `MobileEasyUse.dylib`, `MobileEasyUseRuntime.dyl
 ## 自动化 Test 套件
 
 主要流程的预期断言、分组执行和 Test API 用例见 [tests](tests/)。
+
+## Debugger API fixture
+
+OC/Swift breakpoint, observation, override, earlyReturn and lifecycle cases run
+on the actual App. See [debugger fixture](probe/debugger/README.md) for simulator
+and device execution, expectations and result reporting.

@@ -22,6 +22,8 @@
 		BF27CF0A3C1B82F8C795D68C /* APIController.m in Sources */ = {isa = PBXBuildFile; fileRef = 8BF3DA3F6529AEFCA29404A6 /* APIController.m */; };
 		C4F73C45736FB2C06E73C33E /* libPods-ApiDemo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 272399513C554BC243AE78EC /* libPods-ApiDemo.a */; };
 		E47E948A6E073623BF606B6D /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = B790B9F98B8DE2FEFAA3B8F4 /* main.m */; };
+		07B78B1883878FF5CCDEA8BD /* APIDebuggerSwiftFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879DCCA6B07DD89D80EEE6F8 /* APIDebuggerSwiftFixture.swift */; };
+		914ABFE933B9A115F0C445FA /* APIDebuggerFixture.m in Sources */ = {isa = PBXBuildFile; fileRef = DA5DE264AECB475FA4A8DC11 /* APIDebuggerFixture.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +54,9 @@
 		E3E43987A48A0D5A6FCCD92D /* APIController.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = APIController.h; sourceTree = "<group>"; };
 		ED8522458D6428B83AE54FF9 /* Pods-ApiDemo.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-ApiDemo.release.xcconfig"; path = "Target Support Files/Pods-ApiDemo/Pods-ApiDemo.release.xcconfig"; sourceTree = "<group>"; };
 		F1785C6E403A03A0EAC8C1D1 /* APIMainViewController.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = APIMainViewController.m; sourceTree = "<group>"; };
+		4F4C58D9C62CA10437C969B3 /* APIDebuggerFixture.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = APIDebuggerFixture.h; sourceTree = "<group>"; };
+		879DCCA6B07DD89D80EEE6F8 /* APIDebuggerSwiftFixture.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = APIDebuggerSwiftFixture.swift; sourceTree = "<group>"; };
+		DA5DE264AECB475FA4A8DC11 /* APIDebuggerFixture.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = APIDebuggerFixture.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -143,6 +148,9 @@
 				1B74CF5A19C940A0DA24CB7D /* APISDKFixtureState.m */,
 				3BD80B8B5E85AB8A25F9D1FE /* APIMethodMatchFixture.h */,
 				607F2070A070B138FFD015CD /* APIMethodMatchFixture.m */,
+				4F4C58D9C62CA10437C969B3 /* APIDebuggerFixture.h */,
+				DA5DE264AECB475FA4A8DC11 /* APIDebuggerFixture.m */,
+				879DCCA6B07DD89D80EEE6F8 /* APIDebuggerSwiftFixture.swift */,
 			);
 			path = State;
 			sourceTree = "<group>";
@@ -301,6 +309,8 @@
 				4E3D313943847C429165AD5A /* APIRejectingInputView.m in Sources */,
 				E47E948A6E073623BF606B6D /* main.m in Sources */,
 				994E074047C8C0AD3F262F18 /* APIMethodMatchFixture.m in Sources */,
+				914ABFE933B9A115F0C445FA /* APIDebuggerFixture.m in Sources */,
+				07B78B1883878FF5CCDEA8BD /* APIDebuggerSwiftFixture.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
