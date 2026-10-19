@@ -61,6 +61,15 @@ mkdir -p "${frameworks_dir}" "${resources_dir}"
 /usr/bin/ditto \
   "${integration_dir}/MobileEasyUseRuntime.config" \
   "${resources_dir}/MobileEasyUseRuntime.config"
+
+# Carry local build paths as optional hints; Host LLDB also discovers symbols by UUID.
+debug_metadata="${resources_dir}/MobileEasyUseDebug.plist"
+/usr/bin/plutil -create xml1 "${debug_metadata}"
+if [[ -n "${DWARF_DSYM_FOLDER_PATH:-}" && -n "${DWARF_DSYM_FILE_NAME:-}" ]]; then
+  /usr/bin/plutil -insert dsymPath -string "${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}" "${debug_metadata}"
+fi
+/usr/bin/plutil -insert executable -string "${TARGET_BUILD_DIR}/${EXECUTABLE_PATH}" "${debug_metadata}"
+
 /usr/bin/install_name_tool -id \
   "@loader_path/MobileEasyUseRuntime.dylib" \
   "${runtime_destination}"
