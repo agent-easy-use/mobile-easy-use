@@ -60,10 +60,9 @@ Declare these outputs:
 ${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/MobileEasyUse.dylib
 ${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/MobileEasyUseRuntime.dylib
 ${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/MobileEasyUseRuntime.config
-${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/MobileEasyUseDebug.plist
 ```
 
-The Run Script phase is the App target integration. It selects the platform binaries, copies the runtime artifacts, generates MobileEasyUseDebug.plist, and signs both dylibs.
+The Run Script phase is the App target integration. It selects the platform binaries, copies the runtime artifacts, and signs both dylibs.
 
 ## CocoaPods
 
@@ -93,8 +92,7 @@ target 'MyApp' do
     :output_files => [
       '${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/MobileEasyUse.dylib',
       '${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/MobileEasyUseRuntime.dylib',
-      '${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/MobileEasyUseRuntime.config',
-      '${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/MobileEasyUseDebug.plist'
+      '${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/MobileEasyUseRuntime.config'
     ],
     :execution_position => :after_compile
   )

@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { DebuggerTransport } from './transport.js';
+import { readDebuggerSymbols } from './config.js';
 
 const worker = fileURLToPath(new URL('./worker.py', import.meta.url));
 const quote = value => JSON.stringify(value);
@@ -56,12 +57,13 @@ async function attach(payload, _data, _owner, connection) {
   if (connection?.platform !== 'ios') throw new Error('iOS debugger requires an iOS connection');
   if (connection.iosDebugger) throw new Error('Debugger is already attached or attaching');
   const { physical, destinationId } = connection.runnerPreparation;
-  connection.iosDebugger = IOSDebuggerSession.start({
+  // Reserve the session before reading config so concurrent attaches cannot race.
+  connection.iosDebugger = readDebuggerSymbols().then(symbols => IOSDebuggerSession.start({
     pid: payload.pid,
-    build: payload.build,
+    symbols,
     // Reuse device resolution from connect; do not probe again during debugger attach.
     device: { kind: physical ? 'device' : 'simulator', id: destinationId },
-  });
+  }));
   try {
     return (await connection.iosDebugger).attachResult;
   } catch (error) {

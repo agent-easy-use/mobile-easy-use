@@ -585,17 +585,17 @@ declare global {
      * await Probe.debugger.detach();
      */
     (definition: IOSDebuggerDefinition): Promise<() => Promise<IOSDebuggerHit[]>>;
-    /** Explicit lifecycle retained pending API review. Uses Process.id and the Host
-     * connection's resolved device type/UDID; no caller arguments. Sends optional
-     * MobileEasyUseDebug.plist symbol-path hints. Uses LLDB-discovered line tables first,
-     * then tries dsymPath and executable in order if needed. Returns symbolSource
-     * identifying the successful route; lldb also covers debug info without a separate dSYM.
-     * LLDB discovers symbols by UUID;
-     * missing or stale hints do not prevent automatic discovery. Requires compile-unit line tables for the main
-     * executable; a separate dSYM is not mandatory. Missing debug info rejects with
-     * module/UUID after Host attempts detach. Other modules/locations are checked on add.
-     * Await before registration; after failure detach before retrying. */
-    attach(): Promise<{ symbolSource: 'lldb' | 'dsymPath' | 'executable' }>;
+    /** Attaches using Process.id and the Host connection's resolved device type/UDID.
+     * LLDB automatically discovers local debug-map objects and dSYMs. Optional Host
+     * .meu/config.json ios.debugger.dsymPaths entries are each loaded once, in order;
+     * relative paths resolve from the config file's directory. No deduplication.
+     * Symbol loading failures are returned without failing attach or blocking later
+     * entries. No main-executable line tables are required; each source breakpoint
+     * must resolve to a loaded executable location when registered.
+     * Await before registration; after attach failure detach before retrying. */
+    attach(): Promise<{
+      symbolLoadErrors: Array<{ path: string; resolvedPath: string; message: string }>;
+    }>;
     /** Removes all breakpoints and closes LLDB; does not collect records.
      * Idempotent after success. Call each stop() first if records are needed. */
     detach(): Promise<void>;

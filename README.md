@@ -200,6 +200,36 @@ The target project's `.meu/config.json` sets the base directory through `presets
 
 Disconnect and reconnect after updates to load the new bundle. With a device available, the Skill executes the capabilities for verification. Without one, it can generate and build them but explicitly reports runtime behavior as unverified. See the Presets Skills above for directory and build details.
 
+### iOS debugger symbols
+
+Local builds normally use LLDB's automatic symbol discovery, including debug-map
+object files and dSYMs. No symbol configuration is required, and both Xcode
+`ENABLE_DEBUG_DYLIB=YES` and `NO` layouts are supported.
+
+For downloaded CI symbols, optionally configure the target project's `.meu/config.json`:
+
+```json
+{
+  "ios": {
+    "debugger": {
+      "dsymPaths": ["./symbols/App.app.dSYM", "/downloads/FrameworkA.framework.dSYM"]
+    }
+  }
+}
+```
+
+Relative symbol paths resolve from the **config file's directory**: the first
+example refers to `.meu/symbols/App.app.dSYM`. Each path is passed to LLDB once,
+in array order, on every debugger attach, without deduplication. Missing or empty
+`dsymPaths` leaves symbol discovery entirely to LLDB. Symbols must match the loaded
+modules' UUIDs. A path may identify a dSYM bundle or a DWARF file.
+
+`Probe.debugger.attach()` returns `{ symbolLoadErrors: [] }`. Failed entries include
+`path`, `resolvedPath`, and `message`; they do not prevent subsequent entries from
+loading or stop debugging. Each source breakpoint is checked for a resolved location
+when registered. Connection errors still fail attach. See the
+[iOS SDK contract](sdk/ios/index.d.ts) for the full debugger API.
+
 ## Inspiration
 
 Mobile Easy Use draws inspiration from **quickjs-android**, **xLua**, and **Frida**: embedding a scripting runtime in a host application, bridging scripts with native objects, and accessing app capabilities across runtime boundaries.

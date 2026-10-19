@@ -78,15 +78,14 @@ class Session:
     def attach(self, payload):
         """Attach to the SDK's App, prepare the debug session, and resume execution.
 
-        Return {"symbolSource": "lldb" | "dsymPath" | "executable"}, identifying the main-module line-table source.
+        Return {"symbolLoadErrors": [{"path", "resolvedPath", "message"}]} without failing attach for symbol errors.
 
         Input: {"device": {"kind": "device" or "simulator", "id": "..."},
-                "pid": App process ID, "build": optional build symbol paths}.
+                "pid": App process ID, "symbols": optional Host-resolved symbol paths}.
         Attach by local PID for a simulator; select the device before attaching by PID on a real device.
         Run attach synchronously, verify PID and stopped state, then handle events asynchronously.
-        Prefer LLDB-discovered line tables; otherwise try build.dsymPath, then build.executable.
-        Resume after verifying main-module line tables; stale hints do not prevent automatic discovery.
-        Missing debug info fails attach with the module path and UUID, rather than deferring failure to add.
+        LLDB discovers symbols normally; load each configured path once and collect failures.
+        Resume regardless of missing debug info; source locations are validated when adding breakpoints.
         On failure, raise and retain any target/process handles for subsequent detach cleanup.
         """
         if self.process.IsValid():
@@ -119,9 +118,9 @@ class Session:
         # Own target events as well as process events. Breakpoint-change events keep
         # removed breakpoints alive until after LLDB finishes updating its list.
         self.listener.StartListeningForEvents(self.target.GetBroadcaster(), lldb.SBTarget.eBroadcastBitBreakpointChanged)
-        self.sources = Sources(self.debugger, payload.get("build", {}))
+        self.sources = Sources(self.debugger, payload.get("symbols", []))
         self.resume()
-        return {"symbolSource": self.sources.symbol_source}
+        return {"symbolLoadErrors": self.sources.symbol_load_errors}
 
     def add(self, payload):
         """Add a breakpoint directly through LLDB without pausing or resuming the App.

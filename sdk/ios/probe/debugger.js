@@ -1,4 +1,3 @@
-import ObjC from 'frida-objc-bridge';
 import { requestController } from '../../common/controller.js';
 
 let state = 'detached';
@@ -41,20 +40,6 @@ function configuration(definition) {
   return result;
 }
 
-// Optional build-machine paths. Missing metadata still allows LLDB UUID discovery.
-function buildMetadata() {
-  const path = ObjC.classes.NSBundle.mainBundle().pathForResource_ofType_('MobileEasyUseDebug', 'plist');
-  const dict = path === null ? null : ObjC.classes.NSDictionary.dictionaryWithContentsOfFile_(path);
-  const build = {};
-  if (dict !== null) {
-    for (const key of ['dsymPath', 'executable']) {
-      const value = dict.objectForKey_(key);
-      if (value !== null) build[key] = value.toString();
-    }
-  }
-  return build;
-}
-
 async function request(action, payload) {
   const reply = await requestController(`ios.debugger.${action}`, payload, 120000);
   if (!reply.ok) throw new Error(reply.responsePayload?.error?.message ?? 'Debugger request failed');
@@ -66,7 +51,7 @@ export async function attachDebugger() {
   if (disposing || state !== 'detached') throw new Error('Detach the current debugger session before attaching');
   state = 'attaching';
   try {
-    const result = await request('attach', { pid: Process.id, build: buildMetadata() });
+    const result = await request('attach', { pid: Process.id });
     state = 'attached';
     return result;
   } catch (error) {

@@ -1,4 +1,4 @@
-"""Validate LLDB-discovered main-module debug information and create source breakpoints."""
+"""Load optional Host symbols once and resolve source breakpoints through LLDB."""
 
 import json
 import os
@@ -14,44 +14,16 @@ def command(debugger, text):
 
 
 class Sources:
-    def __init__(self, debugger, build):
+    def __init__(self, debugger, symbols):
         self.target = debugger.GetSelectedTarget()
-        executable = self.target.GetExecutable()
-        module = self.target.FindModule(executable)
-        if not module.IsValid():
-            raise RuntimeError(f"Main executable module is unavailable: {executable}")
-
-        # Read line tables first, allowing LLDB to discover/load symbols before trying path hints.
-        if self.has_line_tables(module):
-            self.symbol_source = "lldb"
-            return
-        failures = []
-        for key in ("dsymPath", "executable"):
-            path = build.get(key)
-            if not path:
-                continue
-            if not os.path.exists(path):
-                failures.append(f"{key} is unavailable on Host: {path}")
-                continue
+        self.symbol_load_errors = []
+        # LLDB discovers local debug-map objects/dSYMs itself. Explicit Host paths
+        # are loaded once per session, in order, even if an earlier entry fails.
+        for entry in symbols:
             try:
-                # LLDB checks UUID compatibility; command success still requires usable main-module line tables.
-                command(debugger, "target symbols add " + json.dumps(path))
-                if self.has_line_tables(module):
-                    self.symbol_source = key
-                    return
-                failures.append(f"{key}: no usable main executable line tables after loading {path}")
+                command(debugger, "target symbols add " + json.dumps(entry["resolvedPath"], ensure_ascii=False))
             except RuntimeError as error:
-                failures.append(f"{key}: {error}")
-        raise RuntimeError(
-            f"Main executable debug information is unavailable: {executable}; "
-            f"UUID: {module.GetUUIDString() or 'unknown'}. "
-            "No usable compile-unit line tables were found. Make a matching dSYM "
-            "discoverable by LLDB on the Host (e.g. through Spotlight)."
-            + (" Configured paths: " + "; ".join(failures) if failures else ""))
-
-    @staticmethod
-    def has_line_tables(module):
-        return any(unit.GetNumLineEntries() for unit in module.compile_units)
+                self.symbol_load_errors.append({**entry, "message": str(error)})
 
     def breakpoint(self, file, line):
         if not os.path.isabs(file) or not os.path.isfile(file):
