@@ -10,6 +10,7 @@ sdk/dist/*.js
 .meu/**/presets.dist.js
 
 # Android build output
+.cxx/
 fixtures/android/HelloWorld/.gradle/
 fixtures/android/HelloWorld/.kotlin/
 fixtures/android/HelloWorld/build/
