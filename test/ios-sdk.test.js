@@ -18,6 +18,10 @@ async function loadSdk(fixture) {
   };
   const entry = await getModule(sdkEntry);
   await entry.link(async (specifier, referencingModule) => {
+    if (specifier.startsWith('frida-swift-bridge')) {
+      const name = specifier === 'frida-swift-bridge' ? 'default' : 'TargetMetadata';
+      return new vm.SyntheticModule([name], function () { this.setExport(name, {}); }, { context: fixture.context });
+    }
     if (specifier === 'frida-objc-bridge') {
       const bridgeId = 'fixture:frida-objc-bridge';
       if (!modulePromises.has(bridgeId)) {
