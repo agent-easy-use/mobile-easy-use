@@ -12,7 +12,7 @@ async function fixture(attachResult = { symbolLoadErrors: [] }) {
   const requests = [];
   const records = [{ hitId: 'h1', observations: { price: 100 }, errors: [] }];
   const context = vm.createContext({ Process: { id: 123 } });
-  const source = await readFile(new URL('../sdk/ios/probe/debugger.js', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../sdk/ios/common/debugger.js', import.meta.url), 'utf8');
   const module = new vm.SourceTextModule(source, { context });
   await module.link(specifier => {
     assert.match(specifier, /controller/);

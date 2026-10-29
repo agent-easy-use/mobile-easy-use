@@ -34,7 +34,7 @@ async function fixture() {
       writePointer(pointer) { this.pointer = pointer; } }), allocUtf8String: text => text },
     Int64: class {},
   });
-  const module = new vm.SourceTextModule(await readFile(new URL('../sdk/android/probe/debugger/native.js', import.meta.url), 'utf8'), { context });
+  const module = new vm.SourceTextModule(await readFile(new URL('../sdk/android/common/debugger/native.js', import.meta.url), 'utf8'), { context });
   await module.link(() => new vm.SyntheticModule(['default'], function () { this.setExport('default', Java); }, { context }));
   await module.evaluate();
   const api = {

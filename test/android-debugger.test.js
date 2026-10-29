@@ -34,7 +34,7 @@ async function fixture() {
     Memory: {alloc: () => ({readPointer() {return this.pointer;}}), allocUtf8String: value => value},
     NativeCallback: function (fn) {return fn;}, setTimeout,
   });
-  const module = new vm.SourceTextModule(await readFile(new URL('../sdk/android/probe/debugger/index.js', import.meta.url), 'utf8'), {context});
+  const module = new vm.SourceTextModule(await readFile(new URL('../sdk/android/common/debugger/index.js', import.meta.url), 'utf8'), {context});
   await module.link(name => {
     const exports = name.includes('frida-java') ? {default: Java} : name.includes('reporting')
       ? {errorMessage: error => error.message, safeEmit() {}} : native;
