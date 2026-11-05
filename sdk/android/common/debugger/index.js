@@ -1,6 +1,6 @@
 import Java from 'frida-java-bridge';
 import { errorMessage, safeEmit } from '../reporting.js';
-import { backend, check, takeString, readVariable, writeVariable, encode, snapshot } from './native.js';
+import { backend, check, takeString, readVariable, trackWrappers, writeVariable, encode, snapshot } from './native.js';
 
 /**
  * This file orchestrates debugger registrations in JS; native.js wraps the JVMTI bridge implemented in debugger.cpp.
@@ -105,7 +105,9 @@ function install(definition) {
     let active = true;
     const get = name => {
       if (!active) throw new Error('get is only valid during this breakpoint hit');
-      return readVariable(api, hit, name, factory, wrappers);
+      const value = readVariable(api, hit, name, factory);
+      trackWrappers(value, wrappers);
+      return value;
     };
     try {
       record.thread.name = takeString(api, api.thread(hit));

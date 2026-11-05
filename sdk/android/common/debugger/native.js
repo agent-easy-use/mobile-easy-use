@@ -83,7 +83,7 @@ function valueType(signature, factory) {
 
 // Capture original wrappers before user code can mutate an object array. Never dispose the
 // array itself: Frida's array disposer traverses its current, potentially replaced elements.
-function trackWrappers(value, wrappers) {
+export function trackWrappers(value, wrappers) {
   if (Array.isArray(value)) {
     for (const element of value) trackWrappers(element, wrappers);
     if (value.$w) wrappers.push(value.$w);
@@ -101,8 +101,8 @@ export function writeVariable(api, hit, name, value, factory) {
     : api.localWrite(hit, binding.slot, type, buffer), 'Write variable');
 }
 
-// JNI references belong to the native callback's local frame; wrappers are disposed by onHit.
-export function readVariable(api, hit, name, factory, wrappers) {
+// fromJni creates owned wrappers backed by global references; their lifetime follows JS GC.
+export function readVariable(api, hit, name, factory) {
   const { signature, slot, field } = resolveVariable(api, hit, name);
   const type = valueType(signature, factory);
   const buffer = Memory.alloc(8);
@@ -122,7 +122,6 @@ export function readVariable(api, hit, name, factory, wrappers) {
     default: throw new Error(`Unsupported JVM type: ${signature}`);
   }
   const value = type.fromJni(raw, Java.vm.getEnv());
-  trackWrappers(value, wrappers);
   return value;
 }
 
