@@ -17,7 +17,6 @@ export async function code(definition, overrides, earlyReturn) {
   if (locations.has(key)) throw new Error('Code location already has an override');
   locations.add(key);
   try {
-    // Attachment remains explicit until debugger lifecycle ownership is defined.
     const stop = await installDebugger({
       breakpoint, overrides: values,
       ...(earlyReturn === undefined ? {} : { earlyReturn }),
@@ -26,8 +25,8 @@ export async function code(definition, overrides, earlyReturn) {
     return async () => {
       if (removed) return;
       removed = true;
-      const records = await stop();
-      safeEmit('override.code', { location: breakpoint, records });
+      const result = await stop();
+      safeEmit('override.code', { location: breakpoint, ...result });
       locations.delete(key);
     };
   } catch (error) {

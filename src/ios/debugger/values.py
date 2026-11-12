@@ -77,10 +77,9 @@ class HitContext:
         for index in range(min(limit, self.thread.GetNumFrames())):
             frame = self.thread.GetFrameAtIndex(index)
             line = frame.GetLineEntry()
-            result.append({"index": index, "function": frame.GetFunctionName(),
+            result.append({"function": frame.GetFunctionName(),
                            "module": frame.GetModule().GetFileSpec().GetFilename(),
-                           "address": hex(frame.GetPC()),
-                           "file": str(line.GetFileSpec()) if line.IsValid() else None,
+                           "sourceFile": str(line.GetFileSpec()) if line.IsValid() else None,
                            "line": line.GetLine() if line.IsValid() else None})
         return result
 

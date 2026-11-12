@@ -1,10 +1,10 @@
-"""Persistent LLDB owner. One loop serializes commands, stops and inferior calls."""
+"""Persistent LLDB owner. Breakpoint callbacks capture hits; the loop handles commands and lifecycle."""
 
 import json
 import re
 from pathlib import Path
 import sys
-import time
+from datetime import datetime, timezone
 
 import lldb
 
@@ -15,11 +15,43 @@ from snapshot import snapshot
 from transport import Transport
 
 
-def add_error(record, stage, error, name=None):
-    item = {"stage": stage, "message": str(error)[:4096]}
-    if name is not None:
-        item["name"] = name
-    record.setdefault("errors", []).append(item)
+MAX_RECORDS = 10000
+
+# Each worker owns exactly one session. LLDB resolves callbacks by module name.
+active_session = None
+
+
+def on_breakpoint(frame, location, internal_dict):
+    session = active_session
+    if session is None or session.closed:
+        return False
+    if session.pending_end or session.ended:
+        return True
+    breakpoint_id = location.GetBreakpoint().GetID()
+    registration = session.by_breakpoint.get(breakpoint_id)
+    if registration is None:
+        return False
+    try:
+        # LLDB also invokes callbacks when native condition evaluation fails.
+        session.read_diagnostics()
+        if session.condition_errors.pop(breakpoint_id, None) is not None:
+            return False
+        session.hit(frame.GetThread(), registration)
+    except Exception as error:
+        fail(registration, f"framework: {error}")
+        session.pending_end = str(error)
+    # Unsafe evaluation must stop first; detach belongs to the outer event loop.
+    return session.pending_end is not None
+
+
+def fail(registration, message):
+    if registration.get("error") is None:
+        registration["error"] = str(message)
+
+
+def result(registration, ended=None):
+    error = registration.get("error") or ended
+    return {"ok": error is None, "data": registration["records"], "error": error}
 
 
 class Session:
@@ -33,32 +65,39 @@ class Session:
         self.ended = None  # End reason; Worker can still return records after target debugging ends.
         self.sources = None
         self.closed = False
-        self.listener = debugger.GetListener()
         self.condition_errors = {}
-        self.listener.StartListeningForEvents(debugger.GetBroadcaster(), lldb.SBDebugger.eBroadcastBitError)
+        self.pending_end = None
+        self.listener = debugger.GetListener()
+        self.diagnostics = lldb.SBListener("code-diagnostics")
+        self.diagnostics.StartListeningForEvents(debugger.GetBroadcaster(), lldb.SBDebugger.eBroadcastBitError)
 
     def report_error(self, error):
         print(f"[debugger] {error}", file=sys.stderr, flush=True)
 
-    def stopped_event(self):
-        """Drain listener events without blocking, collect diagnostics, and detect a pending stop.
+    def read_diagnostics(self):
+        # Separate from process events so callbacks cannot consume stop/resume notifications.
+        event = lldb.SBEvent()
+        while self.diagnostics.GetNextEvent(event):
+            diagnostic = lldb.SBDebugger.GetDiagnosticFromEvent(event)
+            if not diagnostic.IsValid():
+                continue
+            message = diagnostic.GetValueForKey("message").GetStringValue(16384)
+            match = re.search(r"error evaluating condition of breakpoint (\d+)\.", message)
+            if match:
+                id_ = int(match[1])
+                self.condition_errors[id_] = message
+                registration = self.by_breakpoint.get(id_)
+                if registration is not None:
+                    fail(registration, f"condition: {message}")
+            else:
+                self.report_error(message)
 
-        Save condition errors by LLDB breakpoint ID for handle_stop; send other diagnostics to stderr.
-        Return True if the last process event is stopped/crashed and LLDB has not restarted it.
-        Return False without a process event; breakpoint changes and diagnostics do not override the result.
-        Only consume events here. run dispatches hits through handle_stop; resume also drains old events.
-        """
+    def stopped_event(self):
+        """Drain process events; ordinary callback hits auto-resume without loop dispatch."""
+        self.read_diagnostics()
         event = lldb.SBEvent()
         stopped = False
         while self.listener.GetNextEvent(event):
-            diagnostic = lldb.SBDebugger.GetDiagnosticFromEvent(event)
-            if diagnostic.IsValid():
-                message = diagnostic.GetValueForKey("message").GetStringValue(16384)
-                match = re.search(r"error evaluating condition of breakpoint (\d+)\.", message)
-                if match:
-                    self.condition_errors[int(match[1])] = message
-                else:
-                    self.report_error(message)
             if not lldb.SBProcess.EventIsProcessEvent(event):
                 continue
             stopped = (lldb.SBProcess.GetStateFromEvent(event) in {lldb.eStateStopped, lldb.eStateCrashed}
@@ -155,21 +194,37 @@ class Session:
                 raise ValueError("Unsupported breakpoint kind")
             if not bp.IsValid() or not bp.GetNumResolvedLocations():
                 raise RuntimeError("Breakpoint has no resolved executable location")
+            # Reject ambiguous writes before any callback can modify the frame.
+            addresses = {item.GetAddress().GetLoadAddress(self.target) for item in bp}
+            mutates = definition.get("overrides") or "earlyReturn" in definition
+            for existing in self.by_breakpoint.values():
+                previous = existing["definition"]
+                if mutates or previous.get("overrides") or "earlyReturn" in previous:
+                    other = self.target.FindBreakpointByID(existing["breakpointId"])
+                    if any(item.GetAddress().GetLoadAddress(self.target) in addresses for item in other):
+                        raise ValueError("Overlapping code registrations involving an override are unsupported")
             if "condition" in location:
                 bp.SetCondition(location["condition"])
             registration = {**payload, "breakpointId": bp.GetID(), "sequence": 0,
                             "records": []}
             self.registrations[id_] = registration
             self.by_breakpoint[bp.GetID()] = registration
+            bp.SetScriptCallbackFunction(__name__ + ".on_breakpoint")
             return {"locations": bp.GetNumResolvedLocations()}
         except Exception:
             if bp and bp.IsValid():
+                self.by_breakpoint.pop(bp.GetID(), None)
+                self.registrations.pop(payload["id"], None)
                 self.delete_breakpoint(bp.GetID())
             raise
 
     def delete_breakpoint(self, id_):
         if not self.target.BreakpointDelete(id_):
             raise RuntimeError("Could not delete breakpoint")
+
+    def current(self, payload):
+        registration = self.registrations[payload["id"]]
+        return result(registration, self.ended)
 
     def remove(self, payload):
         """Delete the breakpoint and return existing records without pausing or processing pending hits."""
@@ -182,123 +237,94 @@ class Session:
             id_ = registration["breakpointId"]
             self.delete_breakpoint(id_)
             self.by_breakpoint.pop(id_)
+        self.condition_errors.pop(registration["breakpointId"], None)
         self.registrations.pop(payload["id"])
-        return registration["records"]
+        return result(registration, self.ended)
 
-    def hit(self, thread, registration, stop_error=None):
-        """Handle an identified breakpoint hit and append its result to the registration's records.
+    def hit(self, thread, registration):
+        """Condition → capture → overrides → earlyReturn; append after completion.
 
-        thread is the hit thread; registration contains the definition and buffered records.
-        Optional stop_error is (stage, message); if supplied, record only the error without running actions.
-        Normally execute stack → observations → overrides → earlyReturn in that order.
-        Record errors independently; ordinary failures do not skip later actions or roll back prior changes.
-        If the original frame is unsafe to use, stop executing actions, save the record, and end debugging.
-        This method does not resume the App; the outer stop handler decides whether to resume.
-
-        records is an array of hits returned as JSON by stop(), for example:
-        [
-          {
-            "hitId": "h1",
-            "timestamp": 1791500000.25,
-            "thread": {"id": "123", "name": "main"},
-            "stack": [
-              {
-                "index": 0, "function": "PriceService.calculate()",
-                "module": "MyApp", "address": "0x100012340",
-                "file": "/project/PriceService.swift", "line": 43
-              }
-            ],
-            "observations": {"price": 100, "name": "Product", "optional": null},
-            "errors": [
-              {"stage": "observations", "name": "missing", "message": "Variable is unavailable"}
-            ]
-          }
-        ]
-        timestamp is Unix seconds; stack/observations follow the definition; errors appears only on failure.
-        Failed observations are omitted; successful overrides/earlyReturn add no result fields.
+        All code APIs share this path. Values are JSON snapshots, errors are
+        sticky per registration, and failed items do not erase successful values.
         """
-        registration["sequence"] += 1
-        record = {"hitId": f'h{registration["sequence"]}', "timestamp": time.time(),
-                  "thread": {"id": str(thread.GetThreadID()), "name": thread.GetName()}}
-        if stop_error:
-            stage, message = stop_error
-            add_error(record, stage, message)
-            registration["records"].append(record)
-            return
-        context = HitContext(thread)
         definition = registration["definition"]
+        context = HitContext(thread)
+        if len(registration["records"]) >= MAX_RECORDS:
+            fail(registration, "Code capture limit reached")
+            # Recording limits must not disable an installed override.
+            if not definition.get("overrides") and "earlyReturn" not in definition:
+                return
+        registration["sequence"] += 1
+        record = {"hitId": f'h{registration["sequence"]}',
+                  "timestamp": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+                  "threadId": thread.GetThreadID(), "threadName": thread.GetName()}
+        def error_at(stage, error):
+            fail(registration, f"{stage}, hit {record['hitId']}: {error}")
         try:
-            if "stack" in definition:
+            if definition.get("stack"):
                 try:
                     record["stack"] = context.stack(definition["stack"])
                 except Exception as error:
-                    add_error(record, "stack", error)
+                    error_at("stack", error)
                     if context.unsafe:
                         return
-            if definition["observations"]:
-                record["observations"] = {}
-                for name, code in definition["observations"].items():
+            if "capture" in definition:
+                record["capture"] = {}
+                for name, code in definition["capture"].items():
                     try:
-                        record["observations"][name] = snapshot(context, context.evaluate(code))
+                        record["capture"][name] = snapshot(context, context.evaluate(code))
                     except Exception as error:
-                        add_error(record, "observations", error, name)
+                        error_at(f"capture {name}", error)
                         if context.unsafe:
                             return
-            for name, code in definition["overrides"].items():
+            for name, code in definition.get("overrides", {}).items():
                 try:
                     context.override(name, code)
                 except Exception as error:
-                    add_error(record, "overrides", error, name)
+                    error_at(f"overrides {name}", error)
                     if context.unsafe:
                         return
-            context.frame()
             if "earlyReturn" in definition:
                 try:
+                    context.frame()
                     context.early_return(definition["earlyReturn"])
                 except Exception as error:
-                    add_error(record, "earlyReturn", error)
+                    error_at("earlyReturn", error)
                     if not context.unsafe:
                         context.frame()
         except Exception as error:
-            add_error(record, "framework", error)
+            error_at("framework", error)
         finally:
-            # Also runs when an unsafe stage returns early: preserve its error once.
-            registration["records"].append(record)
+            if len(registration["records"]) < MAX_RECORDS:
+                registration["records"].append(record)
             if context.unsafe:
-                self.end_session(context.unsafe)
+                self.pending_end = context.unsafe
 
     def end_session(self, reason):
         """End target debugging but keep Worker/records; remove retrieves records and detach closes Worker."""
         self.ended = reason
-        thread = self.process.GetSelectedThread()
         try:
             self.detach(close_worker=False)
         except Exception as error:
             self.ended += f"; detach failed: {error}"
         self.report_error(self.ended)
         for registration in self.registrations.values():
-            self.hit(thread, registration, ("framework", self.ended))
-        self.condition_errors.clear()
+            fail(registration, f"framework: {self.ended}")
 
     def handle_stop(self):
-        """Dispatch our breakpoints, resume other ordinary stops, and end on serious exceptions while keeping records.
-
-        Scan every thread before handling hits so one thread's breakpoint cannot hide another's exception.
-        Return True when this stop is handled; the event loop resumes if the session has not ended.
-        """
+        """Handle diagnostic/fatal stops only; callbacks have already processed normal hits."""
+        if self.pending_end:
+            reason, self.pending_end = self.pending_end, None
+            self.end_session(reason)
+            return False
         if (self.ended or self.process.GetState() not in {lldb.eStateStopped, lldb.eStateCrashed}
                 or self.process.GetStopID() == self.last_stop):
             return False
         self.last_stop = self.process.GetStopID()
-        hits = []
         fatal = []
         for thread in self.process:
             reason = thread.GetStopReason()
-            if reason == lldb.eStopReasonBreakpoint:
-                ids = {thread.GetStopReasonDataAtIndex(i) for i in range(0, thread.GetStopReasonDataCount(), 2)}
-                # Exclusive session: skip unknown/deleted breakpoints (including empty data), then resume.
-                hits.extend((thread, self.by_breakpoint[id_]) for id_ in ids if id_ in self.by_breakpoint)
-            elif reason == lldb.eStopReasonSignal:
+            if reason == lldb.eStopReasonSignal:
                 name = self.process.GetUnixSignals().GetSignalAsCString(thread.GetStopReasonDataAtIndex(0))
                 if name in {"SIGSEGV", "SIGBUS", "SIGILL", "SIGABRT", "SIGFPE"}:
                     fatal.append(thread.GetStopDescription(1024))
@@ -311,23 +337,6 @@ class Session:
         if fatal or self.process.GetState() == lldb.eStateCrashed:
             self.end_session("Target exception: " + ("; ".join(fatal) or "process crashed"))
             return False
-        # Native condition failures arrive as debugger diagnostic events; the
-        # thread's stop description can still be only "breakpoint N.M".
-        # Do not reevaluate the condition: it may have side effects.
-        # Multiple mutating registrations at the same stop would make execution
-        # depend on breakpoint order. Reject this hit rather than choose a winner.
-        overlap = len(hits) > 1 and any(r["definition"]["overrides"] or "earlyReturn" in r["definition"] for _, r in hits)
-        for thread, registration in hits:
-            if self.ended:
-                break
-            description = self.condition_errors.get(registration["breakpointId"])
-            stop_error = None
-            if description:
-                stop_error = ("condition", description)
-            elif overlap:
-                stop_error = ("framework", "Overlapping mutating debugger hits")
-            self.hit(thread, registration, stop_error)
-        self.condition_errors.clear()
         self.last_stop = self.process.GetStopID()
         return True
 
@@ -367,23 +376,26 @@ def run(debugger, command, result, internal_dict):
     Reply to Node requests through Transport, independently of this result object.
     """
     # Isolate protocol output first; a separate debugger prevents the CLI event thread from consuming App stops.
+    global active_session
     channel = Transport()
     debugger = lldb.SBDebugger.Create()
     session = None
     try:
+        # The separate debugger needs the callback module in its own Python namespace.
+        lldb_command(debugger, "script import worker")
         session = Session(debugger)
+        active_session = session
         # ready means Worker accepts commands; it has not attached to the App yet.
         channel.send({"type": "ready"})
         while not session.closed and not channel.closed:
-            # Handle commands and breakpoint events serially. receive waits briefly for input,
-            # then returns so LLDB events are checked even without a Node command.
+            # Callbacks process hits while LLDB runs; this loop owns commands and cleanup.
             for message in channel.receive():
                 try:
                     action = message["action"]
                     if action == "detach":
                         session.detach()
                         value = None
-                    elif action in {"attach", "add", "remove"}:
+                    elif action in {"attach", "add", "remove", "current"}:
                         value = getattr(session, action)(message["payload"])
                     else:
                         raise ValueError("Unknown debugger action")
@@ -397,7 +409,7 @@ def run(debugger, command, result, internal_dict):
             if channel.closed:
                 break
             if session.sources and not session.closed:
-                # After attach, consume stops: observe/modify the frame and resume when safe.
+                # Ordinary callbacks auto-resume; handle remaining diagnostic/fatal stops.
                 # App exit does not terminate Worker; remove can still retrieve buffered records.
                 if session.stopped_event() and not session.ended:
                     handled = session.handle_stop()
@@ -416,6 +428,7 @@ def run(debugger, command, result, internal_dict):
             if session and not session.closed:
                 session.detach()
         finally:
+            active_session = None
             channel.close()
             lldb.SBDebugger.Destroy(debugger)
 

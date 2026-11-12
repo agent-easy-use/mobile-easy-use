@@ -4,6 +4,7 @@ let state = 'detached';
 let generation = 0;
 let sequence = 0;
 let disposing = false;
+let attaching;
 
 function expression(value) {
   if (typeof value !== 'string' || !value.trim()) throw new TypeError('Expected non-empty LLDB expression');
@@ -23,8 +24,9 @@ function configuration(definition) {
   }
   if (breakpoint.condition !== undefined) expression(breakpoint.condition);
   const result = { breakpoint };
-  for (const field of ['observations', 'overrides']) {
-    const values = definition[field] ?? {};
+  for (const field of ['capture', 'overrides']) {
+    if (definition[field] === undefined) continue;
+    const values = definition[field];
     if (!values || typeof values !== 'object' || Array.isArray(values)) throw new TypeError(`${field} must be an object`);
     result[field] = Object.fromEntries(Object.entries(values).map(([name, code]) => [name, expression(code)]));
   }
@@ -35,23 +37,21 @@ function configuration(definition) {
     result.stack = definition.stack;
   }
   if (definition.earlyReturn !== undefined) result.earlyReturn = expression(definition.earlyReturn);
-  if (!result.stack && !Object.keys(result.observations).length && !Object.keys(result.overrides).length
-      && result.earlyReturn === undefined) throw new TypeError('Provide stack, observations, overrides or earlyReturn');
   return result;
 }
 
-async function request(action, payload) {
+export async function requestDebugger(action, payload) {
   const reply = await requestController(`ios.debugger.${action}`, payload, 120000);
   if (!reply.ok) throw new Error(reply.responsePayload?.error?.message ?? 'Debugger request failed');
   return reply.responsePayload;
 }
 
-// Explicit lifecycle is retained until the public attach/detach decision is made.
-export async function attachDebugger() {
+// Session lifecycle is internal; public code APIs attach on demand.
+async function attachDebugger() {
   if (disposing || state !== 'detached') throw new Error('Detach the current debugger session before attaching');
   state = 'attaching';
   try {
-    const result = await request('attach', { pid: Process.id });
+    const result = await requestDebugger('attach', { pid: Process.id });
     state = 'attached';
     return result;
   } catch (error) {
@@ -60,12 +60,12 @@ export async function attachDebugger() {
   }
 }
 
-export async function detachDebugger() {
+async function detachDebugger() {
   if (state === 'detached') return;
   if (state === 'attaching' || state === 'detaching') throw new Error('Debugger lifecycle operation is in progress');
   state = 'detaching';
   try {
-    await request('detach', {});
+    await requestDebugger('detach', {});
     generation++;
     state = 'detached';
   } catch (error) {
@@ -75,22 +75,37 @@ export async function detachDebugger() {
 }
 
 export async function installDebugger(definition) {
-  if (disposing || state !== 'attached') throw new Error('Call probe.debugger.attach() before adding breakpoints');
+  await ensureDebugger();
   const config = configuration(definition);
   const id = `debugger-${++sequence}`;
   const session = generation;
-  await request('add', { id, definition: config });
+  await requestDebugger('add', { id, definition: config });
   let stopping;
   // Cache the reply, not live records. Concurrent/repeated stop calls share one request.
   return () => {
     if (stopping) return stopping;
     if (session !== generation || state !== 'attached') return Promise.reject(new Error('Debugger session ended before records were collected'));
-    stopping = request('remove', { id }).catch(error => { stopping = undefined; throw error; });
+    stopping = requestDebugger('remove', { id }).catch(error => { stopping = undefined; throw error; });
     return stopping;
   };
 }
 
 export async function disposeDebugger() {
   disposing = true;
+  if (attaching) await attaching.catch(() => {});
   await detachDebugger();
+}
+
+// Code APIs share the same attachment and concurrent first callers.
+export async function ensureDebugger() {
+  if (disposing) throw new Error('Debugger runtime is shutting down');
+  if (state === 'attached') return;
+  if (!attaching) {
+    attaching = (async () => {
+      if (state === 'failed') await detachDebugger();
+      await attachDebugger();
+    })().finally(() => { attaching = undefined; });
+  }
+  await attaching;
+  if (disposing) throw new Error('Debugger runtime is shutting down');
 }

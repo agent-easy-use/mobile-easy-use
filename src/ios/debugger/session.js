@@ -56,6 +56,13 @@ export class IOSDebuggerSession {
 async function attach(payload, _data, _owner, connection) {
   if (connection?.platform !== 'ios') throw new Error('iOS debugger requires an iOS connection');
   if (connection.iosDebugger) throw new Error('Debugger is already attached or attaching');
+  // Host owns LLDB cleanup: an unloading script cannot reliably send or await RPC.
+  if (!connection.debuggerUnloadBound && connection.sdkScript?.destroyed) {
+    connection.sdkScript.destroyed.connect(() => {
+      void closeIOSDebugger(connection).catch(error => console.error('Debugger unload cleanup failed:', error));
+    });
+    connection.debuggerUnloadBound = true;
+  }
   const { physical, destinationId } = connection.runnerPreparation;
   // Reserve the session before reading config so concurrent attaches cannot race.
   connection.iosDebugger = readDebuggerSymbols().then(symbols => IOSDebuggerSession.start({
@@ -73,8 +80,13 @@ async function attach(payload, _data, _owner, connection) {
 }
 
 async function add(payload, _data, _owner, connection) {
-  if (!connection?.iosDebugger) throw new Error('Call probe.debugger.attach() before adding breakpoints');
+  if (!connection?.iosDebugger) throw new Error('Debugger is not attached');
   return (await connection.iosDebugger).request('add', payload);
+}
+
+async function current(payload, _data, _owner, connection) {
+  if (!connection?.iosDebugger) throw new Error('Debugger session ended before records were collected');
+  return (await connection.iosDebugger).request('current', payload);
 }
 
 async function remove(payload, _data, _owner, connection) {
@@ -99,5 +111,6 @@ export const IOS_DEBUGGER_ACTIONS = [
   ['ios.debugger.attach', attach],
   ['ios.debugger.add', add],
   ['ios.debugger.remove', remove],
+  ['ios.debugger.current', current],
   ['ios.debugger.detach', detach],
 ];
