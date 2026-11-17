@@ -41,7 +41,7 @@ function androidView(parent = null) {
 function iosView(parent = null) {
   return {
     parent, owner: null, hidden: false, opacity: 1, clips: false, focused: false,
-    enabled: true, control: true, size: [[0, 0], [40, 40]], screenRect: [[10, 20], [40, 40]],
+    enabled: true, interactionEnabled: true, control: true, size: [[0, 0], [40, 40]], screenRect: [[10, 20], [40, 40]],
     window() { return this.owner; },
     superview() { return this.parent; },
     isHidden() { return this.hidden; },
@@ -50,12 +50,13 @@ function iosView(parent = null) {
     bounds() { return this.size; },
     convertRect_toView_() { return this.screenRect; },
     isFirstResponder() { return this.focused; },
+    isUserInteractionEnabled() { return this.interactionEnabled; },
     isEnabled() { return this.enabled; },
     isKindOfClass_() { return this.control; },
   };
 }
 
-async function loadState(platform) {
+async function loadState(platform, modern = false) {
   let onMain = false;
   const schedule = work => {
     onMain = true;
@@ -86,9 +87,9 @@ async function loadState(platform) {
   const fixture = { view, parent, window, lookups: [], lookup: () => view };
   const context = vm.createContext({ NULL: null, setTimeout, clearTimeout });
   const root = new URL(`../sdk/${platform}/`, import.meta.url);
-  const statePath = platform === 'android' ? 'exp/ui-state.js' : 'ui/state.js';
-  const waitPath = platform === 'android' ? 'exp/wait.js' : 'wait.js';
-  const lookupPath = platform === 'android' ? 'exp/ui.js' : 'ui/index.js';
+  const statePath = modern ? 'element/state.js' : platform === 'android' ? 'exp/ui-state.js' : 'ui/state.js';
+  const waitPath = modern ? 'drive/wait.js' : platform === 'android' ? 'exp/wait.js' : 'wait.js';
+  const lookupPath = modern ? 'element/query.js' : platform === 'android' ? 'exp/ui.js' : 'ui/index.js';
   const reportingPath = platform === 'android' ? 'common/index.js' : 'common/reporting.js';
   const stubs = new Map([
     [`frida-${platform === 'android' ? 'java' : 'objc'}-bridge`, { default: bridge }],
@@ -165,13 +166,13 @@ for (const platform of ['android', 'ios']) {
     fixture.lookup = () => platform === 'android'
       ? { isFocused: () => true } : { isFirstResponder: () => true };
     assert.equal(await fixture.checkUiState('target', 'focused'), true);
-    fixture.lookup = () => ({ isKindOfClass_: () => true, isEnabled: () => false });
+    fixture.lookup = () => ({ isUserInteractionEnabled: () => true, isKindOfClass_: () => true, isEnabled: () => false });
     assert.equal(await fixture.checkUiState('target', 'enabled'), false);
-    fixture.lookup = () => ({ isKindOfClass_: () => true, isEnabled() { throw new Error('getter failed'); } });
+    fixture.lookup = () => ({ isUserInteractionEnabled: () => true, isKindOfClass_: () => true, isEnabled() { throw new Error('getter failed'); } });
     await assert.rejects(fixture.checkUiState('target', 'enabled'), /getter failed/);
     if (platform === 'ios') {
-      fixture.lookup = () => ({ isKindOfClass_: () => false });
-      await assert.rejects(fixture.checkUiState('target', 'enabled'), /requires a UIControl/);
+      fixture.lookup = () => ({ isUserInteractionEnabled: () => true, isKindOfClass_: () => false });
+      assert.equal(await fixture.checkUiState('target', 'enabled'), true);
     }
   });
 
@@ -288,3 +289,40 @@ test('ios: zero-size clipping ancestors fail before transformed bounds can appea
   fixture.parent.clips = false;
   assert.equal(await fixture.checkUiState('target', 'visible'), true);
 });
+
+for (const modern of [false, true]) {
+  test(`ios: enabled checks own interaction flags across state, assertion and wait (${modern ? 'element' : 'ui'})`, async () => {
+    const fixture = await loadState('ios', modern);
+    const expect = createExpect(() => fixture.lookup(), fixture.runOnMainThread, fixture.checkUiStateNow);
+    fixture.parent.interactionEnabled = false;
+    fixture.view.hidden = true;
+    for (const control of [false, true]) {
+      for (const interactionEnabled of [false, true]) {
+        for (const enabled of [false, true]) {
+          Object.assign(fixture.view, { control, interactionEnabled, enabled });
+          fixture.view.isEnabled = () => {
+            assert.equal(control, true, 'ordinary UIView must not read isEnabled');
+            assert.equal(interactionEnabled, true, 'disabled interaction short-circuits');
+            return enabled;
+          };
+          const expected = interactionEnabled && (!control || enabled);
+          assert.equal(await fixture.checkUiState('target', 'enabled'), expected);
+          if (expected) await expect('target').toBeEnabled();
+          else await expect('target').not.toBeEnabled();
+        }
+      }
+    }
+    fixture.view.control = false;
+    let polls = 0;
+    fixture.lookup = () => {
+      fixture.view.interactionEnabled = ++polls >= 3;
+      return fixture.view;
+    };
+    assert.equal((await fixture.waitForUi('target', 'enabled', { timeoutMs: 100, intervalMs: 1 })).ok, true);
+    assert.equal(polls, 3);
+    fixture.lookup = () => ({ isUserInteractionEnabled() { throw new Error('interaction getter failed'); } });
+    await assert.rejects(fixture.checkUiState('target', 'enabled'), /interaction getter failed/);
+    fixture.lookup = () => null;
+    assert.equal(await fixture.checkUiState('missing', 'enabled'), false);
+  });
+}

@@ -58,10 +58,8 @@ export function checkUiStateNow(view, state) {
     case 'hidden': return !isVisible(view);
     case 'focused': return Boolean(view.isFirstResponder());
     case 'enabled':
-      if (!view.isKindOfClass_(ObjC.classes.UIControl)) {
-        throw new Error('toBeEnabled requires a UIControl on iOS');
-      }
-      return Boolean(view.isEnabled());
+      if (!view.isUserInteractionEnabled()) return false;
+      return !view.isKindOfClass_(ObjC.classes.UIControl) || Boolean(view.isEnabled());
     default: throw new Error(`Unknown UI state: ${state}`);
   }
 }

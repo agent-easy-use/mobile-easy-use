@@ -78,7 +78,8 @@ declare global {
      * hidden requires an existing, geometrically invisible UIView. visible checks window attachment,
      * ancestor hidden/alpha > 0.01 and axis-aligned clipping against ancestors, window and screen;
      * not occlusion, masks or presentation-layer animation geometry. focused uses isFirstResponder().
-     * enabled requires UIControl and uses isEnabled(); other views throw. Lookup/getter errors reject.
+     * enabled checks the target's userInteractionEnabled and, for UIControl, isEnabled().
+     * Does not check ancestors, visibility or operation-specific flags. Lookup/getter errors reject.
      */
     checkUiState(target: string | IOSUiPath, state: IOSUiState): Promise<boolean>;
   }
@@ -661,7 +662,8 @@ declare global {
     toBeHidden(): Promise<void>;
     /** Target itself has input focus via isFirstResponder(). Not accessibility focus. */
     toBeFocused(): Promise<void>;
-    /** Native isEnabled(), not necessarily clickable. Requires UIControl; other views throw. */
+    /** Target userInteractionEnabled, additionally isEnabled() for UIControl.
+     * Checks only the target itself, not ancestors, visibility or operation-specific flags. */
     toBeEnabled(): Promise<void>;
     /** Resolve once and invoke a read-only predicate on the main thread; await its boolean result.
      * After await, native UI access must explicitly use IOS.runOnMainThread.
