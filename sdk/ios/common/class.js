@@ -1,5 +1,5 @@
 import ObjC from 'frida-objc-bridge';
-import { requireObjCRuntime } from './common/main-thread.js';
+import { requireObjCRuntime } from './main-thread.js';
 
 function requireClassName(className) {
   if (typeof className !== 'string' || className.length === 0 || className.trim() !== className) {
@@ -24,7 +24,7 @@ function hasAllSelectors(target, selectors) {
   return selectors.every(selector => target[selector]?.implementation !== undefined);
 }
 
-function findClass(className, selectors = []) {
+export function findClass(className, selectors = []) {
   requireObjCRuntime();
   requireClassName(className);
   requireSelectors(selectors);
@@ -47,7 +47,3 @@ function findClass(className, selectors = []) {
     + `Candidates: ${candidates.map(({ runtimeName }) => runtimeName).join(', ')}`,
   );
 }
-
-const IOSRuntime = Object.freeze({ findClass });
-
-export { IOSRuntime };

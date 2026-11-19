@@ -3,20 +3,20 @@ import Swift from 'frida-swift-bridge';
 import { installRuntimeRpc } from '../common/runtime.js';
 import { create as createTest } from '../common/test/index.js';
 import { drive } from './drive/index.js';
-import { override } from './overrides/index.js';
+import { override } from './override/index.js';
 import { inspect } from './inspect/index.js';
 import { runOnMainThread } from './common/main-thread.js';
 import { currentThreadName } from './common/thread.js';
 import { findUiView } from './element/query.js';
 import { resolveView } from './element/target.js';
 import { checkUiStateNow } from './element/state.js';
-import { IOSRuntime } from './runtime.js';
+import { findClass } from './common/class.js';
 import { disposeDebugger } from './common/debugger.js';
 
 const element = Object.freeze({
   findUiView: target => runOnMainThread(() => findUiView(target)),
 });
-const common = Object.freeze({ runOnMainThread, currentThreadName, findClass: IOSRuntime.findClass });
+const common = Object.freeze({ runOnMainThread, currentThreadName, findClass });
 const Test = { create: () => createTest(resolveView, runOnMainThread, checkUiStateNow, inspect.ui) };
 
 Object.assign(globalThis, { drive, override, inspect, element, common, Test, ObjC, Swift });

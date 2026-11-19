@@ -2,7 +2,7 @@ import Java from 'frida-java-bridge';
 import { installRuntimeRpc } from '../common/runtime.js';
 import { create as createTest } from '../common/test/index.js';
 import { drive } from './drive/index.js';
-import { override } from './overrides/index.js';
+import { override } from './override/index.js';
 import { inspect } from './inspect/index.js';
 import { runOnMainThread } from './common/main-thread.js';
 import { currentThreadName } from './common/thread.js';

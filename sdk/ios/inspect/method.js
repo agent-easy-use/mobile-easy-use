@@ -1,5 +1,5 @@
 import ObjC from 'frida-objc-bridge';
-import { IOSRuntime } from '../runtime.js';
+import { findClass } from '../common/class.js';
 import { requireObjCRuntime } from '../common/main-thread.js';
 import { currentThreadName } from '../common/thread.js';
 
@@ -91,7 +91,7 @@ async function watch(definition, options = {}) {
   requireObjCRuntime();
   const { selector } = definition;
   if (typeof selector !== 'string' || !/^[-+] \S/.test(selector)) throw new TypeError('Expected a selector with - or + prefix');
-  const owner = IOSRuntime.findClass(className, [selector]);
+  const owner = findClass(className, [selector]);
   const selected = owner?.[selector];
   if (!selected?.implementation) throw new Error(`Objective-C method not found: ${selector}`);
   const clock = new NativeFunction(Module.getGlobalExportByName('clock_gettime_nsec_np'), 'uint64', ['uint']);

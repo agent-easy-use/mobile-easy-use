@@ -1,5 +1,5 @@
 import ObjC from 'frida-objc-bridge';
-import { IOSRuntime } from '../runtime.js';
+import { findClass } from '../common/class.js';
 import { requireObjCRuntime } from '../common/main-thread.js';
 import { safeEmit, errorMessage } from '../common/reporting.js';
 
@@ -11,7 +11,7 @@ export function method(definition, returnInstead) {
   if (typeof className !== 'string' || !className.trim()) throw new TypeError('className must be a non-empty string');
   if (filter !== undefined) requireSynchronous(filter);
   if (typeof returnInstead === 'function') requireSynchronous(returnInstead);
-  const owner = IOSRuntime.findClass(className, [selector]);
+  const owner = findClass(className, [selector]);
   const selected = owner?.[selector];
   if (!selected?.implementation) throw new Error(`Objective-C method not found: ${selector}`);
   const original = selected.implementation;

@@ -27,17 +27,27 @@ declare global {
 
   interface AndroidDriveApi {
     click: AndroidInputApi['click'];
-    longPress(target: Parameters<AndroidInputApi['longPress']>[0]): Promise<AndroidLongPressResult>;
+    longPress: AndroidInputApi['longPress'];
     input: AndroidInputApi['input'];
-    scroll(target: Parameters<AndroidInputApi['scroll']>[0], direction: Parameters<AndroidInputApi['scroll']>[1]): Promise<AndroidScrollResult>;
+    scroll: AndroidInputApi['scroll'];
     wait: AndroidDriveWait;
     waitUntil: AndroidWaitApi['until'];
   }
   interface AndroidElementApi {
-    /** Resolve on main; missing targets return null. Raw wrapper operations retain native thread requirements. */
+    /** Resolve an ID or a non-empty path from the focused window on main.
+     * Each path step searches the preceding View and its descendants, without backtracking.
+     * Missing focus/match returns null; invalid targets throw. Matching does not require visibility.
+     * Returns the actual runtime-class Frida wrapper; raw operations retain native thread requirements.
+     * @example const view = await element.findUiView(R.id.submit_button);
+     * @example const view = await element.findUiView([`id::${R.id.form}`, 'text::Submit']);
+     */
     findUiView(target: number | AndroidUiPath): Promise<Java.Wrapper | null>;
   }
   interface AndroidCommonApi {
+    /** Schedule work on main; only execution before the first await is guaranteed on main.
+     * Returned promises are adopted. Callback errors reject; unavailable Java throws synchronously.
+     * Never block waiting for the returned Promise.
+     */
     runOnMainThread<T>(work: () => T | Promise<T>): Promise<T>;
     /** Name of the calling thread; null if unnamed or unavailable. No thread dispatch. */
     currentThreadName(): string | null;
@@ -209,15 +219,6 @@ declare global {
     readonly [resourceType: string]: AndroidResourceClass;
   }
 
-  interface AndroidWindowApi {
-    /** Return all WindowManagerGlobal roots in framework order, including unfocused/popup roots.
-     * Returns [] when none exist; Java/framework lookup errors throw. Wrappers are cast to View.
-     * Synchronous Java VM attachment only; no main-thread dispatch or visibility filtering.
-     * @example const roots = await AndroidExp.runOnMainThread(() => AndroidExp.window.getRootViews());
-     */
-    getRootViews(): Java.Wrapper[];
-  }
-
   /** id:: requires a positive integer ID; text::, tag:: and class:: require non-empty values.
    * text:: uses Android's text search (may match substrings); tag:: matches a String tag.
    * class:: matches a full runtime class name case-sensitively, including subclasses.
@@ -233,54 +234,7 @@ declare global {
   /** Non-empty path. Each search includes the preceding View itself and its descendants. */
   type AndroidUiPath = readonly [AndroidUiPathStep, ...AndroidUiPathStep[]];
 
-
   type AndroidUiState = 'exists' | 'visible' | 'hidden' | 'focused' | 'enabled';
-
-  /** Synchronous find queries attach to the Java VM without main-thread dispatch. For consistent UI
-   * reads, call through AndroidExp.runOnMainThread. Raw methods on returned wrappers retain
-   * Android's own thread requirements; getters run on the querying thread.
-   */
-  interface AndroidUiApi {
-    /**
-     * Find a View by resource ID from the focused Window root. The returned Wrapper uses the
-     * View's actual runtime class. Java object results returned by its methods lazily promote to
-     * their runtime wrapper when a member is absent from Frida's declared-type wrapper.
-     * Requires a positive integer. Missing focus/match returns null; invalid targets throw.
-     * @example const view = await AndroidExp.runOnMainThread(() => AndroidExp.ui.find(R.id.submit_button));
-     */
-    find(resourceId: number): Java.Wrapper | null;
-    /**
-     * Find a View by applying each id/text/tag/class/getter step below the preceding View, without backtracking.
-     * The first getter receives the focused Window root. A text step uses the first View returned by
-     * View.findViewsWithText() when multiple Views match. Each getter receives the preceding View
-     * wrapped as its actual runtime class, and the returned Wrapper preserves the final runtime class.
-     * Java object results returned by its methods use the same lazy runtime-wrapper promotion.
-     * Missing focus/step returns null; invalid paths or getters throw. Matching does not require visibility.
-     * @example const view = await AndroidExp.runOnMainThread(() => AndroidExp.ui.find([`id::${R.id.form}`, 'text::Submit']));
-     */
-    find(path: AndroidUiPath): Java.Wrapper | null;
-    /** Resolve and check once on the main thread; no polling. Missing targets return false for every state.
-     * exists means a View was resolved; hidden requires an existing, geometrically invisible View.
-     * visible checks attachment, visibility, ancestor alpha > 0.01 and clipped visible display bounds,
-     * not occlusion or masks. focused/enabled use isFocused()/isEnabled(). Lookup/getter errors reject.
-     */
-    checkUiState(target: number | AndroidUiPath, state: AndroidUiState): Promise<boolean>;
-  }
-
-  /** View targets must belong to the focused App Window; IDs/paths are resolved within that Window. */
-  type AndroidScreenshotTarget = number | AndroidUiPath | Java.Wrapper;
-
-  interface AndroidScreenshotOptions {
-    /** Optional non-empty keys mapped to elements cropped from the captured App Window. */
-    targets?: Readonly<Record<string, AndroidScreenshotTarget>>;
-    /** Defaults to false with non-empty targets. An absent/empty target map always captures the window. */
-    includeWindow?: boolean;
-  }
-
-  type AndroidScreenshotResult =
-    /** Successful values are Host JPEG paths. Unresolved/non-croppable targets are omitted, even when ok is true. */
-    | { ok: true; window?: string; targets: Readonly<Partial<Record<string, string>>> }
-    | { ok: false; error: { message: string }; targets: Readonly<Partial<Record<string, never>>> };
 
   interface AndroidScreenLocation {
     /** Absolute X in physical pixels on display 0; finite and non-negative. */
@@ -377,7 +331,7 @@ declare global {
 
   /** IDs/paths resolve in the focused Window; View targets must be attached, shown, and non-empty.
    * Presses use the View center. Coordinates bypass lookup. All events target display 0.
-   * Target resolution reads Views on the invoking thread; use runOnMainThread for that phase.
+   * drive schedules target resolution on the main thread; callers need no additional dispatch.
    * Failures resolve with ok:false, possibly after partial injection; success means injection accepted,
    * not business completion. The 2000 ms settle delay applies only on success; use wait for readiness.
    */
@@ -385,7 +339,7 @@ declare global {
     /**
      * Resolve the target and inject one touchscreen DOWN/UP sequence with a fixed 16 ms press.
      * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await AndroidExp.runOnMainThread(() => AndroidExp.input.click(R.id.submit_button));
+     * @example const result = await drive.click(R.id.submit_button);
      */
     click(resourceId: number): Promise<AndroidClickResult>;
     click(path: AndroidUiPath): Promise<AndroidClickResult>;
@@ -395,7 +349,7 @@ declare global {
     /**
      * Resolve the target and inject a fixed 600 ms touchscreen press; no duration parameter.
      * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await AndroidExp.input.longPress({ x: 120, y: 360 });
+     * @example const result = await drive.longPress({ x: 120, y: 360 });
      */
     longPress(resourceId: number): Promise<AndroidLongPressResult>;
     longPress(path: AndroidUiPath): Promise<AndroidLongPressResult>;
@@ -407,7 +361,7 @@ declare global {
      * text must be non-empty and representable by KeyCharacterMap (arbitrary Unicode may fail).
      * Types into the focused field without clearing its current contents.
      * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await AndroidExp.runOnMainThread(() => AndroidExp.input.input(R.id.form_input, "hello"));
+     * @example const result = await drive.input(R.id.form_input, "hello");
      */
     input(resourceId: number, text: string): Promise<AndroidTargetInputResult>;
     input(path: AndroidUiPath, text: string): Promise<AndroidTargetInputResult>;
@@ -419,7 +373,7 @@ declare global {
      * Coordinate targets use the whole display as bounds, centered on the supplied point.
      * direction describes finger movement, not the direction of newly revealed content.
      * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await AndroidExp.runOnMainThread(() => AndroidExp.input.scroll(R.id.list, "up"));
+     * @example const result = await drive.scroll(R.id.list, "up");
      */
     scroll(
       resourceId: number,
@@ -467,6 +421,8 @@ declare global {
   type AndroidWaitResult = AndroidWaitSuccess | AndroidWaitFailure;
 
   /** Drive UI wait contract.
+   * @example const ready = await drive.wait(R.id.submit_button, 'visible');
+   * @example const hidden = await drive.wait(['text::Loading'], 'hidden', { timeoutMs: 10000 });
    * IDs/paths are resolved each poll; native Views are checked directly on the main thread.
    * A valid native View satisfies exists even when detached. Coordinates are not accepted.
    */
@@ -477,50 +433,11 @@ declare global {
   ) => Promise<AndroidWaitResult>;
 
   interface AndroidWaitApi {
-    /** Poll ui.checkUiState with wait.until. hidden requires an existing, invisible View.
-     * No focused Window resolves as missing. Geometry matches expect, not pixel-level visibility.
-     * Lookup errors, including invalid targets, retry until TIMEOUT with lastCheckError.
-     * @example const ready = await AndroidExp.wait.ui(R.id.submit_button, 'visible');
-     */
-    ui(
-      resourceId: number,
-      state: AndroidUiWaitState,
-      options?: AndroidWaitOptions,
-    ): Promise<AndroidWaitResult>;
-
-    /** Re-resolve the path on the main thread each check; uses the same result/error contract as ID waits.
-     * @example const hidden = await AndroidExp.wait.ui(['text::Loading'], 'hidden', { timeoutMs: 10000 });
-     */
-    ui(
-      path: AndroidUiPath,
-      state: AndroidUiWaitState,
-      options?: AndroidWaitOptions,
-    ): Promise<AndroidWaitResult>;
-
     /** Poll a sync/async boolean predicate sequentially until true. Errors retry until timeout.
      * Invalid return types fail with INVALID_ARGUMENT. Timeout does not cancel an in-flight predicate.
-     * @example const ready = await AndroidExp.wait.until(() => cacheReady, { timeoutMs: 10000 });
+     * @example const ready = await drive.waitUntil(() => cacheReady, { timeoutMs: 10000 });
      */
     until(predicate: () => boolean | Promise<boolean>, options?: AndroidWaitOptions): Promise<AndroidWaitResult>;
-  }
-
-  interface AndroidExpApi {
-    /** Schedule work on Android's main thread. Only the synchronous part before the first await
-     * is guaranteed to run there; a returned Promise is adopted, not kept on the main thread.
-     * Callback errors reject; unavailable Java throws synchronously. Never block waiting for this Promise.
-     * @example const title = await AndroidExp.runOnMainThread(() => AndroidExp.ui.find(R.id.title)?.getText().toString() ?? null);
-     */
-    runOnMainThread<TResult>(work: () => TResult | Promise<TResult>): Promise<TResult>;
-    /** Capture the focused App Window, keyed element crops, or both; requires the native screenshot bridge
-     * and Host file controller. Resolves ok:false for invalid options, capture, or persistence errors.
-     * Missing/hidden/out-of-window targets can be omitted on success; check each requested key.
-     * @example const shot = await AndroidExp.screenshot({ targets: { submit: R.id.submit_button }, includeWindow: true });
-     */
-    screenshot(options?: AndroidScreenshotOptions): Promise<AndroidScreenshotResult>;
-    readonly window: AndroidWindowApi;
-    readonly ui: AndroidUiApi;
-    readonly input: AndroidInputApi;
-    readonly wait: AndroidWaitApi;
   }
 
   interface AndroidOverrideInvocation {
@@ -596,12 +513,7 @@ declare global {
   /** Dynamically resolved Android application resources, for example `R.id.submit_button`. */
   const R: AndroidR;
 
-  /** Android UI helpers, waits, and controlled input extensions. */
-
-
   /** Action-scoped Java method return overrides. */
-
-
 
   const Test: Readonly<AndroidTestApi>;
 
@@ -637,8 +549,8 @@ declare global {
     toMatch(expected: RegExp): void;
     /** String substring or array membership (not deep equality). */
     toContain(expected: unknown): void;
-    /** Target exists. UI state assertions resolve via AndroidExp.ui.find once on the main thread.
-     * Targets: resource ID or UI path.
+    /** Target exists. UI state assertions resolve once on the main thread through element target resolution.
+     * Targets: resource ID, UI path or native View.
      * Missing targets fail all five positive UI state assertions, including toBeHidden.
      */
     toExist(): Promise<void>;
@@ -654,7 +566,7 @@ declare global {
     /** Native isEnabled(), not necessarily clickable. */
     toBeEnabled(): Promise<void>;
     /** Resolve once and invoke a read-only predicate on the main thread; await its boolean result.
-     * After await, native UI access must explicitly use AndroidExp.runOnMainThread.
+     * After await, native UI access must explicitly use common.runOnMainThread.
      * Missing targets and non-boolean results are errors.
      */
     toSatisfy(predicate: (view: Java.Wrapper) => boolean | Promise<boolean>): Promise<void>;
