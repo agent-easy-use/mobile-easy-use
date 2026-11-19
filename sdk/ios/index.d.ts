@@ -17,6 +17,73 @@ export {};
  * dispatch unless a method JSDoc states a caller-thread requirement.
  */
 declare global {
+  /** Independent sdk/ios/inspect/index.js module: import { inspect } from its source.
+   * All UI methods schedule native access on the main thread. Root exports are integrated separately.
+   */
+  interface IOSInspectUiApi {
+    /** Missing target returns false. Native objects refer to the supplied instance. */
+    isExisting(target: IOSInspectUiTarget): Promise<boolean>;
+    /** Existing geometric visibility semantics; excludes occlusion. */
+    isVisible(target: IOSInspectUiTarget): Promise<boolean>;
+    /** Existing but geometrically invisible; missing targets return false. */
+    isHidden(target: IOSInspectUiTarget): Promise<boolean>;
+    /** Target's native input focus, not accessibility focus. */
+    isFocused(target: IOSInspectUiTarget): Promise<boolean>;
+    /** Own userInteractionEnabled, additionally isEnabled() for UIControl. */
+    isEnabled(target: IOSInspectUiTarget): Promise<boolean>;
+    /** Root is depth 0; default 3; integer 0..64. Empty children may mean depth limit.
+     * Requires an attached window to convert bounds to px.
+     * Node targets are borrowed UIView references owned by their UI hierarchy. Retain/release explicitly on main if needed beyond that lifetime.
+     * @example const root = await inspect.ui.tree(target, 2);
+     */
+    tree(target: IOSInspectUiTarget, depth?: number): Promise<IOSUITreeNode>;
+    /** Local bounds in px. Uses UIView.bounds and the attached screen scale; requires a window. */
+    layout(target: IOSInspectUiTarget): Promise<IOSUILocalLayout>;
+    /** Reference bounds and transformed target AABB in the same coordinate space; no clipping. */
+    layoutInParent(target: IOSInspectUiTarget): Promise<IOSUIRelativeLayout>;
+    layoutInWindow(target: IOSInspectUiTarget): Promise<IOSUIRelativeLayout>;
+    layoutInScreen(target: IOSInspectUiTarget): Promise<IOSUIRelativeLayout>;
+    /** Current App window image. Uses the platform window hierarchy renderer. */
+    screenshotWindow(): Promise<IOSUIWindowScreenshot>;
+    /** Required target; capture its owning window and draw an inward border on Host.
+     * Rejects missing targets, missing windows and empty intersection. Preserves App hierarchy.
+     */
+    /** Dashed stroke: 2 pt using window UIScreen.scale. */
+    /** highlightTraget defaults to true; false returns the target owning window original. */
+    screenshot(target: IOSInspectUiTarget, highlightTraget?: boolean): Promise<IOSUIWindowScreenshot>;
+  }
+  type IOSInspectUiTarget = string | IOSUiPath | ObjCBridge.Object;
+  interface IOSUITreeNode {
+    className: string;
+    target: ObjCBridge.Object;
+    /** Local bounds in px, captured during traversal. */
+    bounds: IOSUIRect;
+    children: IOSUITreeNode[];
+  }
+  interface IOSUIRect { x: number; y: number; width: number; height: number }
+  interface IOSUILocalLayout {
+    bounds: IOSUIRect;
+    unit: 'px';
+    /** Owning UIScreen.scale, not nativeScale; pt = px / scale. */
+    scale: number;
+  }
+  interface IOSUIRelativeLayout extends IOSUILocalLayout { targetBounds: IOSUIRect }
+  interface IOSUIWindowScreenshot {
+    filePath: string;
+    width: number;
+    height: number;
+    format: 'png' | 'jpeg';
+    unit: 'px';
+    /** Captured window rectangle in screen coordinates. */
+    region: IOSUIRect;
+    /** Captured rectangle in window/root coordinates, used for image mapping. */
+    sourceBounds: IOSUIRect;
+    /** Actual highlighted rectangle in output image pixels; null for window originals. */
+    highlight: IOSUIRect | null;
+    capturedAt: string;
+    captureMethod: 'draw-view-hierarchy';
+  }
+
   const Swift: typeof SwiftBridge;
   // The ObjC global namespace is supplied by the frida-gum reference above.
   // The SDK binds it to frida-objc-bridge; UIKit calls retain their own thread requirements.
@@ -242,6 +309,16 @@ declare global {
   }
 
   type IOSWaitResult = IOSWaitSuccess | IOSWaitFailure;
+
+  /** Standalone drive module wait contract; not installed as a global API yet.
+   * Identifiers/paths are resolved each poll; native UIViews are checked directly on the main queue.
+   * A valid native UIView satisfies exists even when detached. Coordinates are not accepted.
+   */
+  type IOSDriveWait = (
+    target: string | IOSUiPath | ObjCBridge.Object,
+    state: IOSUiWaitState,
+    options?: IOSWaitOptions,
+  ) => Promise<IOSWaitResult>;
 
   interface IOSWaitApi {
     /** Poll ui.checkUiState with wait.until. hidden requires an existing, invisible UIView.

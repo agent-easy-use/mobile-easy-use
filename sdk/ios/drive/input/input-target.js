@@ -1,7 +1,7 @@
 import ObjC from 'frida-objc-bridge';
 import { rectValue } from '../../common/geometry.js';
 import { intersectBounds, requirePoint, scrollCoordinates, validBounds } from './input-geometry.js';
-import { findUiView } from '../../element/query.js';
+import { resolveView } from '../../element/target.js';
 
 function rectOnScreen(view, space) {
   return rectValue(view.convertRect_toCoordinateSpace_(view.bounds(), space));
@@ -116,19 +116,19 @@ function prepareInputCommand(action, target, parameters = {}) {
 
   let resolved;
   let view;
-  if (typeof target === 'string' || Array.isArray(target)) {
-    view = findUiView(target);
-    if (!view) throw new Error('ELEMENT_NOT_FOUND: UI target did not match a UIView');
-    resolved = viewInputTarget(view);
-  } else if (target && typeof target.isKindOfClass_ === 'function'
-      && Boolean(target.isKindOfClass_(ObjC.classes.UIView))) {
-    view = target;
-    resolved = viewInputTarget(view);
-  } else if (target && typeof target === 'object' && Number.isFinite(target.x) && Number.isFinite(target.y)) {
+  if (target && typeof target === 'object' && !target.handle
+      && Number.isFinite(target.x) && Number.isFinite(target.y)) {
     const { bounds, orientation } = inputContext();
     resolved = { point: requirePoint({ x: target.x, y: target.y }, bounds), bounds, orientation };
   } else {
-    throw new Error('INVALID_TARGET: expected an identifier, UI path, UIView, or {x, y}');
+    try {
+      view = resolveView(target);
+    } catch (error) {
+      if (error instanceof TypeError) throw new Error(`INVALID_TARGET: ${error.message}`);
+      throw error;
+    }
+    if (view === null) throw new Error('ELEMENT_NOT_FOUND: UI target did not match a UIView');
+    resolved = viewInputTarget(view);
   }
 
   const command = { action, ...resolved, ...parameters,

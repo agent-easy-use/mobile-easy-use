@@ -1,3 +1,4 @@
+import { annotateScreenshotAction } from './annotate-screenshot.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { IOS_CONTROLLER_ACTIONS } from './ios-controller.js';
@@ -7,6 +8,7 @@ import { IOS_DEBUGGER_ACTIONS } from '../ios/debugger/session.js';
 const CONTROLLER_ACTIONS = new Map([
   ['file.write', writeFileAction],
   ['screenshot.compare', compareScreenshotAction],
+  ['screenshot.annotate', annotateScreenshotAction],
   ...IOS_CONTROLLER_ACTIONS,
   ...IOS_DEBUGGER_ACTIONS,
 ]);
