@@ -34,11 +34,25 @@ static void MEUCompleteScreenshotAsync(
                    includeWindow:(BOOL)includeWindow
                          quality:(CGFloat)quality
                       completion:(MEUScreenshotCompletion)completion {
+    [self captureWindow:nil targets:targets includeWindow:includeWindow quality:quality completion:completion];
+}
+
++ (void)captureWindow:(UIWindow *)window
+             quality:(CGFloat)quality
+          completion:(MEUScreenshotCompletion)completion {
+    [self captureWindow:window targets:@{} includeWindow:YES quality:quality completion:completion];
+}
+
++ (void)captureWindow:(UIWindow *)selectedWindow
+             targets:(NSDictionary<NSString *, UIView *> *)targets
+       includeWindow:(BOOL)includeWindow
+             quality:(CGFloat)quality
+          completion:(MEUScreenshotCompletion)completion {
     if (completion == nil) return;
     MEUScreenshotCompletion callback = [completion copy];
     void (^render)(void) = ^{
         @autoreleasepool {
-            UIWindow *window = [MEUUIQuery focusedWindow];
+            UIWindow *window = selectedWindow ?: [MEUUIQuery focusedWindow];
             if (window == nil || CGRectIsEmpty(window.bounds)) {
                 MEUCompleteScreenshotAsync(
                     callback,
@@ -48,6 +62,7 @@ static void MEUCompleteScreenshotAsync(
 
             UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat defaultFormat];
             format.opaque = window.opaque;
+            format.scale = window.screen.scale;
             UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc]
                 initWithBounds:window.bounds format:format];
             __block BOOL complete = YES;
