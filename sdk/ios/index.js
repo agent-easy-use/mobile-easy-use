@@ -1,42 +1,25 @@
-import { ui as inspectUi } from './inspect/ui/index.js';
 import ObjC from 'frida-objc-bridge';
 import Swift from 'frida-swift-bridge';
 import { installRuntimeRpc } from '../common/runtime.js';
 import { create as createTest } from '../common/test/index.js';
+import { drive } from './drive/index.js';
+import { override } from './overrides/index.js';
+import { inspect } from './inspect/index.js';
 import { runOnMainThread } from './common/main-thread.js';
-import { IOSInput } from './input.js';
-import { Override } from './override/index.js';
-import { Probe } from './probe/index.js';
-import { disposeDebugger } from './probe/debugger.js';
+import { currentThreadName } from './common/thread.js';
+import { findUiView } from './element/query.js';
+import { resolveView } from './element/target.js';
+import { checkUiStateNow } from './element/state.js';
 import { IOSRuntime } from './runtime.js';
-import { screenshot } from './screenshot.js';
-import { checkUiState, checkUiStateNow } from './ui/state.js';
-import { findUiView } from './ui/index.js';
-import { waitForUi, waitUntil } from './wait.js';
+import { disposeDebugger } from './common/debugger.js';
 
-const Test = { create: () => createTest(findUiView, runOnMainThread, checkUiStateNow, inspectUi) };
-
-const IOS = Object.freeze({
-  runOnMainThread,
-  runtime: IOSRuntime,
-  screenshot,
-  ui: Object.freeze({
-    find: findUiView,
-    checkUiState,
-  }),
-  input: IOSInput,
-  wait: Object.freeze({
-    ui: waitForUi,
-    until: waitUntil,
-  }),
+const element = Object.freeze({
+  findUiView: target => runOnMainThread(() => findUiView(target)),
 });
+const common = Object.freeze({ runOnMainThread, currentThreadName, findClass: IOSRuntime.findClass });
+const Test = { create: () => createTest(resolveView, runOnMainThread, checkUiStateNow, inspect.ui) };
 
-globalThis.ObjC = ObjC;
-globalThis.Swift = Swift;
-globalThis.IOS = IOS;
-globalThis.Override = Override;
-globalThis.Probe = Probe;
-globalThis.Test = Test;
+Object.assign(globalThis, { drive, override, inspect, element, common, Test, ObjC, Swift });
 globalThis.runtimeStatus = () => {
   const available = ObjC.available === true;
   let appId = null;
@@ -65,4 +48,4 @@ globalThis.runtimeStatus = () => {
 
 installRuntimeRpc({ dispose: disposeDebugger });
 
-export { IOS, Override, Probe, Test };
+export { drive, override, inspect, element, common, Test, ObjC, Swift };

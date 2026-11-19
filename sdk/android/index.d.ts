@@ -5,8 +5,8 @@
  *
  * This file is documentation and code-generation context only. It is not
  * loaded into Frida. Load the built `android.js` once in the shared Bootstrap runtime
- * before loading business ES Modules that use the global Java, R, AndroidExp,
- * Override, Probe, and runtimeStatus APIs. These are globals, not imports from this file.
+ * before loading business ES Modules that use the global Java, R, drive, override, inspect, element, common, Test,
+ * and runtimeStatus APIs. These are globals, not imports from this file.
  * Load only this platform declaration; Android and iOS globals belong to separate runtimes.
  * Probe modules should export functions and perform actions when called, not at module load.
  * Await asynchronous SDK calls and check result.ok before relying on an action or wait.
@@ -18,8 +18,79 @@
 export {};
 
 declare global {
-  /** Independent sdk/android/inspect/index.js module: import { inspect } from its source.
-   * All UI methods schedule native access on the main thread. Root exports are integrated separately.
+  /** Public runtime namespaces. Legacy implementation types below are not exported entry points. */
+  const drive: Readonly<AndroidDriveApi>;
+  const override: Readonly<AndroidOverrideRuntimeApi>;
+  const inspect: Readonly<AndroidInspectApi>;
+  const element: Readonly<AndroidElementApi>;
+  const common: Readonly<AndroidCommonApi>;
+
+  interface AndroidDriveApi {
+    click: AndroidInputApi['click'];
+    longPress(target: Parameters<AndroidInputApi['longPress']>[0]): Promise<AndroidLongPressResult>;
+    input: AndroidInputApi['input'];
+    scroll(target: Parameters<AndroidInputApi['scroll']>[0], direction: Parameters<AndroidInputApi['scroll']>[1]): Promise<AndroidScrollResult>;
+    wait: AndroidDriveWait;
+    waitUntil: AndroidWaitApi['until'];
+  }
+  interface AndroidElementApi {
+    /** Resolve on main; missing targets return null. Raw wrapper operations retain native thread requirements. */
+    findUiView(target: number | AndroidUiPath): Promise<Java.Wrapper | null>;
+  }
+  interface AndroidCommonApi {
+    runOnMainThread<T>(work: () => T | Promise<T>): Promise<T>;
+    /** Name of the calling thread; null if unnamed or unavailable. No thread dispatch. */
+    currentThreadName(): string | null;
+
+  }
+  interface AndroidMethodDefinition { className: string; method: string; argumentTypes?: readonly string[]; filter?: (...args: any[]) => boolean }
+  interface AndroidOverrideRuntimeApi {
+    /** Synchronous callbacks. Values use Java bridge conversions. */
+    method(definition: AndroidMethodDefinition, returnInstead: any | ((...args: any[]) => any)): () => void;
+    /** Write through Frida Java fields; remove restores the saved value. */
+    field(definition: { field: string } & ({ className: string; instance?: never } | { instance: Java.Wrapper; className?: never }), value: any): () => void;
+    /** Async installation; invoke and await the returned closure to remove. */
+    code(definition: AndroidCodeDefinition, overrides?: Record<string, any>, earlyReturn?: any): Promise<() => Promise<void>>;
+  }
+  type AndroidInspectResult<T> = { ok: true; data: T[]; error: null } | { ok: false; data: T[]; error: string };
+  interface AndroidWatcher<T> {
+    current(): Promise<AndroidInspectResult<T>>;
+    stop(): Promise<AndroidInspectResult<T>>;
+  }
+  interface AndroidLogRecord { timestamp: string; threadId: number; threadName: string | null; tag: string; level: string; message: string }
+  interface AndroidMethodEnter { receiver: Java.Wrapper; args: any[] }
+  interface AndroidMethodLeave extends AndroidMethodEnter { result: any; exception: any }
+  interface AndroidMethodOptions {
+    enter?: (context: AndroidMethodEnter) => Record<string, any>;
+    leave?: (context: AndroidMethodLeave) => Record<string, any>;
+    /** Maximum frame count; omitted or zero disables stack capture. */
+    stack?: number;
+  }
+  interface AndroidMethodFrame { className: string; methodName: string; signature: string; fileName: string | null; lineNumber: number | null }
+  interface AndroidMethodRecord {
+    callId: number; timestamp: string; threadId: number; threadName: string | null;
+    status: "running" | "returned" | "threw"; durationMs: number | null;
+    enter?: Record<string, any>; leave?: Record<string, any>; stack?: AndroidMethodFrame[];
+  }
+  interface AndroidCodeContext { get(name: string): any }
+  interface AndroidCodeDefinition { className: string; method: string; argumentTypes?: readonly string[]; fileLine: number; condition?: (context: AndroidCodeContext) => boolean }
+  type AndroidCodeCapture = Record<string, string | ((context: AndroidCodeContext) => any)>;
+  interface AndroidCodeFrame { className: string; methodName: string; sourceFile: string | null; line: number | null }
+  interface AndroidCodeOptions { capture?: AndroidCodeCapture; stack?: number }
+  interface AndroidCodeRecord {
+    hitId: string; timestamp: string; threadId: number; threadName: string | null;
+    capture?: Record<string, any>; stack?: AndroidCodeFrame[];
+  }
+  interface AndroidInspectApi {
+    ui: AndroidInspectUiApi;
+    /** Exact TAG subscriptions; current returns cumulative records, stop unregisters. */
+    log: { watch(tags: string[]): Promise<AndroidWatcher<AndroidLogRecord>> };
+    /** Java bridge values; original exceptions are preserved. */
+    method: { watch(definition: AndroidMethodDefinition, options?: AndroidMethodOptions): Promise<AndroidWatcher<AndroidMethodRecord>> };
+    code: { watch(definition: AndroidCodeDefinition, options?: AndroidCodeOptions): Promise<AndroidWatcher<AndroidCodeRecord>> };
+  }
+
+  /** UI inspection. All UI methods schedule native access on the main thread.
    */
   interface AndroidInspectUiApi {
     /** Missing target returns false. Native objects refer to the supplied instance. */
@@ -101,12 +172,6 @@ declare global {
    */
   function runtimeStatus(): AndroidRuntimeStatus;
 
-  type ProbeJsonPrimitive = string | number | boolean | null;
-  type ProbeJsonValue =
-    | ProbeJsonPrimitive
-    | readonly ProbeJsonValue[]
-    | { readonly [key: string]: ProbeJsonValue };
-
   /** Runtime IDs from the current application's package via Resources.getIdentifier().
    * Missing resources return 0 (not a valid UI target); unavailable Application throws.
    */
@@ -168,10 +233,6 @@ declare global {
   /** Non-empty path. Each search includes the preceding View itself and its descendants. */
   type AndroidUiPath = readonly [AndroidUiPathStep, ...AndroidUiPathStep[]];
 
-  /** Non-empty map of non-empty Evidence keys to focused-Window UI paths; raw IDs/Views are not accepted. */
-  interface ProbeUiTargets {
-    readonly [uiKey: string]: AndroidUiPath;
-  }
 
   type AndroidUiState = 'exists' | 'visible' | 'hidden' | 'focused' | 'enabled';
 
@@ -405,7 +466,7 @@ declare global {
 
   type AndroidWaitResult = AndroidWaitSuccess | AndroidWaitFailure;
 
-  /** Standalone drive module wait contract; not installed as a global API yet.
+  /** Drive UI wait contract.
    * IDs/paths are resolved each poll; native Views are checked directly on the main thread.
    * A valid native View satisfies exists even when detached. Coordinates are not accepted.
    */
@@ -472,7 +533,7 @@ declare global {
    * Plain JSON objects are not converted to Java objects; use Java wrappers. undefined is for void.
    */
   type AndroidOverrideReturnValue =
-    | ProbeJsonPrimitive
+    | string | number | boolean | null
     | Int64
     | readonly AndroidOverrideReturnValue[]
     | Java.Wrapper
@@ -532,263 +593,15 @@ declare global {
     ): TResult extends Promise<infer TResolved> ? Promise<TResolved> : TResult;
   }
 
-  interface ProbeHookInvocation {
-    receiver: Java.Wrapper;
-    args: readonly unknown[];
-    argumentTypes: readonly string[];
-  }
-
-  type AndroidChainMemoryMetric = 'javaHeapUsedBytes' | 'nativeHeapAllocatedBytes';
-
-  interface ProbeChainCapture {
-    /** Default off. true or {} captures the entry stack with at most 5 frames.
-     * maxFrames must be an integer from 1 to 64; actual stacks may be shorter.
-     * Emits capture.stack {kind: 'java', frames: [...]} on enter only.
-     * Java frames contain className, methodName, signature, fileName and lineNumber.
-     * @example stack: true // or stack: {maxFrames: 3}
-     */
-    stack?: boolean | { maxFrames?: number };
-    /** Synchronous, read-only extraction at entry; returns data serialized as JSON. */
-    args?: (invocation: ProbeHookInvocation) => ProbeJsonValue;
-    /** Synchronous, read-only extraction on normal return only; never on throw. */
-    result?: (invocation: ProbeHookInvocation & { result: unknown }) => ProbeJsonValue;
-    /** Default off. Emits elapsedMs in fractional milliseconds, measured with a monotonic clock.
-     * Includes children/waits; not CPU time or async completion time.
-     */
-    timing?: boolean;
-    /** Default off. Read each selected process metric before/after; no polling or forced GC.
-     * Deltas include concurrent work/GC and do not measure this method's allocations or leaks.
-     */
-    memory?: {
-      /** Non-empty selection; unsupported names are rejected before the action runs. */
-      metrics: readonly AndroidChainMemoryMetric[];
-    };
-  }
-
-  interface ProbeChainMethodHook {
-    /** Java class name or class wrapper; hooks all matching instances during the action scope. */
-    target: string | Java.Wrapper;
-    method: string;
-    /** Exact Java type names (e.g. java.lang.String, int); [] selects no arguments. Exclusive with allOverloads. Optional for one overload. */
-    argumentTypes?: readonly string[];
-    /** Explicitly select every overload of a multiply overloaded method. */
-    allOverloads?: boolean;
-    /** Runs on the intercepted thread; keep only literal true. False/throw skips capture and preserves the original call. Must be synchronous/read-only. */
-    filter?: (invocation: ProbeHookInvocation) => boolean;
-    /** Optional method data: args/stack on enter; timing/memory on leave/throw; result on leave only.
-     * Writes to Evidence; the action result is unchanged. Omit to record execution only.
-     * Invalid configuration rejects before the action. Collection failures preserve business behavior
-     * and emit captureErrors [{field,message}]; failed fields are omitted, failed memory readings/deltas are null.
-     * Memory output: memory[metric] {unit:'bytes',before,after,delta}.
-     * Nested probes add overhead to parent timings; keep capture selective.
-     * @example capture: { stack: true, timing: true }
-     */
-    capture?: ProbeChainCapture;
-  }
-
-  /** Read-only getters keyed by state path; await each result and return plain JSON. */
-  type ProbeStateGetters = Readonly<Record<string, () => ProbeJsonValue | Promise<ProbeJsonValue>>>;
-
-  interface ProbeEvidenceApi {
-    /** Capture selected Java methods and exact-TAG liblog messages during action.
-     * Await action and remove hooks on completion or failure; return its result or propagate its error.
-     * Records are written to Evidence. Method events include actual argumentTypes on enter/leave/throw. Method/log events include threadName (null when unavailable).
-     * Supports multiple TAGs per call; at most one log-capture scope may be active (including nesting).
-     * Hooks observe all matching process calls, including unrelated concurrent work; use filter.
-     * Already-hooked Java overloads are rejected. Setup errors roll back and reject before action.
-     * On ARM Android 11+, static-hook setup initializes the declaring class and completes ART visibility;
-     * if the ART symbol is unavailable, setup warns and continues without this preparation. Class initialization may run App code.
-     * Callbacks execute on intercepted threads and must be synchronous. Empty hooks plus no TAG capture nothing.
-     * @param action Trigger the action and await its required completion before returning.
-     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
-     * execution, shared only by wrappers observing that same execution.
-     * @param logTag Exact TAG or TAG set; omit for method-only capture.
-     * @param methodHooks Methods to observe; omit for log-only capture.
-     * @example const result = await Probe.evidence.withChainEvidence(() => AndroidExp.input.click({ x: 120, y: 360 }), 'Submit form', 'Form');
-     */
-    withChainEvidence<TResult>(
-      action: () => TResult,
-      actionDescription: string,
-      logTag?: string | Set<string>,
-      methodHooks?: readonly ProbeChainMethodHook[],
-    ): Promise<Awaited<TResult>>;
-
-    /** Await state getters sequentially before action and again in finally.
-     * Getter results are serialized as JSON; dispatch to the required thread
-     * inside the getter. Bound external waits; getters that never settle block the checkpoint.
-     * Evidence entries contain path and successful before/after values (including null).
-     * Getter failures omit the checkpoint value and set errors.before/after; action results/errors are preserved.
-     * Multiple getters are not an atomic snapshot; read related fields together in one getter.
-     * An empty map records nothing. Values go to Evidence, not the return value.
-     * @example let count = 0; await Probe.evidence.withStateEvidence(() => ++count, 'Increment', { count: () => count });
-     * @param action Trigger the action and await its required completion before returning.
-     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
-     * execution, shared only by wrappers observing that same execution.
-     */
-    withStateEvidence<TResult>(
-      action: () => TResult,
-      actionDescription: string,
-      stateGetters: ProbeStateGetters,
-    ): Promise<Awaited<TResult>>;
-
-    /** Capture keyed UI state plus App-window and visible element screenshots before and after action,
-     * including an after checkpoint on action failure. Non-empty key-to-path map required.
-     * Re-resolves paths on the main thread; invalid targets reject before action. Per-target query errors
-     * are reported/skipped; screenshot failure yields null image paths. UI and images are separate reads.
-     * Evidence includes className, exist, visible, pixel bounds, empty properties, and screenshot paths.
-     * Returns awaited action result (not snapshots), propagates action error; finalizer errors are reported.
-     * @example await Probe.evidence.withUiEvidence(() => AndroidExp.input.click({ x: 120, y: 360 }), 'Submit', { submit: [`id::${R.id.submit_button}`] });
-     * @param action Trigger the action and await its required completion before returning.
-     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
-     * execution, shared only by wrappers observing that same execution.
-     */
-    withUiEvidence<TResult>(
-      action: () => TResult,
-      actionDescription: string,
-      uiTargets: ProbeUiTargets,
-    ): Promise<Awaited<TResult>>;
-  }
-
-  /** Available during synchronous processing of the current breakpoint hit.
-   * Looks up the current frame and receiver's instance fields; no implicit closure/outer-instance lookup.
-   */
-  interface AndroidDebuggerContext {
-    /** Read a name in the current frame: local/parameter first, then an instance field.
-     * `this` reads the receiver directly. Member paths/expressions are not accepted.
-     * Missing debug information, ambiguous or unavailable variables are errors.
-     * Each call reads fresh values. Saved get functions cannot be used after the hit finishes.
-     */
-    get(name: string): any;
-  }
-
-  type AndroidDebuggerCallback<T = unknown> = (context: AndroidDebuggerContext) => T;
-  type AndroidDebuggerValue = boolean | number | string | Int64 | Java.Wrapper | unknown[] | null | undefined;
-  type AndroidDebuggerValueSource = AndroidDebuggerValue | AndroidDebuggerCallback<AndroidDebuggerValue>;
-
-  interface AndroidDebuggerDefinition {
-    breakpoint: {
-      /** Java class name or Frida wrapper. Requires a debuggable Android API 28+ app and the SDK AAR. */
-      target: string | Java.Wrapper;
-      /** Exact runtime method name. Constructors/class initializers are unsupported.
-       * Kotlin inline/SMAP and coroutine logical-frame reconstruction are unsupported.
-       */
-      method: string;
-      /** Required for ambiguous overloads. Matches the complete runtime parameter list in order.
-       * Include extra parameters: Continuation for Kotlin suspend, the receiver for extensions,
-       * and Composer/masks for @Composable. If selection fails, inspect the runtime overloads
-       * and supply their exact types; the SDK does not add parameters automatically.
-       */
-      argumentTypes?: readonly string[];
-      /** Positive source line in this method. Installs its smallest jlocation; no nearest-line fallback. */
-      fileLine: number;
-      /** False excludes the hit. Errors are recorded and skip all configured stages. */
-      condition?: AndroidDebuggerCallback<boolean>;
-    };
-    /** Keys name output values; strings name variables, functions compute values using get(name).
-     * Runs before overrides. Each failed item is omitted and diagnosed in errors; other items continue.
-     * No ordering/dependency guarantee between items in the same stage.
-     */
-    observations?: Readonly<Record<string, string | AndroidDebuggerCallback>>;
-    /** Keys name writable locals/parameters or instance fields, resolved exactly as get(name).
-     * Values are literals (including literal strings) or synchronous callbacks returning a value.
-     * Cannot replace this.
-     * Runs after observations, with no dependency guarantee between entries.
-     * Failed items do not prevent other writes; completed writes are not rolled back.
-     * Failures do not suppress earlyReturn. Callback values are computed before resolving the write target.
-     */
-    overrides?: Readonly<Record<string, AndroidDebuggerValueSource>>;
-    /** Literal or synchronous callback; get reads values after overrides. Presence requests a return;
-     * omit this property for normal continuation. For void use () => undefined.
-     * Native return runs after JS exits, skipping remaining method code INCLUDING finally.
-     * Failures appear in errors, including deferred native failures; success adds no output value.
-     */
-    earlyReturn?: AndroidDebuggerValueSource;
-    /** Maximum Java stack frames, positive 32-bit integer. Omitted means no stack collection.
-     * Captured after condition, before observations/overrides; starts at the target method.
-     * No native/JS frames or reconstructed inline/coroutine stack.
-     */
-    stack?: number;
-  }
-
-  interface AndroidDebuggerStackFrame {
-    className: string;
-    methodName: string;
-    sourceFile: string | null;
-    line: number | null;
-  }
-
-  interface AndroidDebuggerError {
-    stage: 'condition' | 'observations' | 'overrides' | 'earlyReturn' | 'stack' | 'framework';
-    /** Output key for observations; target variable name for overrides. */
-    name?: string;
-    message: string;
-  }
-
-  interface AndroidDebuggerHit {
-    hitId: string;
-    /** ISO timestamp at callback entry. */
-    timestamp: string;
-    thread: { id: string; name: string | null };
-    /** Direct snapshots, no status/value envelope. Failed keys are omitted; null is a valid value. */
-    observations?: Record<string, ProbeJsonValue>;
-    /** Omitted when not requested or collection failed. */
-    stack?: AndroidDebuggerStackFrame[];
-    /** Omitted when there are no failures. Successful writes/returns add no result fields. */
-    errors?: AndroidDebuggerError[];
-  }
-
-  /** Clears the breakpoint, drains entered callbacks, releases its environment, and returns raw hit records.
-   * Repeated successful calls share one Promise/result. Close/dispose failures propagate directly without hits;
-   * subsequent cleanup steps are skipped on failure. If the native environment remains alive, cleanup can be retried.
-   * No detach or rollback.
-   * Data is buffered in memory until stop, with no sampling/truncation/summaries. Return the array from a probe
-   * module export to transport it to Host through normal RPC; no separate file mode or background persistence.
-   * Await stop in finally before unloading a script. Normal MCP disconnect stops active debuggers first;
-   * abrupt Host/network/process termination does not guarantee result delivery or cleanup.
-   */
-  type AndroidDebuggerStop = () => Promise<AndroidDebuggerHit[]>;
-
-  interface ProbeApi {
-    /** Install a persistent ART/JVMTI line breakpoint; return async stop and raw hit records.
-     * All data/control stages are optional, including a registration with only breakpoint or stack.
-     * Stages: condition → stack → observations → overrides → earlyReturn → resume.
-     * Callbacks run synchronously on the hit thread. No async/generators, Promise/iterator results,
-     * Host waits, main-thread dispatch-and-wait, or debugger registration/stop inside callbacks.
-     * Other App threads continue running. Recursive hits on the same thread are skipped.
-     * Java wrappers and array wrappers are temporary; their references are released after the hit.
-     * Use Java.retain for object wrappers or $clone(Java.vm.getEnv()) for primitive arrays.
-     * Retain object-array elements individually when needed; saving the JS array does not retain them.
-     * User JS/Java calls can have side effects; no stage or failure rolls them back.
-     * Returned data is copied: long/nonfinite/undefined use tags; Java wrappers (including boxed
-     * Strings and primitive arrays) use class summaries. Object arrays are snapshotted element-wise.
-     * Cycles and unsupported JS objects fail the observation. No automatic field expansion.
-     * Configuration must not change until stop completes. Blocking callbacks cannot be cancelled.
-     * @example
-     * const stop = await Probe.debugger({
-     *   breakpoint: { target: 'com.example.Counter', method: 'update', fileLine: 42 },
-     *   observations: { before: 'count', field: ({get}) => get('this').count.value },
-     *   overrides: { count: 10 },
-     *   earlyReturn: ({get}) => get('count'),
-     *   stack: 3,
-     * });
-     * try { await triggerBusinessOperation(); } finally { await stop(); }
-     * return await stop();
-     */
-    debugger(definition: AndroidDebuggerDefinition): Promise<AndroidDebuggerStop>;
-    readonly evidence: ProbeEvidenceApi;
-  }
-
   /** Dynamically resolved Android application resources, for example `R.id.submit_button`. */
   const R: AndroidR;
 
   /** Android UI helpers, waits, and controlled input extensions. */
-  const AndroidExp: Readonly<AndroidExpApi>;
+
 
   /** Action-scoped Java method return overrides. */
-  const Override: Readonly<AndroidOverrideApi>;
 
-  /** Android debugger observations and action-scoped chain, state, and UI evidence capture. */
-  const Probe: Readonly<ProbeApi>;
+
 
   const Test: Readonly<AndroidTestApi>;
 

@@ -1,24 +1,24 @@
-import { ui as inspectUi } from './inspect/ui/index.js';
 import Java from 'frida-java-bridge';
 import { installRuntimeRpc } from '../common/runtime.js';
 import { create as createTest } from '../common/test/index.js';
-import { runOnMainThread } from './common/index.js';
-import { AndroidExp } from './exp/index.js';
-import { findUiView } from './exp/ui.js';
-import { R } from './framework/index.js';
-import { Override } from './override/index.js';
-import { Probe } from './probe/index.js';
-import { stopDebuggers } from './probe/debugger/index.js';
-import { checkUiStateNow } from './exp/ui-state.js';
+import { drive } from './drive/index.js';
+import { override } from './overrides/index.js';
+import { inspect } from './inspect/index.js';
+import { runOnMainThread } from './common/main-thread.js';
+import { currentThreadName } from './common/thread.js';
+import { findUiView } from './element/query.js';
+import { resolveView } from './element/target.js';
+import { checkUiStateNow } from './element/state.js';
+import { R } from './element/resources.js';
+import { stopDebuggers } from './common/debugger/index.js';
 
-const Test = { create: () => createTest(findUiView, runOnMainThread, checkUiStateNow, inspectUi) };
+const element = Object.freeze({
+  findUiView: target => runOnMainThread(() => findUiView(target)),
+});
+const common = Object.freeze({ runOnMainThread, currentThreadName });
+const Test = { create: () => createTest(resolveView, runOnMainThread, checkUiStateNow, inspect.ui) };
 
-globalThis.Java = Java;
-globalThis.R = R;
-globalThis.AndroidExp = AndroidExp;
-globalThis.Override = Override;
-globalThis.Probe = Probe;
-globalThis.Test = Test;
+Object.assign(globalThis, { drive, override, inspect, element, common, Test, Java, R });
 globalThis.runtimeStatus = () => {
   const available = Java.available === true;
   let appId = null;
@@ -45,10 +45,4 @@ globalThis.runtimeStatus = () => {
 
 installRuntimeRpc({ dispose: stopDebuggers });
 
-export {
-  AndroidExp,
-  Override,
-  Probe,
-  R,
-  Test,
-};
+export { drive, override, inspect, element, common, Test, Java, R };

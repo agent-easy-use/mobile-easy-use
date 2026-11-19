@@ -7,7 +7,7 @@ export {};
 
 /**
  * Canonical API contract for generating iOS probe scripts. Load the built ios.js in Bootstrap,
- * then use ObjC, Swift, IOS, Override, Probe, and runtimeStatus as globals; do not import this file at runtime.
+ * then use ObjC, Swift, drive, override, inspect, element, common, Test, and runtimeStatus as globals; do not import this file at runtime.
  * Load only this platform declaration; Android and iOS globals belong to separate runtimes.
  * Probe modules should export functions and perform actions when called, not at module load.
  * Await asynchronous SDK calls and check result.ok before relying on an action or wait.
@@ -17,8 +17,79 @@ export {};
  * dispatch unless a method JSDoc states a caller-thread requirement.
  */
 declare global {
-  /** Independent sdk/ios/inspect/index.js module: import { inspect } from its source.
-   * All UI methods schedule native access on the main thread. Root exports are integrated separately.
+  /** Public runtime namespaces. Legacy implementation types below are not exported entry points. */
+  const drive: Readonly<IOSDriveApi>;
+  const override: Readonly<IOSOverrideRuntimeApi>;
+  const inspect: Readonly<IOSInspectApi>;
+  const element: Readonly<IOSElementApi>;
+  const common: Readonly<IOSCommonApi>;
+
+  interface IOSDriveApi {
+    click: IOSInputApi['click'];
+    longPress(target: Parameters<IOSInputApi['longPress']>[0]): Promise<IOSLongPressResult>;
+    input: IOSInputApi['input'];
+    scroll(target: Parameters<IOSInputApi['scroll']>[0], direction: Parameters<IOSInputApi['scroll']>[1]): Promise<IOSScrollResult>;
+    wait: IOSDriveWait;
+    waitUntil: IOSWaitApi['until'];
+  }
+  interface IOSElementApi {
+    /** Resolve on main; missing targets return null. Raw wrapper operations retain native thread requirements. */
+    findUiView(target: string | IOSUiPath): Promise<ObjCBridge.Object | null>;
+  }
+  interface IOSCommonApi {
+    runOnMainThread<T>(work: () => T | Promise<T>): Promise<T>;
+    /** Name of the calling thread; null if unnamed or unavailable. No thread dispatch. */
+    currentThreadName(): string | null;
+    /** Exact name first, then module-qualified suffix; null if absent, throws if ambiguous. Objective-C runtime classes only. */
+    findClass(className: string, selectors?: readonly string[]): ObjCBridge.Object | null;
+  }
+  interface IOSMethodDefinition { className: string; selector: `- ${string}` | `+ ${string}`; filter?: (...args: NativeCallbackArgumentValue[]) => boolean }
+  interface IOSOverrideRuntimeApi {
+    /** Synchronous callbacks. Arguments and return use NativeCallback ABI values, not high-level ObjC conversion. Remove nested replacements in reverse order. */
+    method(definition: IOSMethodDefinition, returnInstead: NativeCallbackReturnValue | ((...args: NativeCallbackArgumentValue[]) => NativeCallbackReturnValue)): () => void;
+    /** Write through Objective-C property accessors; remove restores the saved value. */
+    field(definition: { instance: ObjCBridge.Object; property: string }, value: any): () => void;
+    /** Async installation; invoke and await the returned closure to remove. */
+    code(definition: IOSCodeDefinition, overrides?: Record<string, string>, earlyReturn?: string): Promise<() => Promise<void>>;
+  }
+  type IOSInspectResult<T> = { ok: true; data: T[]; error: null } | { ok: false; data: T[]; error: string };
+  interface IOSWatcher<T> {
+    current(): Promise<IOSInspectResult<T>>;
+    stop(): Promise<IOSInspectResult<T>>;
+  }
+  interface IOSLogRecord { timestamp: string; threadId: number; threadName: string | null; tag: string; level: string; message: string }
+  interface IOSMethodEnter { receiver: ObjCBridge.Object; args: NativeCallbackArgumentValue[] }
+  interface IOSMethodLeave extends IOSMethodEnter { result: NativeCallbackReturnValue; exception: undefined }
+  interface IOSMethodOptions {
+    enter?: (context: IOSMethodEnter) => Record<string, any>;
+    leave?: (context: IOSMethodLeave) => Record<string, any>;
+    /** Maximum frame count; omitted or zero disables stack capture. */
+    stack?: number;
+  }
+  interface IOSMethodFrame { address: string; moduleName: string | null; name: string | null; fileName: string | null; lineNumber: number | null }
+  interface IOSMethodRecord {
+    callId: number; timestamp: string; threadId: number; threadName: string | null;
+    status: "running" | "returned"; durationMs: number | null;
+    enter?: Record<string, any>; leave?: Record<string, any>; stack?: IOSMethodFrame[];
+  }
+  type IOSCodeDefinition = ({ kind: 'source'; file: string; line: number } | { kind: 'address'; address: string }) & { condition?: string };
+  type IOSCodeCapture = Record<string, string>;
+  interface IOSCodeFrame { function: string | null; module: string | null; sourceFile: string | null; line: number | null }
+  interface IOSCodeOptions { capture?: IOSCodeCapture; stack?: number }
+  interface IOSCodeRecord {
+    hitId: string; timestamp: string; threadId: number; threadName: string | null;
+    capture?: Record<string, IOSJsonValue>; stack?: IOSCodeFrame[];
+  }
+  interface IOSInspectApi {
+    ui: IOSInspectUiApi;
+    /** Exact TAG subscriptions; current returns cumulative records, stop unregisters. */
+    log: { watch(tags: string[]): Promise<IOSWatcher<IOSLogRecord>> };
+    /** Fixed signatures only; arguments/results use NativeCallback ABI. Variadic methods and native exception unwinding are unsupported. */
+    method: { watch(definition: IOSMethodDefinition, options?: IOSMethodOptions): Promise<IOSWatcher<IOSMethodRecord>> };
+    code: { watch(definition: IOSCodeDefinition, options?: IOSCodeOptions): Promise<IOSWatcher<IOSCodeRecord>> };
+  }
+
+  /** UI inspection. All UI methods schedule native access on the main thread.
    */
   interface IOSInspectUiApi {
     /** Missing target returns false. Native objects refer to the supplied instance. */
@@ -312,7 +383,7 @@ declare global {
 
   type IOSWaitResult = IOSWaitSuccess | IOSWaitFailure;
 
-  /** Standalone drive module wait contract; not installed as a global API yet.
+  /** Drive UI wait contract.
    * Identifiers/paths are resolved each poll; native UIViews are checked directly on the main queue.
    * A valid native UIView satisfies exists even when detached. Coordinates are not accepted.
    */
@@ -447,251 +518,10 @@ declare global {
     ): TResult extends Promise<infer TResolved> ? Promise<TResolved> : TResult;
   }
 
-  interface IOSMethodHookInvocation {
-    receiver: ObjCBridge.Object;
-    className: string;
-    selector: `- ${string}` | `+ ${string}`;
-  }
-
-  type IOSChainMemoryMetric = 'physicalFootprintBytes';
-  /** Pointer/object/selector arguments remain NativePointer; convert known objects with ObjC.Object.
-   * Integer <=32-bit values are numbers, BOOL is boolean, 64-bit integers are decimal strings.
-   * Float/double/aggregate argument signatures are unsupported and report captureErrors.
-   */
-  interface IOSChainArgsInvocation extends IOSMethodHookInvocation {
-    /** Explicit method arguments only; excludes self and _cmd. */
-    readonly args: readonly (NativePointer | number | boolean | string)[];
-  }
-
-  interface IOSChainCapture {
-    /** Default off. true or {} captures the entry stack with at most 5 frames.
-     * maxFrames must be an integer from 1 to 16; actual stacks may be shorter.
-     * Emits capture.stack {kind: 'native', frames: [...]} on enter only.
-     * Native frames contain address, moduleName, name, fileName and lineNumber; symbols may be null.
-     * @example stack: true // or stack: {maxFrames: 3}
-     */
-    stack?: boolean | { maxFrames?: number };
-    /** Synchronous read-only entry extraction; returns data serialized as JSON. */
-    args?: (invocation: IOSChainArgsInvocation) => IOSJsonValue;
-    /** Synchronous, read-only JSON extraction on normal return only.
-     * Same scalar decoding as args; void is undefined (omit extraction or explicitly return JSON null).
-     * Float/double/aggregate returns are unsupported. Receiver/entry args are not retained.
-     */
-    result?: (invocation: { className: string; selector: `- ${string}` | `+ ${string}`;
-      result: NativePointer | number | boolean | string | undefined }) => IOSJsonValue;
-    /** Default off. Emits elapsedMs in fractional milliseconds, measured with a monotonic clock.
-     * Includes children/thread waits, excludes system sleep.
-     * Requires arm64/x64. Not CPU time or async completion time.
-     */
-    timing?: boolean;
-    /** Default off. Read process physical footprint in bytes before/after; requires arm64/x64.
-     * No polling/forced collection; process delta includes concurrent activity, not method allocations.
-     */
-    memory?: {
-      /** Non-empty selection; unsupported names are rejected before the action runs. */
-      metrics: readonly IOSChainMemoryMetric[];
-    };
-  }
-
-  interface IOSMethodHook {
-    /** Objective-C Runtime class name resolved through IOS.runtime.findClass, or a class wrapper.
-     * Matches that class and subclasses using this IMP;
-     * subclass overrides at other addresses require separate hooks. Events use the configured className.
-     */
-    target: string | ObjCBridge.Object;
-    /** Exact Objective-C instance or class selector, including its '- ' or '+ ' prefix. */
-    selector: `- ${string}` | `+ ${string}`;
-    /** Runs on the intercepted thread; only literal true keeps evidence. False/throw skips capture and preserves the call. Synchronous/read-only; args are available only to capture.args. */
-    filter?: (invocation: IOSMethodHookInvocation) => boolean;
-    /** Optional method data: args/stack on enter; result/timing/memory on leave. No generic Objective-C throw capture.
-     * Writes to Evidence; the action result is unchanged. Omit to record execution only.
-     * Invalid configuration rejects before the action. Collection failures preserve business behavior
-     * and emit captureErrors [{field,message}]; failed fields are omitted, failed memory readings/deltas are null.
-     * Memory output: memory[metric] {unit:'bytes',before,after,delta}.
-     * Nested probes add overhead to parent timings; keep capture selective.
-     * @example capture: { stack: true, timing: true }
-     */
-    capture?: IOSChainCapture;
-  }
-
-  /** Read-only getters keyed by state path; await each result and return plain JSON. */
-  type IOSStateGetters = Readonly<Record<string, () => IOSJsonValue | Promise<IOSJsonValue>>>;
-  /** Non-empty map with non-empty keys; identifiers/paths only, no UIView objects. */
-  type IOSUiTargets = Readonly<Record<string, string | IOSUiPath>>;
-
-  interface IOSProbeEvidenceApi {
-    /** Capture selected Objective-C methods and TAG-prefixed NSLog messages during action.
-     * Await action and remove hooks on completion or failure; return its result or propagate its error.
-     * Records are written to Evidence. Method/log events include threadName (null when unavailable).
-     * Supports multiple TAGs per call; at most one log-capture scope may be active (including nesting).
-     * Hooks observe matching process calls, including unrelated concurrent work; use filter.
-     * Requires Interceptor support; methods must be exposed to the Objective-C runtime (Swift needs
-     * ObjC-compatible dispatch). Setup errors roll back and reject before action.
-     * NSLog capture requires MobileEasyUse.dylib; os_log/Swift print are not captured.
-     * Callbacks execute on intercepted threads and must be synchronous. Empty hooks plus no TAG capture nothing.
-     * @param action Trigger the action and await its required completion before returning.
-     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
-     * execution, shared only by wrappers observing that same execution.
-     * @param logTag Non-empty exact TAG or set of non-empty TAGs; omit for method-only capture; matches `[TAG] ` or `[%@]` with TAG as the first NSString argument.
-     * @param methodHooks Methods to observe; omit for log-only capture.
-     * @example const result = await Probe.evidence.withChainEvidence(() => IOS.input.click('form.submit'), 'Submit form', 'Form');
-     */
-    withChainEvidence<TResult>(
-      action: () => TResult,
-      actionDescription: string,
-      logTag?: string | Set<string>,
-      methodHooks?: readonly IOSMethodHook[],
-    ): Promise<Awaited<TResult>>;
-
-    /** Await state getters sequentially before action and again in finally.
-     * Getter results are serialized as JSON; dispatch to the required thread
-     * inside the getter. Bound external waits; getters that never settle block the checkpoint.
-     * Evidence entries contain path and successful before/after values (including null).
-     * Getter failures omit the checkpoint value and set errors.before/after; action results/errors are preserved.
-     * Multiple getters are not an atomic snapshot; read related fields together in one getter.
-     * An empty map records nothing. Values go to Evidence, not the return value.
-     * @example let count = 0; await Probe.evidence.withStateEvidence(() => ++count, 'Increment', { count: () => count });
-     * @param action Trigger the action and await its required completion before returning.
-     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
-     * execution, shared only by wrappers observing that same execution.
-     */
-    withStateEvidence<TResult>(
-      action: () => TResult,
-      actionDescription: string,
-      stateGetters: IOSStateGetters,
-    ): Promise<Awaited<TResult>>;
-
-    /** Capture UIKit state plus App-window and visible element screenshots before and after action,
-     * including an after checkpoint on action failure. Non-empty key-to-identifier/path map required.
-     * Re-resolves paths on main; invalid targets reject before action. Per-target query errors are
-     * reported/skipped; screenshot failures yield null paths. UI and images are separate reads.
-     * Evidence includes className, exist, visible, screen-point bounds, accessibility properties,
-     * userInteractionEnabled when readable, and screenshots. Here visible tests only the View's own
-     * hidden/alpha/bounds and window attachment; wait.ui additionally checks ancestors.
-     * Returns awaited action result (not snapshots), propagates action error; finalizer errors are reported.
-     * @example await Probe.evidence.withUiEvidence(() => IOS.input.click('form.submit'), 'Submit', { submit: 'form.submit' });
-     * @param action Trigger the action and await its required completion before returning.
-     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
-     * execution, shared only by wrappers observing that same execution.
-     */
-    withUiEvidence<TResult>(
-      action: () => TResult,
-      actionDescription: string,
-      uiTargets: IOSUiTargets,
-    ): Promise<Awaited<TResult>>;
-  }
-
-  /** JSON snapshot primitives. Wide integers and non-finite floats use strings.
-   * Native strings preserve content. Complex values use LLDB summary/value text;
-   * no recursive field expansion or automatic business description call.
-   */
-  type IOSDebuggerValue = null | boolean | number | string;
-
-  interface IOSDebuggerDefinition {
-    breakpoint:
-      | { kind: 'source'; file: string; line: number; condition?: string }
-      | { kind: 'address'; address: string; condition?: string };
-    /** Maximum original hit-thread frames, 1..256. Omit to skip stack collection. */
-    stack?: number;
-    /** Key → complete native LLDB expression, evaluated once in the hit frame.
-     * May contain function definitions/calls in a native expression block and have
-     * side effects. No JS callbacks, bindings or ordering/dependency between entries.
-     * Void/no-result expressions produce null. Failure omits the key and adds an
-     * errors entry; other observations continue unless the hit context is unsafe.
-     */
-    observations?: Readonly<Record<string, string>>;
-    /** Native assignment target → native value expression, evaluated as target = (expression).
-     * Targets may be locals, properties or subscripts (e.g. 'self.price', 'items[0]').
-     * LLDB resolves scope, types and writability; setters/subscripts may run target code.
-     * Like LLDB, writing a compiler debug-only copy may not affect resumed code.
-     * Runs after observations, with native assignment semantics and no entry order
-     * guarantee. Completed writes are not rolled back; ordinary failures do not skip earlyReturn.
-     */
-    overrides?: Readonly<Record<string, string>>;
-    /** Native expression evaluated unchanged after overrides; passes its SBValue directly
-     * to LLDB ReturnFromFrame. The caller must produce a suitable native type, e.g.
-     * 'Int32(42)'; no return-type inference, cast insertion or type/frame whitelist.
-     * Swift Void uses '()', OC void uses '(void)0'. Skips remaining code including
-     * defer/destructors. Actual type/frame support depends on LLDB; failures add errors.
-     * Apple LLDB 1703 behavior needs separate validation; no register workaround.
-     * Success adds no output field.
-     */
-    earlyReturn?: string;
-  }
-
-  interface IOSDebuggerError {
-    stage: 'condition' | 'stack' | 'observations' | 'overrides' | 'earlyReturn' | 'framework';
-    name?: string;
-    message: string;
-  }
-
-  interface IOSDebuggerHit {
-    hitId: string;
-    /** Unix seconds. */
-    timestamp?: number;
-    thread?: { id: string; name: string | null };
-    observations?: Record<string, IOSDebuggerValue>;
-    stack?: Array<{ index: number; function: string | null; module: string | null;
-      address: string; file: string | null; line: number | null }>;
-    errors?: IOSDebuggerError[];
-  }
-
-  interface IOSDebuggerApi {
-    /** Host LLDB breakpoint; requires a debug-enabled App, Host Xcode and matching symbols.
-     * No debugger native bridge required. Source: existing absolute Host file, positive
-     * exact executable line resolvable by LLDB using loaded symbols/source mappings. Address: hex loaded address.
-     * Native condition belongs in breakpoint.condition; LLDB evaluates it before stopping.
-     * Stages: condition → stack → observations → overrides → earlyReturn → resume.
-     * At least one stage must be configured. Expressions use the frame's language,
-     * run with other threads stopped and have a 2-second evaluation timeout.
-     * Text snapshots are limited to 64 KiB; oversized/unreadable items add errors.
-     * Worker buffers records until stop(); no streaming or App publication.
-     * stop() removes the breakpoint without pausing and returns already-collected
-     * records; pending hits may be omitted. Concurrent/repeated calls share the result.
-     * Stop before detach; uncollected records are lost on detach
-     * or Worker failure. Ordinary unrelated stops resume automatically. Serious
-     * target exceptions/unsafe expression state end debugging and attempt detach;
-     * records (including detach failures) remain available to stop(). New adds fail.
-     * Overlapping mutating hits are rejected. Lifecycle API automation is undecided.
-     * @example
-     * await Probe.debugger.attach();
-     * const stop = await Probe.debugger({
-     *   breakpoint: { kind: 'source', file: '/project/Price.swift', line: 42, condition: 'price > 100' },
-     *   stack: 5,
-     *   observations: { before: 'price', computed: '{ let x = price * 2; return x }()' },
-     *   overrides: { price: 'price * 2' },
-     * });
-     * const records = await stop();
-     * await Probe.debugger.detach();
-     */
-    (definition: IOSDebuggerDefinition): Promise<() => Promise<IOSDebuggerHit[]>>;
-    /** Attaches using Process.id and the Host connection's resolved device type/UDID.
-     * LLDB automatically discovers local debug-map objects and dSYMs. Optional Host
-     * .meu/config.json ios.debugger.dsymPaths entries are each loaded once, in order;
-     * relative paths resolve from the config file's directory. No deduplication.
-     * Symbol loading failures are returned without failing attach or blocking later
-     * entries. No main-executable line tables are required; each source breakpoint
-     * must resolve to a loaded executable location when registered.
-     * Await before registration; after attach failure detach before retrying. */
-    attach(): Promise<{
-      symbolLoadErrors: Array<{ path: string; resolvedPath: string; message: string }>;
-    }>;
-    /** Removes all breakpoints and closes LLDB; does not collect records.
-     * Idempotent after success. Call each stop() first if records are needed. */
-    detach(): Promise<void>;
-  }
-
-  interface IOSProbeApi {
-    readonly debugger: IOSDebuggerApi;
-    readonly evidence: IOSProbeEvidenceApi;
-  }
-
   /** iOS main-queue work, UIKit queries/screenshots/waits, and XCTest-backed input. */
-  const IOS: Readonly<IOSApi>;
+
   /** Action-scoped Objective-C method return overrides. */
-  const Override: Readonly<IOSOverrideApi>;
-  /** Action-scoped chain, state, and UIKit evidence capture. */
-  const Probe: Readonly<IOSProbeApi>;
+
 
   const Test: Readonly<IOSTestApi>;
 
