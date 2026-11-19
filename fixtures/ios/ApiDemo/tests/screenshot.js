@@ -26,6 +26,6 @@ describe('screenshot', () => {
   test('FIRST matches the reviewed baseline', async () => {
     await expect('api.ui.class.first').toSatisfy(view => String(view.currentTitle()) === 'FIRST');
     expect((await inspectPageState()).counter).toBe(0);
-    await expect('api.ui.class.first').toHaveElementScreenShot(BASELINE, { maxDiffPixelRatio: 0 });
+    await expect('api.ui.class.first').toMatchElementScreenshot(BASELINE, { maxDiffPixelRatio: 0 });
   });
 });

@@ -44,13 +44,15 @@ declare global {
     layoutInWindow(target: AndroidInspectUiTarget): Promise<AndroidUIRelativeLayout>;
     layoutInScreen(target: AndroidInspectUiTarget): Promise<AndroidUIRelativeLayout>;
     /** Current App window image. Uses the platform window hierarchy renderer. */
-    screenshotWindow(): Promise<AndroidUIWindowScreenshot>;
+    screenshotWindow(): Promise<AndroidUIScreenshot>;
+    /** Element image using the existing native window-render-and-crop implementation; no highlight. */
+    screenshotElement(target: AndroidInspectUiTarget): Promise<AndroidUIScreenshot>;
     /** Required target; capture its owning window and draw an inward border on Host.
      * Rejects missing targets, missing windows and empty intersection. Preserves App hierarchy.
      */
     /** Dashed stroke: 2 dp using window density. */
-    /** highlightTraget defaults to true; false returns the target owning window original. */
-    screenshot(target: AndroidInspectUiTarget, highlightTraget?: boolean): Promise<AndroidUIWindowScreenshot>;
+    /** highlight defaults to true; false returns the target owning window original. */
+    screenshotElementInWindow(target: AndroidInspectUiTarget, highlight?: boolean): Promise<AndroidUIScreenshot>;
   }
   type AndroidInspectUiTarget = number | AndroidUiPath | Java.Wrapper;
   interface AndroidUITreeNode {
@@ -68,13 +70,13 @@ declare global {
     density: number;
   }
   interface AndroidUIRelativeLayout extends AndroidUILocalLayout { targetBounds: AndroidUIRect }
-  interface AndroidUIWindowScreenshot {
+  interface AndroidUIScreenshot {
     filePath: string;
     width: number;
     height: number;
     format: 'png' | 'jpeg';
     unit: 'px';
-    /** Captured window rectangle in screen coordinates. */
+    /** Captured window or element region in screen coordinates. */
     region: AndroidUIRect;
     /** Captured rectangle in window/root coordinates, used for image mapping. */
     sourceBounds: AndroidUIRect;
@@ -843,29 +845,29 @@ declare global {
      * Missing targets and non-boolean results are errors.
      */
     toSatisfy(predicate: (view: Java.Wrapper) => boolean | Promise<boolean>): Promise<void>;
-    /** Capture the current element through AndroidExp.screenshot, then compare on Host.
+    /** Capture the current element through inspect.ui.screenshotElement, then compare on Host.
      * Use expect(target); baselinePath points to an existing Host PNG/JPEG.
      * Relative paths resolve against the call_function entry module directory; Inline requires an absolute path.
      * Handles platform thread dispatch internally. No baseline updates or diff images.
      * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
      * On mismatch, AssertionError actual/expected contain the captured/baseline Host paths.
      * Capture, missing-image, file/decoding/transport errors propagate, including under .not.
-     * @example await Test.create().expect(123).toHaveElementScreenShot('/absolute/baseline.png');
+     * @example await Test.create().expect(123).toMatchElementScreenshot('/absolute/baseline.png');
      */
-    toHaveElementScreenShot(baselinePath: string, options?: {
+    toMatchElementScreenshot(baselinePath: string, options?: {
       /** Allowed differing pixel ratio in [0, 1], inclusive. Defaults to 0. */
       maxDiffPixelRatio?: number;
     }): Promise<void>;
-    /** Capture the current window through AndroidExp.screenshot, then compare on Host.
+    /** Capture the current window through inspect.ui.screenshotWindow, then compare on Host.
      * Use expect(); baselinePath points to an existing Host PNG/JPEG.
      * Relative paths resolve against the call_function entry module directory; Inline requires an absolute path.
      * Handles platform thread dispatch internally. No baseline updates or diff images.
      * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
      * On mismatch, AssertionError actual/expected contain the captured/baseline Host paths.
      * Capture, missing-image, file/decoding/transport errors propagate, including under .not.
-     * @example await Test.create().expect().toHaveWindowScreenShot('/absolute/baseline.png');
+     * @example await Test.create().expect().toMatchWindowScreenshot('/absolute/baseline.png');
      */
-    toHaveWindowScreenShot(baselinePath: string, options?: {
+    toMatchWindowScreenshot(baselinePath: string, options?: {
       /** Allowed differing pixel ratio in [0, 1], inclusive. Defaults to 0. */
       maxDiffPixelRatio?: number;
     }): Promise<void>;

@@ -50,7 +50,8 @@ for (const platform of ['android', 'ios']) {
       // Object-property fragments document hook capture options, not standalone statements.
       .filter(example => !/^(stack|capture):/.test(example));
     assert.ok(examples.length >= 14);
-    check(platform, `export {};\ndeclare const cacheReady: boolean;\n`
+    const prefix = platform === 'android' ? 'Android' : 'IOS';
+    check(platform, `export {};\ndeclare const cacheReady: boolean;\ndeclare const inspect: { ui: ${prefix}InspectUiApi };\ndeclare const target: ${prefix}InspectUiTarget;\n`
       + (platform === 'android' ? 'declare const view: Java.Wrapper | null;\n' : '')
       + examples.map((example, index) => `async function example${index}() { ${example} }`).join('\n'));
   });
@@ -150,3 +151,23 @@ test('iOS generation contract narrows actions and requires native override retur
     Probe.evidence.withStateEvidence(() => 1, 'Read', { value: async () => 1 });
   `);
 });
+
+for (const [platform, prefix] of [['android', 'Android'], ['ios', 'IOS']]) {
+  test(`${platform} inspect screenshot signatures distinguish element and window captures`, () => {
+    check(platform, `export {};
+      declare const ui: ${prefix}InspectUiApi;
+      declare const target: ${prefix}InspectUiTarget;
+      const element: ${prefix}UIScreenshot = await ui.screenshotElement(target);
+      const window: ${prefix}UIScreenshot = await ui.screenshotWindow();
+      const marked: ${prefix}UIScreenshot = await ui.screenshotElementInWindow(target, false);
+      // @ts-expect-error the ambiguous screenshot method was removed
+      ui.screenshot(target);
+      // @ts-expect-error an element target is required
+      ui.screenshotElement();
+      // @ts-expect-error window capture does not accept a target
+      ui.screenshotWindow(target);
+      // @ts-expect-error highlight must be boolean
+      ui.screenshotElementInWindow(target, 1);
+    `);
+  });
+}

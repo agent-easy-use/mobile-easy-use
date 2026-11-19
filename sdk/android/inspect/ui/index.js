@@ -3,7 +3,7 @@ import { checkUiStateNow } from '../../element/state.js';
 import { resolveView } from '../../element/target.js';
 import { tree } from './tree.js';
 import { layout, layoutInParent, layoutInWindow, layoutInScreen } from './layout.js';
-import { screenshot, screenshotWindow } from './screenshot.js';
+import { screenshotElement, screenshotElementInWindow, screenshotWindow } from './screenshot.js';
 
 const check = (target, state) => runOnMainThread(() => checkUiStateNow(resolveView(target), state));
 export const ui = Object.freeze({
@@ -12,5 +12,5 @@ export const ui = Object.freeze({
   isHidden: target => check(target, 'hidden'),
   isFocused: target => check(target, 'focused'),
   isEnabled: target => check(target, 'enabled'),
-  tree, layout, layoutInParent, layoutInWindow, layoutInScreen, screenshot, screenshotWindow,
+  tree, layout, layoutInParent, layoutInWindow, layoutInScreen, screenshotElement, screenshotElementInWindow, screenshotWindow,
 });

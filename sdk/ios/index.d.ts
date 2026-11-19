@@ -44,13 +44,15 @@ declare global {
     layoutInWindow(target: IOSInspectUiTarget): Promise<IOSUIRelativeLayout>;
     layoutInScreen(target: IOSInspectUiTarget): Promise<IOSUIRelativeLayout>;
     /** Current App window image. Uses the platform window hierarchy renderer. */
-    screenshotWindow(): Promise<IOSUIWindowScreenshot>;
+    screenshotWindow(): Promise<IOSUIScreenshot>;
+    /** Element image using the existing native window-render-and-crop implementation; no highlight. */
+    screenshotElement(target: IOSInspectUiTarget): Promise<IOSUIScreenshot>;
     /** Required target; capture its owning window and draw an inward border on Host.
      * Rejects missing targets, missing windows and empty intersection. Preserves App hierarchy.
      */
     /** Dashed stroke: 2 pt using window UIScreen.scale. */
-    /** highlightTraget defaults to true; false returns the target owning window original. */
-    screenshot(target: IOSInspectUiTarget, highlightTraget?: boolean): Promise<IOSUIWindowScreenshot>;
+    /** highlight defaults to true; false returns the target owning window original. */
+    screenshotElementInWindow(target: IOSInspectUiTarget, highlight?: boolean): Promise<IOSUIScreenshot>;
   }
   type IOSInspectUiTarget = string | IOSUiPath | ObjCBridge.Object;
   interface IOSUITreeNode {
@@ -68,13 +70,13 @@ declare global {
     scale: number;
   }
   interface IOSUIRelativeLayout extends IOSUILocalLayout { targetBounds: IOSUIRect }
-  interface IOSUIWindowScreenshot {
+  interface IOSUIScreenshot {
     filePath: string;
     width: number;
     height: number;
     format: 'png' | 'jpeg';
     unit: 'px';
-    /** Captured window rectangle in screen coordinates. */
+    /** Captured window or element region in screen coordinates. */
     region: IOSUIRect;
     /** Captured rectangle in window/root coordinates, used for image mapping. */
     sourceBounds: IOSUIRect;
@@ -747,29 +749,29 @@ declare global {
      * Missing targets and non-boolean results are errors.
      */
     toSatisfy(predicate: (view: ObjCBridge.Object) => boolean | Promise<boolean>): Promise<void>;
-    /** Capture the current element through IOS.screenshot, then compare on Host.
+    /** Capture the current element through inspect.ui.screenshotElement, then compare on Host.
      * Use expect(target); baselinePath points to an existing Host PNG/JPEG.
      * Relative paths resolve against the call_function entry module directory; Inline requires an absolute path.
      * Handles platform thread dispatch internally. No baseline updates or diff images.
      * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
      * On mismatch, AssertionError actual/expected contain the captured/baseline Host paths.
      * Capture, missing-image, file/decoding/transport errors propagate, including under .not.
-     * @example await Test.create().expect('button').toHaveElementScreenShot('/absolute/baseline.png');
+     * @example await Test.create().expect('button').toMatchElementScreenshot('/absolute/baseline.png');
      */
-    toHaveElementScreenShot(baselinePath: string, options?: {
+    toMatchElementScreenshot(baselinePath: string, options?: {
       /** Allowed differing pixel ratio in [0, 1], inclusive. Defaults to 0. */
       maxDiffPixelRatio?: number;
     }): Promise<void>;
-    /** Capture the current window through IOS.screenshot, then compare on Host.
+    /** Capture the current window through inspect.ui.screenshotWindow, then compare on Host.
      * Use expect(); baselinePath points to an existing Host PNG/JPEG.
      * Relative paths resolve against the call_function entry module directory; Inline requires an absolute path.
      * Handles platform thread dispatch internally. No baseline updates or diff images.
      * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
      * On mismatch, AssertionError actual/expected contain the captured/baseline Host paths.
      * Capture, missing-image, file/decoding/transport errors propagate, including under .not.
-     * @example await Test.create().expect().toHaveWindowScreenShot('/absolute/baseline.png');
+     * @example await Test.create().expect().toMatchWindowScreenshot('/absolute/baseline.png');
      */
-    toHaveWindowScreenShot(baselinePath: string, options?: {
+    toMatchWindowScreenshot(baselinePath: string, options?: {
       /** Allowed differing pixel ratio in [0, 1], inclusive. Defaults to 0. */
       maxDiffPixelRatio?: number;
     }): Promise<void>;

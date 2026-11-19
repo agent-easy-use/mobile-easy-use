@@ -37,8 +37,15 @@ function getCallback() {
           const ok = Java.cast(map.get('ok'), Java.use('java.lang.Boolean')).booleanValue();
           if (!ok) throw new Error(String(map.get('error')));
           const artifacts = Java.cast(map.get('artifacts'), Java.use('java.util.List'));
-          if (artifacts.size() !== 1) throw new Error('Expected one window screenshot');
+          if (artifacts.size() !== 1) throw new Error('Expected one screenshot; target may be hidden or outside the window');
           const artifact = Java.cast(artifacts.get(0), Java.use('java.util.Map'));
+          if (task.elementOnly) {
+            const bounds = Java.cast(artifact.get('bounds'), Java.use('java.util.Map'));
+            const crop = Object.fromEntries(['x', 'y', 'width', 'height'].map(key => [key, Number(String(bounds.get(key)))]));
+            const metadata = task.getMetadata();
+            metadata.region = { ...crop, x: metadata.region.x + crop.x, y: metadata.region.y + crop.y };
+            metadata.sourceBounds = crop;
+          }
           task.resolve(decodeBase64(Bridge.artifactDataBase64(artifact)));
         } catch (error) { task.reject(error); }
       },
@@ -47,15 +54,15 @@ function getCallback() {
   callback = Java.retain(Callback.$new());
   return callback;
 }
-async function capture(target, useTarget, highlightTraget = true) {
-  if (typeof highlightTraget !== 'boolean') throw new TypeError('highlightTraget must be a boolean');
+async function capture(target, useTarget, highlight = true, elementOnly = false) {
+  if (typeof highlight !== 'boolean') throw new TypeError('highlight must be a boolean');
   let metadata;
   const blob = await new Promise((resolve, reject) => {
     const id = String(++sequence);
     const timer = setTimeout(() => {
       if (pending.delete(id)) reject(new Error('Screenshot capture timed out'));
     }, 10000);
-    pending.set(id, { resolve, reject, timer });
+    pending.set(id, { resolve, reject, timer, elementOnly, getMetadata: () => metadata });
     runOnMainThread(() => {
       const view = useTarget ? resolveView(target) : null;
       if (useTarget && view === null) throw new Error('UI target was not found');
@@ -69,9 +76,11 @@ async function capture(target, useTarget, highlightTraget = true) {
       metadata = { capturedAt: new Date().toISOString(), captureMethod: 'view-draw',
         density: Number(root.getResources().getDisplayMetrics().density.value),
         region: { ...bounds, x: Number(location[0]), y: Number(location[1]) },
-        sourceBounds: bounds, targetBounds: highlightTraget ? geometry?.targetBounds ?? null : null };
+        sourceBounds: bounds, targetBounds: highlight ? geometry?.targetBounds ?? null : null };
+      const targets = Java.use('java.util.LinkedHashMap').$new();
+      if (elementOnly) targets.put('element', view);
       Java.use('com.agenteasyuse.mobileeasyuse.internal.MEUScreenshot').captureAsync(
-        id, root, Java.use('java.util.LinkedHashMap').$new(), true, 85, getCallback(),
+        id, root, targets, !elementOnly, 85, getCallback(),
       );
     }).catch(error => {
       if (!pending.delete(id)) return;
@@ -83,5 +92,8 @@ async function capture(target, useTarget, highlightTraget = true) {
   if (!response.ok) throw new Error(response.responsePayload?.error?.message ?? 'Screenshot processing failed');
   return response.responsePayload;
 }
-export const screenshot = (target, highlightTraget = true) => capture(target, true, highlightTraget);
+export const screenshotElementInWindow = (target, highlight = true) => capture(target, true, highlight);
 export const screenshotWindow = () => capture(undefined, false);
+
+// Reuse the native window-render-and-crop path; this is not standalone View rendering.
+export const screenshotElement = target => capture(target, true, false, true);

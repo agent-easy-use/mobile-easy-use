@@ -19,13 +19,13 @@ describe('window screenshot', () => {
 
   test('home window matches the reviewed baseline', async () => {
     await expect('api.menu.ui').toBeVisible();
-    await expect().toHaveWindowScreenShot(BASELINE, { maxDiffPixelRatio: 0 });
+    await expect().toMatchWindowScreenshot(BASELINE, { maxDiffPixelRatio: 0 });
   });
 
   test('opening UI changes the window appearance', async () => {
     const opened = await IOS.input.click('api.menu.ui');
     expect(opened.ok, `Open UI: ${JSON.stringify(opened)}`).toBe(true);
     expect((await IOS.wait.ui('api.ui.root', 'visible')).ok, 'UI ready').toBe(true);
-    await expect().not.toHaveWindowScreenShot(BASELINE, { maxDiffPixelRatio: 0 });
+    await expect().not.toMatchWindowScreenshot(BASELINE, { maxDiffPixelRatio: 0 });
   });
 });

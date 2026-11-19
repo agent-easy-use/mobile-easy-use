@@ -1,3 +1,4 @@
+import { ui as inspectUi } from './inspect/ui/index.js';
 import Java from 'frida-java-bridge';
 import { installRuntimeRpc } from '../common/runtime.js';
 import { create as createTest } from '../common/test/index.js';
@@ -10,7 +11,7 @@ import { Probe } from './probe/index.js';
 import { stopDebuggers } from './probe/debugger/index.js';
 import { checkUiStateNow } from './exp/ui-state.js';
 
-const Test = { create: () => createTest(findUiView, runOnMainThread, checkUiStateNow, options => AndroidExp.screenshot(options)) };
+const Test = { create: () => createTest(findUiView, runOnMainThread, checkUiStateNow, inspectUi) };
 
 globalThis.Java = Java;
 globalThis.R = R;

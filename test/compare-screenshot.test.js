@@ -85,7 +85,7 @@ test('screenshot comparison rejects invalid options, paths and corrupt files', a
   }
 });
 
-for (const matcher of ['toHaveElementScreenShot', 'toHaveWindowScreenShot']) {
+for (const matcher of ['toMatchElementScreenshot', 'toMatchWindowScreenshot']) {
   test(`${matcher} captures before comparing and preserves errors under not`, async context => {
     const { directory, write } = await images(context);
     const actual = await write('actual.png', 4, 4, [0, 0, 0, 255]);
@@ -113,12 +113,15 @@ for (const matcher of ['toHaveElementScreenShot', 'toHaveWindowScreenShot']) {
       });
     };
     const captures = [];
-    const target = matcher === 'toHaveElementScreenShot' ? 123 : undefined;
-    let captureResult = { ok: true, window: actual, targets: { element: actual } };
-    const expect = createExpect(undefined, undefined, undefined, async options => {
-      captures.push(options);
+    const target = matcher === 'toMatchElementScreenshot' ? 123 : undefined;
+    let captureResult = { filePath: actual };
+    const capture = async target => {
+      captures.push(target);
+      if (captureResult instanceof Error) throw captureResult;
       return captureResult;
-    });
+    };
+    const screenshots = { screenshotElement: capture, screenshotWindow: () => capture(undefined) };
+    const expect = createExpect(undefined, undefined, undefined, screenshots);
     await expect(target)[matcher](actual);
     await expect(target).not[matcher](baseline);
     await expect(target)[matcher](baseline, { maxDiffPixelRatio: 1 });
@@ -142,14 +145,10 @@ for (const matcher of ['toHaveElementScreenShot', 'toHaveWindowScreenShot']) {
     await assert.rejects(expect(target).not[matcher](join(directory, 'missing.png')), /ENOENT/);
     await assert.rejects(expect(target).not[matcher](actual, { maxDiffPixelRatio: 2 }), /\[0, 1\]/);
     assert.equal(captures.length, 8);
-    for (const options of captures) {
-      assert.deepEqual(options, matcher === 'toHaveElementScreenShot'
-        ? { includeWindow: false, targets: { element: target } }
-        : { includeWindow: true });
-    }
+    for (const capturedTarget of captures) assert.equal(capturedTarget, target);
     // Exercise the real runner report, including negation and dimension mismatches.
     const wrongSize = await write('wrong-size.png', 8, 4, [0, 0, 0, 255]);
-    const suite = create(undefined, undefined, undefined, async () => captureResult);
+    const suite = create(undefined, undefined, undefined, screenshots);
     suite.describe('visual', () => {
       suite.test('pixels differ', () => suite.expect(target)[matcher](baseline));
       suite.test('unexpected match', () => suite.expect(target).not[matcher](actual));
@@ -169,13 +168,13 @@ for (const matcher of ['toHaveElementScreenShot', 'toHaveWindowScreenShot']) {
       if (name === 'dimensions differ') assert.match(failure.message, /size .* differs/);
     }
     const requestCount = requests.length;
-    captureResult = { ok: false, error: { message: 'capture failed' } };
+    captureResult = new Error('capture failed');
     await assert.rejects(expect(target).not[matcher](actual), /capture failed/);
-    captureResult = { ok: true, targets: {} };
+    captureResult = {};
     await assert.rejects(expect(target).not[matcher](actual), /requested image/);
     assert.equal(requests.length, requestCount);
-    await assert.rejects(expect(matcher === 'toHaveElementScreenShot' ? undefined : 123)[matcher](actual), TypeError);
-    captureResult = { ok: true, window: actual, targets: { element: actual } };
+    await assert.rejects(expect(matcher === 'toMatchElementScreenshot' ? undefined : 123)[matcher](actual), TypeError);
+    captureResult = { filePath: actual };
     globalThis.send = event => receivers.get(`mobile-easy-use.controller.response.${event.payload.requestId}`)({
       payload: { ok: true, responsePayload: { matches: 'true' } },
     });

@@ -8,7 +8,7 @@ export { run };
 
 // Use the existing home-page control: no fixture overlay or changes to the UI.
 describe('inspect.ui existing page screenshot', () => {
-test('highlights the existing ApiDemo Input control in its original position', async () => {
+  test('highlights the existing ApiDemo Input control in its original position', async () => {
     const target = await runOnMainThread(() => {
       const root = findFocusedRootView();
       const context = root.getContext();
@@ -21,8 +21,8 @@ test('highlights the existing ApiDemo Input control in its original position', a
       expect(await ui.isVisible(target)).toBe(true);
       const before = await ui.layoutInWindow(target);
       const original = await ui.screenshotWindow();
-      const marked = await ui.screenshot(target);
-      const unmarked = await ui.screenshot(target, false);
+      const marked = await ui.screenshotElementInWindow(target);
+      const unmarked = await ui.screenshotElementInWindow(target, false);
       expect(unmarked.highlight).toBe(null);
       expect(unmarked.sourceBounds).toEqual(marked.sourceBounds);
       expect(unmarked.region).toEqual(marked.region);
@@ -42,7 +42,8 @@ test('highlights the existing ApiDemo Input control in its original position', a
       expect(comparison.ok).toBe(true);
       expect(comparison.responsePayload.diffPixelRatio).toBeGreaterThan(0);
       console.log(JSON.stringify({ original: original.filePath, highlighted: marked.filePath, targetBounds: before.targetBounds, highlight: marked.highlight }));
-    } finally { target.$dispose(); }
-});
-
+    } finally {
+      target.$dispose();
+    }
+  });
 });

@@ -122,11 +122,37 @@ describe('inspect.ui', () => {
     expect((await ui.layout(scene.button)).bounds.width).toBe(80 * scale);
   });
 
+  test('element screenshot returns a local image and supports visual assertions', async () => {
+    const element = await ui.screenshotElement(scene.button);
+    const window = await ui.screenshotElementInWindow(scene.button, false);
+    expect(element.highlight, 'Element image has no annotation').toBe(null);
+    expect(element.width, 'Element image has positive width').toBeGreaterThan(0);
+    expect(element.height, 'Element image has positive height').toBeGreaterThan(0);
+    expect(element.width < window.width, 'Element image is narrower than the window').toBe(true);
+    expect(element.height < window.height, 'Element image is shorter than the window').toBe(true);
+    expect(element.sourceBounds.width, 'Crop width matches native bounds').toBe(element.width);
+    expect(element.sourceBounds.height, 'Crop height matches native bounds').toBe(element.height);
+    await expect(scene.button).toMatchElementScreenshot(element.filePath, { maxDiffPixelRatio: 0 });
+    await expect(scene.button).not.toMatchElementScreenshot(window.filePath);
+    const currentWindow = await ui.screenshotWindow();
+    await expect().toMatchWindowScreenshot(currentWindow.filePath, { maxDiffPixelRatio: 0 });
+  });
+
+  test('element screenshot rejects missing and hidden targets', async () => {
+    let missing = false;
+    try { await ui.screenshotElement('inspect.ui.missing'); } catch (_) { missing = true; }
+    expect(missing, 'Missing element cannot be captured').toBe(true);
+    await runOnMainThread(() => scene.button.setHidden_(true));
+    let hidden = false;
+    try { await ui.screenshotElement(scene.button); } catch (_) { hidden = true; }
+    expect(hidden, 'Hidden element cannot be captured').toBe(true);
+  });
+
   test('screenshot saves window original and highlights a native tree target', async () => {
     const root = await ui.tree(scene.parent, 1);
     const before = await ui.layoutInWindow(scene.button);
     const original = await ui.screenshotWindow();
-    const marked = await ui.screenshot(root.children[0].target);
+    const marked = await ui.screenshotElementInWindow(root.children[0].target);
     expect(original.highlight).toBe(null);
     expect(marked.format).toBe('png');
     expect(marked.width).toBe(original.width);
@@ -151,7 +177,7 @@ describe('inspect.ui', () => {
         window.addSubview_(view);
         window.setHidden_(false);
       });
-      const image = await ui.screenshot(view);
+      const image = await ui.screenshotElementInWindow(view);
       const geometry = await ui.layoutInWindow(view);
       expect(image.width).toBe(200 * geometry.scale);
       expect(image.height).toBe(150 * geometry.scale);
@@ -166,10 +192,10 @@ describe('inspect.ui', () => {
       });
     }
     let rejected = false;
-    try { await ui.screenshot('inspect.ui.missing'); } catch (_) { rejected = true; }
+    try { await ui.screenshotElementInWindow('inspect.ui.missing'); } catch (_) { rejected = true; }
     expect(rejected).toBe(true);
     let invalid = false;
-    try { await ui.screenshot(); } catch (_) { invalid = true; }
+    try { await ui.screenshotElementInWindow(); } catch (_) { invalid = true; }
     expect(invalid).toBe(true);
   });
   test('depth zero returns only root and detached layouts reject', async () => {
@@ -181,7 +207,7 @@ describe('inspect.ui', () => {
       expect(rejected, `Invalid depth ${depth}`).toBe(true);
     }
     await runOnMainThread(() => scene.button.removeFromSuperview());
-    for (const name of ['layout', 'layoutInParent', 'layoutInWindow', 'layoutInScreen', 'screenshot']) {
+    for (const name of ['layout', 'layoutInParent', 'layoutInWindow', 'layoutInScreen', 'screenshotElementInWindow']) {
       let rejected = false;
       try { await ui[name](scene.button); } catch (_) { rejected = true; }
       expect(rejected, name).toBe(true);

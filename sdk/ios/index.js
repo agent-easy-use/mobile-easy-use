@@ -1,3 +1,4 @@
+import { ui as inspectUi } from './inspect/ui/index.js';
 import ObjC from 'frida-objc-bridge';
 import Swift from 'frida-swift-bridge';
 import { installRuntimeRpc } from '../common/runtime.js';
@@ -13,7 +14,7 @@ import { checkUiState, checkUiStateNow } from './ui/state.js';
 import { findUiView } from './ui/index.js';
 import { waitForUi, waitUntil } from './wait.js';
 
-const Test = { create: () => createTest(findUiView, runOnMainThread, checkUiStateNow, screenshot) };
+const Test = { create: () => createTest(findUiView, runOnMainThread, checkUiStateNow, inspectUi) };
 
 const IOS = Object.freeze({
   runOnMainThread,

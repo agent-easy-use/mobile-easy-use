@@ -21,13 +21,13 @@ describe('window screenshot', () => {
 
   test('home window matches the reviewed baseline', async () => {
     await expect(R.id.api_menu_ui).toBeVisible();
-    await expect().toHaveWindowScreenShot(BASELINE, { maxDiffPixelRatio: 0 });
+    await expect().toMatchWindowScreenshot(BASELINE, { maxDiffPixelRatio: 0 });
   });
 
   test('opening UI changes the window appearance', async () => {
     const opened = await AndroidExp.runOnMainThread(() => AndroidExp.input.click(R.id.api_menu_ui));
     expect(opened.ok, `Open UI: ${JSON.stringify(opened)}`).toBe(true);
     expect((await AndroidExp.wait.ui(R.id.api_ui_root, 'visible')).ok, 'UI ready').toBe(true);
-    await expect().not.toHaveWindowScreenShot(BASELINE, { maxDiffPixelRatio: 0 });
+    await expect().not.toMatchWindowScreenshot(BASELINE, { maxDiffPixelRatio: 0 });
   });
 });
