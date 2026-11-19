@@ -146,4 +146,4 @@ function findUiView(target) {
   return result;
 }
 
-export { findUiView };
+export { findUiView, findFocusedRootView };

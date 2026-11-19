@@ -18,6 +18,72 @@
 export {};
 
 declare global {
+  /** Independent sdk/android/inspect/index.js module: import { inspect } from its source.
+   * All UI methods schedule native access on the main thread. Root exports are integrated separately.
+   */
+  interface AndroidInspectUiApi {
+    /** Missing target returns false. Native objects refer to the supplied instance. */
+    isExisting(target: AndroidInspectUiTarget): Promise<boolean>;
+    /** Existing geometric visibility semantics; excludes occlusion. */
+    isVisible(target: AndroidInspectUiTarget): Promise<boolean>;
+    /** Existing but geometrically invisible; missing targets return false. */
+    isHidden(target: AndroidInspectUiTarget): Promise<boolean>;
+    /** Target's native input focus, not accessibility focus. */
+    isFocused(target: AndroidInspectUiTarget): Promise<boolean>;
+    /** Own isEnabled() flag. */
+    isEnabled(target: AndroidInspectUiTarget): Promise<boolean>;
+    /** Root is depth 0; default 3; integer 0..64. Empty children may mean depth limit.
+     * Node targets are Java.cast wrappers managed by bridge GC; optional $dispose() releases them early.
+     * @example const root = await inspect.ui.tree(target, 2);
+     */
+    tree(target: AndroidInspectUiTarget, depth?: number): Promise<AndroidUITreeNode>;
+    /** Local bounds in px. Local origin is (0,0). */
+    layout(target: AndroidInspectUiTarget): Promise<AndroidUILocalLayout>;
+    /** Reference bounds and transformed target AABB in the same coordinate space; no clipping. */
+    layoutInParent(target: AndroidInspectUiTarget): Promise<AndroidUIRelativeLayout>;
+    layoutInWindow(target: AndroidInspectUiTarget): Promise<AndroidUIRelativeLayout>;
+    layoutInScreen(target: AndroidInspectUiTarget): Promise<AndroidUIRelativeLayout>;
+    /** Current App window image. Uses the platform window hierarchy renderer. */
+    screenshotWindow(): Promise<AndroidUIWindowScreenshot>;
+    /** Required target; capture its owning window and draw an inward border on Host.
+     * Rejects missing targets, missing windows and empty intersection. Preserves App hierarchy.
+     */
+    /** Dashed stroke: 2 dp using window density. */
+    /** highlightTraget defaults to true; false returns the target owning window original. */
+    screenshot(target: AndroidInspectUiTarget, highlightTraget?: boolean): Promise<AndroidUIWindowScreenshot>;
+  }
+  type AndroidInspectUiTarget = number | AndroidUiPath | Java.Wrapper;
+  interface AndroidUITreeNode {
+    className: string;
+    target: Java.Wrapper;
+    /** Local bounds in px, captured during traversal. */
+    bounds: AndroidUIRect;
+    children: AndroidUITreeNode[];
+  }
+  interface AndroidUIRect { x: number; y: number; width: number; height: number }
+  interface AndroidUILocalLayout {
+    bounds: AndroidUIRect;
+    unit: 'px';
+    /** Target Resources DisplayMetrics.density; dp = px / density. */
+    density: number;
+  }
+  interface AndroidUIRelativeLayout extends AndroidUILocalLayout { targetBounds: AndroidUIRect }
+  interface AndroidUIWindowScreenshot {
+    filePath: string;
+    width: number;
+    height: number;
+    format: 'png' | 'jpeg';
+    unit: 'px';
+    /** Captured window rectangle in screen coordinates. */
+    region: AndroidUIRect;
+    /** Captured rectangle in window/root coordinates, used for image mapping. */
+    sourceBounds: AndroidUIRect;
+    /** Actual highlighted rectangle in output image pixels; null for window originals. */
+    highlight: AndroidUIRect | null;
+    capturedAt: string;
+    captureMethod: 'view-draw';
+  }
+
   interface AndroidRuntimeStatus {
     platform: 'android';
     /** Java availability only; does not guarantee UI, input, or bridge readiness. */
@@ -336,6 +402,16 @@ declare global {
   }
 
   type AndroidWaitResult = AndroidWaitSuccess | AndroidWaitFailure;
+
+  /** Standalone drive module wait contract; not installed as a global API yet.
+   * IDs/paths are resolved each poll; native Views are checked directly on the main thread.
+   * A valid native View satisfies exists even when detached. Coordinates are not accepted.
+   */
+  type AndroidDriveWait = (
+    target: number | AndroidUiPath | Java.Wrapper,
+    state: AndroidUiWaitState,
+    options?: AndroidWaitOptions,
+  ) => Promise<AndroidWaitResult>;
 
   interface AndroidWaitApi {
     /** Poll ui.checkUiState with wait.until. hidden requires an existing, invisible View.

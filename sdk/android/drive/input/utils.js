@@ -1,6 +1,6 @@
 import { errorMessage, safeEmit } from '../../common/index.js';
 import Java from 'frida-java-bridge';
-import { findUiView } from '../../element/query.js';
+import { resolveView } from '../../element/target.js';
 
 function inputFailureCode(error) {
   const message = errorMessage(error);
@@ -20,18 +20,7 @@ function inputFailureCode(error) {
 function resolveViewTarget(view) {
   let result;
   Java.performNow(() => {
-    let androidView;
-    try {
-      androidView = Java.cast(view, Java.use('android.view.View'));
-    } catch (_) {
-      throw new Error('INVALID_TARGET: expected an Android View');
-    }
-    if (!androidView
-      || typeof androidView.getLocationOnScreen !== 'function'
-      || typeof androidView.getWidth !== 'function'
-      || typeof androidView.getHeight !== 'function') {
-      throw new Error('INVALID_TARGET: expected an Android View');
-    }
+    const androidView = view;
     if (typeof androidView.isAttachedToWindow === 'function'
       && !Boolean(androidView.isAttachedToWindow())) {
       throw new Error('VIEW_NOT_VISIBLE: View is detached');
@@ -62,30 +51,9 @@ function resolveViewTarget(view) {
 }
 
 function resolveInputTarget(target) {
-  if (Array.isArray(target)) {
-    const view = findUiView(target);
-    if (!view) {
-      throw new Error(`VIEW_NOT_FOUND: ${target.join(' > ')}`);
-    }
-    return { ...resolveViewTarget(view), targetType: 'path' };
-  }
-  if (typeof target === 'number') {
-    if (!Number.isInteger(target) || target <= 0) {
-      throw new Error('INVALID_TARGET: resource ID must be a positive integer');
-    }
-    const view = findUiView(target);
-    if (!view) {
-      throw new Error(`VIEW_NOT_FOUND: ${target}`);
-    }
-    return { ...resolveViewTarget(view), targetType: 'id', resourceId: target };
-  }
   if (target !== null
     && typeof target === 'object'
-    && typeof target.getLocationOnScreen === 'function') {
-    return resolveViewTarget(target);
-  }
-  if (target !== null
-    && typeof target === 'object'
+    && !('$h' in target)
     && Number.isFinite(target.x)
     && Number.isFinite(target.y)) {
     if (target.x < 0 || target.y < 0) {
@@ -93,12 +61,17 @@ function resolveInputTarget(target) {
     }
     return { x: Number(target.x), y: Number(target.y), bounds: null, targetType: 'location' };
   }
-  if (target !== null
-    && typeof target === 'object'
-    && typeof target.getClass === 'function') {
-    return resolveViewTarget(target);
+  let view;
+  try {
+    view = resolveView(target);
+  } catch (error) {
+    throw new Error(`INVALID_TARGET: ${errorMessage(error)}`);
   }
-  throw new Error('INVALID_TARGET: expected R.id, Android View, or {x, y}');
+  if (view === null) throw new Error('VIEW_NOT_FOUND: UI target was not found');
+  const result = resolveViewTarget(view);
+  if (typeof target === 'number') return { ...result, targetType: 'id', resourceId: target };
+  if (Array.isArray(target)) return { ...result, targetType: 'path' };
+  return result;
 }
 
 function delay(durationMs) {

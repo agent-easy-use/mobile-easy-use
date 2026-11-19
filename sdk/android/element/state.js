@@ -1,12 +1,12 @@
 import Java from 'frida-java-bridge';
 import { runOnMainThread } from '../common/main-thread.js';
-import { findUiView } from './query.js';
+import { resolveView } from './target.js';
 
 export const UI_STATES = ['exists', 'visible', 'hidden', 'focused', 'enabled'];
 
 export async function checkUiState(target, state) {
   if (!UI_STATES.includes(state)) throw new TypeError(`Unknown UI state: ${state}`);
-  return runOnMainThread(() => checkUiStateNow(findUiView(target), state));
+  return runOnMainThread(() => checkUiStateNow(resolveView(target), state));
 }
 
 function isVisible(view) {
