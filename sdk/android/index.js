@@ -10,7 +10,6 @@ import { findUiView } from './element/query.js';
 import { resolveView } from './element/target.js';
 import { checkUiStateNow } from './element/state.js';
 import { R } from './element/resources.js';
-import { stopDebuggers } from './common/debugger/index.js';
 
 const element = Object.freeze({
   findUiView: target => runOnMainThread(() => findUiView(target)),
@@ -43,6 +42,6 @@ globalThis.runtimeStatus = () => {
   };
 };
 
-installRuntimeRpc({ dispose: stopDebuggers });
+installRuntimeRpc();
 
 export { drive, override, inspect, element, common, Test, Java, R };

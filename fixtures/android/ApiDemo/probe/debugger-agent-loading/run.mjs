@@ -45,13 +45,12 @@ try {
     const hits = await script.exports.stop();
     assert.equal(hits.length, 3);
     hits.forEach((hit, i) => {
-      assert.equal(hit.errors, undefined);
-      assert.equal(hit.observations.input, i + 1);
-      assert.equal(hit.observations.local, i + 11);
+      assert.equal(hit.capture.input, i + 1);
+      assert.equal(hit.capture.local, i + 11);
       assert.equal(hit.stack.length, 3);
     });
     evidence.rounds.push({ before, after, business, hits });
-    await script.exports.dispose(); await script.unload(); script = null;
+    await script.unload(); script = null;
     assert.equal(Number(adb('shell', 'pidof', pkg)), pid);
   }
   assert(!evidence.messages.some(m => m.type === 'error'));
@@ -59,6 +58,6 @@ try {
   console.log('PASS', mode, '2 script lifecycles, 6 breakpoint hits');
 } catch (e) { evidence.error = e.stack; throw e; }
 finally {
-  try { if (script) { await script.exports.dispose(); await script.unload(); } if (session) await session.detach(); }
+  try { if (script) { await script.unload(); } if (session) await session.detach(); }
   finally { adb('forward', '--remove', 'tcp:' + port); await writeFile(root + '/' + mode + '-result.json', JSON.stringify(evidence, null, 2)); }
 }

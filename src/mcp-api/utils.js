@@ -45,22 +45,10 @@ export function handleDetached(owner, connection, reason, crash) {
 }
 
 export async function closeConnection(owner, connection) {
-  // A stopped iOS process cannot serve Frida RPC. Close LLDB first, then dispose the SDK.
+  // A stopped iOS process cannot serve Frida RPC. Close LLDB before unloading the SDK.
   if (connection.platform === 'ios') {
     try { await closeIOSDebugger(connection); } catch (error) {
       process.stderr.write(`[mobile-easy-use] debugger cleanup failed: ${error.message}\n`);
-    }
-  }
-  // Dispose SDK state before unloading (including native callbacks on Android).
-  // Android must drain native callbacks before unloading. iOS cleanup is best effort.
-  if (
-    connection.sdkScript.isDestroyed !== true
-    && ['android', 'ios'].includes(connection.platform)
-    && typeof connection.sdkScript.exports.dispose === 'function'
-  ) {
-    try { await connection.sdkScript.exports.dispose(); } catch (error) {
-      if (connection.platform !== 'ios') throw error;
-      process.stderr.write(`[mobile-easy-use] SDK disposal failed: ${error.message}\n`);
     }
   }
   if (owner.currentConnection === connection) {

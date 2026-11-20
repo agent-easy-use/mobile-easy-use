@@ -1,7 +1,7 @@
 import Java from 'frida-java-bridge';
-import { debuggerProbe, stopDebuggers } from '../../../../../sdk/android/probe/debugger/index.js';
+import { code } from '../../../../../sdk/android/inspect/code.js';
 const target = 'com.agenteasyuse.mobileeasyuse.apidemo.state.JvmtiDebuggerFixture';
-let stop;
+let watcher;
 rpc.exports = {
   info() {
     let result;
@@ -14,13 +14,13 @@ rpc.exports = {
   },
   async configure(fileLine) {
     Java.performNow(() => { Java.use(target).result.value = ''; });
-    stop = await debuggerProbe({
-      breakpoint: { target, method: 'compute', fileLine },
-      observations: { input: 'input', local: 'local' },
-      stack: 3,
-    });
+    watcher = await code.watch({ className: target, method: 'compute', fileLine },
+      { capture: { input: 'input', local: 'local' }, stack: 3 });
   },
   poll() { let result; Java.performNow(() => { result = Java.use(target).result.value; }); return result; },
-  async stop() { return await stop(); },
-  async dispose() { await stopDebuggers(); },
+  async stop() {
+    const result = await watcher.stop();
+    if (!result.ok) throw new Error(result.error);
+    return result.data;
+  },
 };

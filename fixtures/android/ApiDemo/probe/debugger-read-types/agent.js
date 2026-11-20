@@ -1,20 +1,22 @@
 import Java from 'frida-java-bridge';
-import { debuggerProbe, stopDebuggers } from '../../../../../sdk/android/probe/debugger/index.js';
+import { code } from '../../../../../sdk/android/inspect/code.js';
+
+import { snapshot } from '../../../../../sdk/android/common/debugger/native.js';
 
 const target = 'com.agenteasyuse.mobileeasyuse.apidemo.state.DebuggerReadTypesFixture';
 const names = ['flag', 'tiny', 'letter', 'small', 'number', 'wide', 'single', 'fraction',
   'text', 'box', 'nil', 'boxed', 'flags', 'bytes', 'chars', 'shorts', 'ints', 'longs',
   'floats', 'doubles', 'texts', 'matrix', 'empty', 'nullArray'];
-let stop;
+let watcher;
 
 rpc.exports = {
   async configure(instance, fileLine) {
     Java.performNow(() => { Java.use(target).result.value = ''; });
-    const observations = {};
+    const capture = {};
     for (const kind of ['argument', 'local']) {
       const variable = name => kind === 'argument' ? name : 'local' + name[0].toUpperCase() + name.slice(1);
-      for (const name of names) observations[kind + '.' + name] = variable(name);
-      observations[kind + '.inspect'] = ({get}) => {
+      for (const name of names) capture[kind + '.' + name] = ({ get }) => snapshot(get(variable(name)));
+      capture[kind + '.inspect'] = ({get}) => {
           const values = Object.fromEntries(names.map(name => [name, get(variable(name))]));
           function contents(array) {
             return Array.from({length: array.length}, (_, i) => {
@@ -39,7 +41,7 @@ rpc.exports = {
           };
       };
     }
-    stop = await debuggerProbe({ breakpoint: { target, method: instance ? 'readInstance' : 'readStatic', fileLine }, observations });
+    watcher = await code.watch({ className: target, method: instance ? 'readInstance' : 'readStatic', fileLine }, { capture });
   },
   trigger(instance) {
     Java.performNow(() => { Java.use(target).start(instance); });
@@ -49,6 +51,10 @@ rpc.exports = {
     Java.performNow(() => { result = Java.use(target).result.value; });
     return result;
   },
-  async stop() { return stop ? await stop() : []; },
-  async dispose() { await stopDebuggers(); },
+  async stop() {
+    if (!watcher) return [];
+    const result = await watcher.stop();
+    if (!result.ok) throw new Error(result.error);
+    return result.data;
+  },
 };

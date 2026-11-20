@@ -61,8 +61,7 @@ try {
     evidence.cases.push({ method: instance ? 'readInstance' : 'readStatic', result, hits });
     assert.equal(hits.length, 5);
     for (const [i, hit] of hits.entries()) {
-      assert.equal(hit.errors, undefined);
-      assert.equal(Object.keys(hit.observations).length, 50);
+      assert.equal(Object.keys(hit.capture).length, 50);
       for (const kind of ['argument', 'local']) {
         const expected = {
           flag: i % 2 === 0, tiny: [-128, 127, -1, 0, 1][i],
@@ -77,14 +76,14 @@ try {
         expected.texts = ['你好', null, ''];
         expected.matrix = Array(3).fill({type: 'java-object', className: '[I'});
         for (const [name, value] of Object.entries(expected)) {
-          verify(`${instance}/${i}/${kind}/${name}`, hit.observations[kind + '.' + name], value);
+          verify(`${instance}/${i}/${kind}/${name}`, hit.capture[kind + '.' + name], value);
         }
         const expectedInspect = {
           arrays, text: '读值🙂', boxVersion: 'jvmti-frida', boxCall: 'jvmti-frida', boxed: -42,
           nil: null, nullArray: null, negativeZeroFloat: i === 1, negativeZeroDouble: i === 1,
         };
         for (const [name, value] of Object.entries(expectedInspect)) {
-          verify(`${instance}/${i}/${kind}/inspect/${name}`, hit.observations[kind + '.inspect'][name], value);
+          verify(`${instance}/${i}/${kind}/inspect/${name}`, hit.capture[kind + '.inspect'][name], value);
         }
       }
     }
@@ -98,10 +97,10 @@ try {
   throw error;
 } finally {
   try {
-    if (script) { await script.exports.dispose(); await script.unload(); }
+    if (script) { await script.unload(); }
     if (session) await session.detach();
     assert.equal(Number(adb('shell', 'pidof', pkg)), pid);
-    evidence.cleanup = { disposed: true, unloaded: true, detached: true, processAlive: true };
+    evidence.cleanup = { unloaded: true, detached: true, processAlive: true };
   } catch (error) {
     evidence.passed = false;
     evidence.cleanup = { error: String(error) };

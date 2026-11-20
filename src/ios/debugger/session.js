@@ -44,12 +44,17 @@ export class IOSDebuggerSession {
     return this.transport.request(action, payload);
   }
 
-  async close() {
-    if (this.closed) return;
-    // Close only after LLDB acknowledges detach.
-    await this.request('detach');
-    this.closed = true;
-    this.transport.end();
+  close() {
+    if (this.closed) return Promise.resolve();
+    // Explicit disconnect and destroyed/detached events may request cleanup concurrently.
+    if (!this.closing) this.closing = this.request('detach').then(() => {
+      this.closed = true;
+      this.transport.end();
+    }).catch(error => {
+      this.closing = undefined;
+      throw error;
+    });
+    return this.closing;
   }
 }
 

@@ -126,7 +126,7 @@ test('Host attach reuses the resolved connection device', async (t) => {
   }
 });
 
-test('disconnect logs iOS debugger/disposal failures and continues cleanup', async (t) => {
+test('disconnect logs iOS debugger failures and continues cleanup', async (t) => {
   const calls = [];
   const logs = [];
   t.mock.method(process.stderr, 'write', text => { logs.push(text); return true; });
@@ -134,10 +134,6 @@ test('disconnect logs iOS debugger/disposal failures and continues cleanup', asy
     platform: 'ios', address: 'local',
     iosDebugger: Promise.resolve({ close: async () => { throw new Error('detach failed'); } }),
     sdkScript: {
-      exports: { dispose: async () => {
-        calls.push('dispose');
-        throw new Error('SDK detach failed');
-      } },
       unload: async () => calls.push('unload'),
     },
     iosRunner: { close: async () => calls.push('runner.close') },
@@ -150,7 +146,36 @@ test('disconnect logs iOS debugger/disposal failures and continues cleanup', asy
   await closeConnection(owner, connection);
   assert.equal(owner.state, 'disconnected');
   assert.equal(owner.currentConnection, null);
-  assert.deepEqual(calls, ['dispose', 'runner.close', 'unload', 'frida.detach', 'removeRemoteDevice']);
+  assert.deepEqual(calls, ['runner.close', 'unload', 'frida.detach', 'removeRemoteDevice']);
   assert.match(logs.join(''), /debugger cleanup failed: detach failed/);
-  assert.match(logs.join(''), /SDK disposal failed: SDK detach failed/);
+});
+
+test('concurrent LLDB closes share detach and retry after failure', async () => {
+  let resolveDetach;
+  let requests = 0;
+  let ended = 0;
+  const session = Object.create(IOSDebuggerSession.prototype);
+  session.closed = false;
+  session.transport = { end() { ended++; } };
+  session.request = () => {
+    requests++;
+    return new Promise(resolve => { resolveDetach = resolve; });
+  };
+  const first = session.close();
+  assert.equal(session.close(), first);
+  assert.equal(session.closed, false);
+  resolveDetach();
+  await first;
+  await session.close();
+  assert.equal(requests, 1);
+  assert.equal(ended, 1);
+
+  session.closed = false;
+  session.closing = undefined;
+  session.request = async () => { throw new Error('detach failed'); };
+  await assert.rejects(session.close(), /detach failed/);
+  assert.equal(session.closed, false);
+  session.request = async () => {};
+  await session.close();
+  assert.equal(session.closed, true);
 });

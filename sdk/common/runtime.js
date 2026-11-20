@@ -1,9 +1,4 @@
-let disposeRuntime = async () => {};
-
 const sdkExports = Object.freeze({
-  async dispose() {
-    await disposeRuntime();
-  },
   async loadPresetBundle(modulePath, source) {
     await Script.load(modulePath, source);
   },
@@ -38,8 +33,7 @@ const sdkExports = Object.freeze({
   },
 });
 
-function installRuntimeRpc({ dispose = async () => {} } = {}) {
-  disposeRuntime = dispose;
+function installRuntimeRpc() {
   Object.defineProperty(rpc, 'exports', {
     value: sdkExports,
     writable: false,

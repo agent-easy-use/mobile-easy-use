@@ -3,7 +3,6 @@ import { requestController } from '../../common/controller.js';
 let state = 'detached';
 let generation = 0;
 let sequence = 0;
-let disposing = false;
 let attaching;
 
 function expression(value) {
@@ -48,7 +47,7 @@ export async function requestDebugger(action, payload) {
 
 // Session lifecycle is internal; public code APIs attach on demand.
 async function attachDebugger() {
-  if (disposing || state !== 'detached') throw new Error('Detach the current debugger session before attaching');
+  if (state !== 'detached') throw new Error('Detach the current debugger session before attaching');
   state = 'attaching';
   try {
     const result = await requestDebugger('attach', { pid: Process.id });
@@ -90,15 +89,8 @@ export async function installDebugger(definition) {
   };
 }
 
-export async function disposeDebugger() {
-  disposing = true;
-  if (attaching) await attaching.catch(() => {});
-  await detachDebugger();
-}
-
 // Code APIs share the same attachment and concurrent first callers.
 export async function ensureDebugger() {
-  if (disposing) throw new Error('Debugger runtime is shutting down');
   if (state === 'attached') return;
   if (!attaching) {
     attaching = (async () => {
@@ -107,5 +99,4 @@ export async function ensureDebugger() {
     })().finally(() => { attaching = undefined; });
   }
   await attaching;
-  if (disposing) throw new Error('Debugger runtime is shutting down');
 }

@@ -11,7 +11,6 @@ import { findUiView } from './element/query.js';
 import { resolveView } from './element/target.js';
 import { checkUiStateNow } from './element/state.js';
 import { findClass } from './common/class.js';
-import { disposeDebugger } from './common/debugger.js';
 
 const element = Object.freeze({
   findUiView: target => runOnMainThread(() => findUiView(target)),
@@ -46,6 +45,6 @@ globalThis.runtimeStatus = () => {
   };
 };
 
-installRuntimeRpc({ dispose: disposeDebugger });
+installRuntimeRpc();
 
 export { drive, override, inspect, element, common, Test, ObjC, Swift };

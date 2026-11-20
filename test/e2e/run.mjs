@@ -14,12 +14,14 @@ const { values } = parseArgs({ options: {
   platform: { type: 'string' }, device: { type: 'string' }, suite: { type: 'string', default: 'drive/click' },
   'reuse-app': { type: 'boolean', default: false }, timeout: { type: 'string', default: '60000' },
   'report-limit': { type: 'string', default: '10' },
+  describe: { type: 'string' }, test: { type: 'string' },
   help: { type: 'boolean' },
 } });
 if (values.help) {
-  console.log('npm run test:e2e -- --platform android|ios [--device ID] [--suite drive/click|all] [--reuse-app] [--timeout 60000] [--report-limit 10]');
+  console.log('npm run test:e2e -- --platform android|ios [--device ID] [--suite drive/click|all] [--reuse-app] [--timeout 60000] [--report-limit 10] [--describe NAME --test NAME]');
   process.exit(0);
 }
+if (values.test && !values.describe) throw new Error('--test requires --describe');
 if (!['android', 'ios'].includes(values.platform)) throw new Error('--platform android|ios is required');
 const timeout = Number(values.timeout);
 if (!Number.isFinite(timeout) || timeout <= 0) throw new Error('--timeout must be positive milliseconds');
@@ -63,7 +65,7 @@ try {
   const files = (await Promise.all((await readdir(testsRoot, { withFileTypes: true }))
     .filter(entry => entry.isDirectory() && entry.name !== 'helpers' && entry.name !== 'baselines')
     .map(entry => discover(resolve(testsRoot, entry.name))))).flat();
-  const selected = files.filter(file => values.suite === 'all' || relative(testsRoot, file) === `${values.suite.replace(/\.js$/, '')}.js`);
+  const selected = files.filter(file => values.suite === 'all' || (relative(testsRoot, file) === `${values.suite.replace(/\.js$/, '')}.js` || relative(testsRoot, file).startsWith(`${values.suite}/`)));
   if (!selected.length) throw new Error(`No tests matched --suite ${values.suite}`);
   report.suites = selected.map(file => ({ file: relative(root, file), status: 'notRun' }));
   report.deviceId = await ui.step('Prepare simulator', () => runtime.selectDevice(values.device, output));
@@ -88,7 +90,7 @@ try {
       await command('npm', ['exec', '--yes', '--package=esbuild-wasm@0.25.12', '--', 'esbuild', selected[i],
         '--bundle', '--format=esm', '--platform=neutral', '--target=es2020', '--external:/meu/presets.js',
         `--alias:frida-java-bridge=${workspace}/java.js`, `--alias:frida-objc-bridge=${workspace}/objc.js`,
-        `--outfile=${bundle}`, '--log-level=warning']);
+        `--define:__MEU_REPO_ROOT__=${JSON.stringify(root.replace(/\/$/, ''))}`, '--loader:.java=text', '--loader:.m=text', '--loader:.swift=text', `--outfile=${bundle}`, '--log-level=warning']);
     }
   });
   transport = await runtime.prepareConnection(report.deviceId);
@@ -101,8 +103,30 @@ try {
     ui.start(`Run ${relative(testsRoot, selected[i]).replace(/\.js$/, '')}`);
     const started = Date.now();
     try {
+      // Lifecycle fixtures deliberately leave a live override in the SDK, then verify
+      // native behavior after unloading that runtime and loading a fresh one.
+      if (selected[i].endsWith('.lifecycle.js')) {
+        const armed = await bounded(connection.callFunction({ filePath: resolve(workspace, `${i}.js`),
+          functionName: 'arm' }), timeout, `${suite.file}: arm`);
+        if (armed.result?.armed !== true) throw new Error('Lifecycle fixture did not verify its active override');
+        if (armed.result.cleanup === 'script-unload') {
+          const host = await connection.currentConnection.iosDebugger;
+          if (platform === 'ios' && !host) throw new Error('Lifecycle fixture has no attached LLDB session');
+          await bounded(connection.currentConnection.sdkScript.unload(), 15000, 'Lifecycle script unload');
+          if (host) await bounded((async () => {
+            while (!host.closed) await new Promise(resolve => setTimeout(resolve, 20));
+          })(), 15000, 'LLDB detach after script unload');
+        }
+        await bounded(connection.disconnect(), 15000, 'Lifecycle disconnect');
+        connection = new GadgetConnection(frida.getDeviceManager(), { evidenceDirectory: output });
+        await bounded(connection.connect({ platform, deviceId: report.deviceId, appId, runtimePort: 8484,
+          ip: '127.0.0.1', port: transport.port }), 240000, 'Lifecycle reconnect');
+        const identity = await bounded(connection.callFunction({ filePath: resolve(workspace, `${i}.js`),
+          functionName: 'pid' }), timeout, 'Lifecycle process identity');
+        if (identity.result !== armed.result.pid) throw new Error('App restarted; script-unload cleanup was not verified');
+      }
       const response = await bounded(connection.callFunction({ filePath: resolve(workspace, `${i}.js`),
-        functionName: 'run' }), timeout, suite.file);
+        functionName: 'run', args: values.describe ? [{ describe: values.describe, ...(values.test ? { test: values.test } : {}) }] : [] }), timeout, suite.file);
       suite.report = response.result;
       suite.evidence = response.evidence;
       if (!suite.report || !Array.isArray(suite.report.tests) || suite.report.total < 1) throw new Error('Invalid or empty Test report');
