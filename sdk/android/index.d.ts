@@ -55,10 +55,10 @@ declare global {
   }
   interface AndroidMethodDefinition { className: string; method: string; argumentTypes?: readonly string[]; filter?: (...args: any[]) => boolean }
   interface AndroidOverrideRuntimeApi {
-    /** Synchronous callbacks. Values use Java bridge conversions. */
-    method(definition: AndroidMethodDefinition, returnInstead: any | ((...args: any[]) => any)): () => void;
-    /** Write through Frida Java fields; remove restores the saved value. */
-    field(definition: { field: string } & ({ className: string; instance?: never } | { instance: Java.Wrapper; className?: never }), value: any): () => void;
+    /** Async installation and removal; filter and returnInstead callbacks remain synchronous. Values use Java bridge conversions. */
+    method(definition: AndroidMethodDefinition, returnInstead: any | ((...args: any[]) => any)): Promise<() => Promise<void>>;
+    /** Async installation and removal. Write through Frida Java fields; remove restores the saved value. */
+    field(definition: { field: string } & ({ className: string; instance?: never } | { instance: Java.Wrapper; className?: never }), value: any): Promise<() => Promise<void>>;
     /** Async installation; invoke and await the returned closure to remove. */
     code(definition: AndroidCodeDefinition, overrides?: Record<string, any>, earlyReturn?: any): Promise<() => Promise<void>>;
   }

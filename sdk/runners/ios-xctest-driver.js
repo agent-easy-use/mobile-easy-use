@@ -1,7 +1,7 @@
 // Frida driver loaded into the standalone XCTest Runner process.
 import ObjC from 'frida-objc-bridge';
 import { createEventBackend } from './ios-input/events.js';
-import { requirePoint } from '../ios/common/input-geometry.js';
+import { requirePoint } from '../ios/drive/input/input-geometry.js';
 
 const XCUI_APPLICATION_STATE_UNKNOWN = 0;
 const XCUI_APPLICATION_STATE_NOT_RUNNING = 1;

@@ -2,7 +2,7 @@
 
 [返回总览](README.md) · [Android](override-android.md) · [iOS](override-ios.md)
 
-本文描述 `sdk/android/overrides` 和 `sdk/ios/overrides` 的当前实现，供 review。双端根 `index.js`、`index.d.ts` 尚未接入，设备验证尚未完成。平台文档中的 API 签名为说明记法，不是完整声明文件。
+本文描述双端 `sdk/{platform}/override` 的公开 API。完整类型声明见对应平台 `index.d.ts`；平台文档中的 API 签名为说明记法。
 
 ## 1. 作用与 API
 
@@ -10,9 +10,9 @@
 
 | API | 作用 | 当前返回 |
 | --- | --- | --- |
-| `override.method(definition, returnInstead)` | 替换方法执行，匹配参数条件时直接返回指定值 | `Remove` |
-| `override.field(definition, value)` | 保存旧值并设置一次 | `Remove` |
-| `override.code(definition, overrides?, earlyReturn?)` | 在代码位置修改变量，可提前返回 | `Promise<AsyncRemove>` |
+| `override.method(definition, returnInstead)` | 替换方法执行，匹配参数条件时直接返回指定值 | `Promise<Remove>` |
+| `override.field(definition, value)` | 保存旧值并设置一次 | `Promise<Remove>` |
+| `override.code(definition, overrides?, earlyReturn?)` | 在代码位置修改变量，可提前返回 | `Promise<Remove>` |
 
 三个 API 都直接接收干预内容，不使用 options 包装。字段写入不锁定字段，App 仍然可以修改它。code 命中前的代码已经执行，与替换整个方法不同。
 
@@ -53,14 +53,13 @@ method 与 code 独立，不互相检查或占用资源；方法替换后若不�
 ## 3. 返回与移除
 
 ```typescript
-type Remove = () => void;
-type AsyncRemove = () => Promise<void>;
+type Remove = () => Promise<void>;
 ```
 
-method／field 同步返回同步清理闭包；code 异步返回异步清理闭包。清理成功时不返回数据，失败时同步抛出原错误或拒绝 Promise。没有句柄对象、资源 ID 或清理结果对象。
+method／field／code 统一异步返回异步清理闭包。安装和移除都必须 await；安装失败或清理失败时拒绝 Promise，清理成功时不返回数据。异步接口不代表切换线程，也不改变 method 的 filter／returnInstead 必须同步执行的约束。没有句柄对象、资源 ID 或清理结果对象。
 
 ```javascript
-const remove = override.method(definition, returnInstead);
+const remove = await override.method(definition, returnInstead);
 try {
   await exploreApp(); // 调用方提供的探查逻辑
 } finally {
@@ -79,7 +78,7 @@ try {
 
 ## 4. 错误与证据
 
-安装错误由 method／field 同步抛出，或由 code 返回的 Promise 拒绝。安装成功只表示覆盖已注册，不代表后续每次干预都会成功。
+三个 API 的安装错误统一通过返回的 Promise 拒绝传播。安装成功只表示覆盖已注册，不代表后续每次干预都会成功。
 
 | 事件 | 时机与内容 |
 | --- | --- |

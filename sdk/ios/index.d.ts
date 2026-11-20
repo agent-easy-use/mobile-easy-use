@@ -45,10 +45,10 @@ declare global {
   }
   interface IOSMethodDefinition { className: string; selector: `- ${string}` | `+ ${string}`; filter?: (...args: NativeCallbackArgumentValue[]) => boolean }
   interface IOSOverrideRuntimeApi {
-    /** Synchronous callbacks. Arguments and return use NativeCallback ABI values, not high-level ObjC conversion. Remove nested replacements in reverse order. */
-    method(definition: IOSMethodDefinition, returnInstead: NativeCallbackReturnValue | ((...args: NativeCallbackArgumentValue[]) => NativeCallbackReturnValue)): () => void;
-    /** Write through Objective-C property accessors; remove restores the saved value. */
-    field(definition: { instance: ObjCBridge.Object; property: string }, value: any): () => void;
+    /** Async installation and removal; filter and returnInstead callbacks remain synchronous. Arguments and return use NativeCallback ABI values, not high-level ObjC conversion. Remove nested replacements in reverse order. */
+    method(definition: IOSMethodDefinition, returnInstead: NativeCallbackReturnValue | ((...args: NativeCallbackArgumentValue[]) => NativeCallbackReturnValue)): Promise<() => Promise<void>>;
+    /** Async installation and removal. Write through Objective-C property accessors; remove restores the saved value. */
+    field(definition: { instance: ObjCBridge.Object; property: string }, value: any): Promise<() => Promise<void>>;
     /** Async installation; invoke and await the returned closure to remove. */
     code(definition: IOSCodeDefinition, overrides?: Record<string, string>, earlyReturn?: string): Promise<() => Promise<void>>;
   }

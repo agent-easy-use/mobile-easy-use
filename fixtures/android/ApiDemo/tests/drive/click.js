@@ -1,5 +1,4 @@
 import Java from 'frida-java-bridge';
-import { inspectPageState } from '/meu/presets.js';
 import { drive } from '../../../../../sdk/android/drive/index.js';
 import { runOnMainThread } from '../../../../../sdk/android/common/main-thread.js';
 import { findUiView } from '../../../../../sdk/android/element/query.js';
@@ -10,9 +9,7 @@ export { run };
 const PACKAGE = 'com.agenteasyuse.mobileeasyuse.apidemo';
 
 async function returnHome() {
-  if (!(await inspectPageState()).homeVisible) {
-    await runOnMainThread(() => Java.use(`${PACKAGE}.control.ApiDemoController`).returnToMain());
-  }
+  await runOnMainThread(() => Java.use(`${PACKAGE}.control.ApiDemoController`).returnToMain());
   const ready = await drive.wait(R.id.api_menu_input, 'visible');
   expect(ready.ok, 'Home is ready').toBe(true);
 }

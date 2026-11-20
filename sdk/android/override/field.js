@@ -2,7 +2,7 @@ import Java from 'frida-java-bridge';
 
 const fields = new Set();
 
-export function field(definition, value) {
+export async function field(definition, value) {
   if (arguments.length < 2 || typeof value === 'function') throw new TypeError('field requires a direct value');
   const { className, instance, field: name } = definition ?? {};
   const isStatic = className !== undefined;
@@ -42,7 +42,7 @@ export function field(definition, value) {
     }
     fields.add(entry);
     let removed = false;
-    remove = () => {
+    remove = async () => {
       if (removed) return;
       removed = true;
       Java.performNow(() => {

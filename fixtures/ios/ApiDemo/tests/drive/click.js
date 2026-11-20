@@ -1,5 +1,4 @@
 import ObjC from 'frida-objc-bridge';
-import { inspectPageState } from '/meu/presets.js';
 import { drive } from '../../../../../sdk/ios/drive/index.js';
 import { runOnMainThread } from '../../../../../sdk/ios/common/main-thread.js';
 import { findUiView } from '../../../../../sdk/ios/element/query.js';
@@ -10,9 +9,9 @@ export { run };
 const TOUCH_UP_INSIDE = 64; // UIControlEventTouchUpInside
 
 async function returnHome() {
-  if (!(await inspectPageState()).homeAttached) {
-    await runOnMainThread(() => ObjC.classes.APIController.returnToMain());
-  }
+  await runOnMainThread(() => {
+    if (!findUiView('api.menu.input')) ObjC.classes.APIController.returnToMain();
+  });
   const ready = await drive.wait('api.menu.input', 'visible');
   expect(ready.ok, 'Home is ready').toBe(true);
 }

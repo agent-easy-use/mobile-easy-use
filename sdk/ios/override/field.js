@@ -28,7 +28,7 @@ function accessors(instance, name) {
 
 const fields = new Set();
 
-export function field(definition, value) {
+export async function field(definition, value) {
   requireObjCRuntime();
   const { instance, property: name } = definition ?? {};
   if (arguments.length < 2 || instance?.$kind !== 'instance' || typeof name !== 'string' || !name
@@ -55,7 +55,7 @@ export function field(definition, value) {
     throw error;
   }
   let removed = false;
-  return () => {
+  return async () => {
     if (removed) return;
     removed = true;
     try { instance[setter](original); }

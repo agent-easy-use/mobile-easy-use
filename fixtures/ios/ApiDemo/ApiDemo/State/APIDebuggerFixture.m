@@ -31,6 +31,26 @@ __attribute__((noinline)) static void debuggerTouch(NSInteger *value) { asm vola
 - (void)performVoid {
     self.tail += 1; // BP_OC_VOID
 }
+- (int)returnInt {
+    self.tail += 1; // BP_RETURN_INT
+    return 7;
+}
+- (double)returnDouble {
+    self.tail += 1; // BP_RETURN_DOUBLE
+    return 7.0;
+}
+- (BOOL)returnBool {
+    self.tail += 1; // BP_RETURN_BOOL
+    return YES;
+}
+- (long long)returnWide {
+    self.tail += 1; // BP_RETURN_WIDE
+    return 7;
+}
+- (id)returnObject {
+    self.tail += 1; // BP_RETURN_OBJECT
+    return @"original";
+}
 - (void)start:(NSString *)operation count:(NSInteger)count {
     // Return to Frida before entering code that LLDB may stop.
     self.done = NO;
@@ -43,7 +63,19 @@ __attribute__((noinline)) static void debuggerTouch(NSInteger *value) { asm vola
         @try {
             APIDebuggerSwiftFixture *swift = [APIDebuggerSwiftFixture new];
             for (NSInteger i = 0; i < count; i++) {
-                if ([operation isEqualToString:@"swift"]) {
+                if ([operation isEqualToString:@"returnInt"]) {
+                    [self.values addObject:@([self returnInt])];
+                } else if ([operation isEqualToString:@"returnDouble"]) {
+                    [self.values addObject:@([self returnDouble])];
+                } else if ([operation isEqualToString:@"returnBool"]) {
+                    [self.values addObject:@([self returnBool])];
+                } else if ([operation isEqualToString:@"returnWide"]) {
+                    [self.values addObject:[NSString stringWithFormat:@"%lld", [self returnWide]]];
+                } else if ([operation isEqualToString:@"returnObject"]) {
+                    id returned = [self returnObject];
+                    [self.values addObject:returned == nil ? (id)[NSNull null] :
+                        ([returned isKindOfClass:[NSString class]] ? returned : NSStringFromClass([returned class]))];
+                } else if ([operation isEqualToString:@"swift"]) {
                     [self.values addObject:@([swift calculate:10])];
                 } else if ([operation isEqualToString:@"swiftVoid"]) {
                     [swift performVoid];

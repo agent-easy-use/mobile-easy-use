@@ -2,7 +2,7 @@ import Java from 'frida-java-bridge';
 import { prepareStaticHook } from '../common/static-hook.js';
 import { safeEmit, errorMessage } from '../common/reporting.js';
 
-export function method(definition, returnInstead) {
+export async function method(definition, returnInstead) {
   if (arguments.length < 2) throw new TypeError('returnInstead is required');
   const { className, filter } = definition ?? {};
   if (typeof className !== 'string' || !className.trim()) throw new TypeError('className must be a non-empty string');
@@ -37,7 +37,7 @@ export function method(definition, returnInstead) {
       throw error;
     }
     let removed = false;
-    remove = () => {
+    remove = async () => {
       if (removed) return;
       removed = true;
       Java.performNow(() => {

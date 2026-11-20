@@ -16,7 +16,7 @@ override.method(
   definition: MethodDefinition,
   returnInstead: NativeCallbackReturnValue | ObjC.Object |
     ((...args: NativeCallbackArgumentValue[]) => NativeCallbackReturnValue | ObjC.Object),
-): Remove;
+): Promise<Remove>;
 ```
 
 - className 指定类名；`+ selector` 定位类方法，`- selector` 定位实例方法。不做实例筛选，所有派发到所选方法实现的调用都会进入替换回调。
@@ -48,7 +48,7 @@ filter 自身的返回值仍是 JS boolean：只有 true 才应用覆盖。上�
 例如原方法为 `- (BOOL)checkName:(NSString *)name enabled:(BOOL)enabled`：
 
 ```javascript
-const removeCheck = override.method(
+const removeCheck = await override.method(
   { className: 'Validator', selector: '- checkName:enabled:' },
   (name, enabled) => {
     const text = name.isNull() ? null : new ObjC.Object(name).toString();
@@ -61,11 +61,11 @@ await removeCheck();
 NativeCallback 的返回值转换发生在 JS 回调返回之后；转换错误不由回调内部的 try/catch 捕获，也不保证回退原方法。对象／指针的有效期仍由其持有方式决定：当前 SDK 仅对固定的 ObjC.Object 返回值额外 retain，并在 remove 时 release；直接传 handle 或动态返回对象时，调用方须保证所需生命周期。
 
 ```javascript
-const removeEnabled = override.method(
+const removeEnabled = await override.method(
   { className: 'FeatureFlags', selector: '+ isEnabled' },
   1,
 );
-const removePrice = override.method(
+const removePrice = await override.method(
   {
     className: 'PriceCalculator',
     selector: '- calculate:discount:',
@@ -83,9 +83,9 @@ await removeEnabled();
 
 ```javascript
 const definition = { className: 'PriceCalculator', selector: '- calculate:' };
-const removeFirst = override.method(definition, 100);
+const removeFirst = await override.method(definition, 100);
 try {
-  const removeSecond = override.method(definition, 200);
+  const removeSecond = await override.method(definition, 200);
   try {
     await exploreApp(); // 当前返回 200
   } finally {
@@ -103,7 +103,7 @@ interface FieldDefinition {
   instance: ObjC.Object;
   property: string;
 }
-override.field(definition: FieldDefinition, value: any): Remove;
+override.field(definition: FieldDefinition, value: any): Promise<Remove>;
 ```
 
 instance 必须是 Objective-C 实例 wrapper；property 是 OC 属性名（例如 title），不是 ivar 名（例如 _title）。读取 runtime property 元数据，有自定义 getter／setter 时使用指定名称，否则使用默认 getter 和 setXxx:。支持 runtime 可查到的继承属性；拒绝不存在的属性、readonly 属性和缺少访问方法的属性。不提供 className 分支，不支持仅有 ivar 而没有属性元数据的字段、类属性或未暴露到 OC runtime 的纯 Swift 属性。
@@ -111,17 +111,17 @@ instance 必须是 Objective-C 实例 wrapper；property 是 OC 属性名（例�
 安装调用 getter 保存旧值，再调用 setter 写入 value；remove 将保存的 getter 返回值传给 setter。调用 Frida 的 OC 方法 wrapper，参数和返回值经过 bridge 高层转换，因此 BOOL 可传 true／false，对象参数可按 bridge 规则传入 JS 字符串、数字、ObjC.Object 或 null，不额外维护值类型白名单。value 是直接值，不解释为回调。与 method 的 NativeCallback 转换边界不同。
 
 ```javascript
-const remove = override.field(
+const remove = await override.field(
   { instance: configObject, property: 'enableSearch' },
   true,
 );
-remove();
+await remove();
 
-const restoreTitle = override.field(
+const restoreTitle = await override.field(
   { instance: page, property: 'title' },
   '临时标题',
 );
-restoreTitle();
+await restoreTitle();
 ```
 
 引用管理与清理：
@@ -144,7 +144,7 @@ override.code(
   definition: CodeDefinition,
   overrides?: Record<string, string>,
   earlyReturn?: string,
-): Promise<AsyncRemove>;
+): Promise<Remove>;
 ```
 
 ### 定位与条件

@@ -3,7 +3,7 @@ import { findClass } from '../common/class.js';
 import { requireObjCRuntime } from '../common/main-thread.js';
 import { safeEmit, errorMessage } from '../common/reporting.js';
 
-export function method(definition, returnInstead) {
+export async function method(definition, returnInstead) {
   requireObjCRuntime();
   if (arguments.length < 2) throw new TypeError('returnInstead is required');
   const { className, selector, filter } = definition ?? {};
@@ -37,7 +37,7 @@ export function method(definition, returnInstead) {
     throw error;
   }
   let removed = false;
-  return () => {
+  return async () => {
     if (removed) return;
     removed = true;
     selected.implementation = original;

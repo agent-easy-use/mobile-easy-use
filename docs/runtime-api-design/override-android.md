@@ -13,7 +13,7 @@ interface MethodDefinition {
   argumentTypes?: readonly string[];
   filter?: (...args: any[]) => boolean;
 }
-override.method(definition: MethodDefinition, returnInstead: any): Remove;
+override.method(definition: MethodDefinition, returnInstead: any): Promise<Remove>;
 ```
 
 - className 指定类名。静态与实例方法采用同样的定位形式，不做接收者身份筛选；实例方法覆盖作用于所有派发到该方法实现的调用。
@@ -43,13 +43,13 @@ Android 使用 Frida Java bridge 的 `.implementation`：参数先经过 `fromJn
 
 ```javascript
 // 静态方法
-const removeEnabled = override.method(
+const removeEnabled = await override.method(
   { className: 'com.example.FeatureConfig', method: 'isEnabled', argumentTypes: [] },
   true,
 );
 
 // 通过类名定位实例方法
-const removePrice = override.method(
+const removePrice = await override.method(
   {
     className: 'com.example.PriceCalculator',
     method: 'calculate',
@@ -70,7 +70,7 @@ await removeEnabled();
 type FieldDefinition =
   | { className: string; instance?: never; field: string }
   | { instance: Java.Wrapper; className?: never; field: string };
-override.field(definition: FieldDefinition, value: any): Remove;
+override.field(definition: FieldDefinition, value: any): Promise<Remove>;
 ```
 
 className 与 instance 必须且只能提供一个。className 指定静态字段所属类；instance 指定实例字段所属对象，必须为 Java 实例 wrapper，不能为类 wrapper。实例已包含类型信息，无需同时传入类名。目标字段的静态／实例类别必须与所选分支一致；不提供 filter。
@@ -78,11 +78,11 @@ className 与 instance 必须且只能提供一个。className 指定静态字�
 value 是实际写入值，按 Frida Java 字段类型转换，不把函数隐式解释为计算回调；需要计算时由调用方先计算。
 
 ```javascript
-const removeStaticFlag = override.field(
+const removeStaticFlag = await override.field(
   { className: 'com.example.FeatureConfig', field: 'enabled' },
   true,
 );
-const removeInstanceFlag = override.field(
+const removeInstanceFlag = await override.field(
   { instance: configObject, field: 'enableSearch' },
   true,
 );
@@ -109,7 +109,7 @@ override.code(
   definition: CodeDefinition,
   overrides?: Record<string, any>,
   earlyReturn?: any,
-): Promise<AsyncRemove>;
+): Promise<Remove>;
 ```
 
 签名中的 any 表示实际值取决于目标 Java 类型，并非任意值都合法。overrides／earlyReturn 的函数形式为 `(context: CodeContext) => value`，必须同步执行。
