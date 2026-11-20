@@ -16,6 +16,7 @@ from transport import Transport
 
 
 MAX_RECORDS = 10000
+CALLBACK_NAME = "meu_code"
 
 # Each worker owns exactly one session. LLDB resolves callbacks by module name.
 active_session = None
@@ -158,6 +159,14 @@ class Session:
         # removed breakpoints alive until after LLDB finishes updating its list.
         self.listener.StartListeningForEvents(self.target.GetBroadcaster(), lldb.SBTarget.eBroadcastBitBreakpointChanged)
         self.sources = Sources(self.debugger, payload.get("symbols", []))
+        # Compiling a Python callback initializes lldb.frame. Do it once while
+        # attach has the App stopped; compiling after auto-continue can cache a
+        # stale running-thread frame. Named options let later breakpoints reuse
+        # the callback without entering the Python compiler again.
+        callback = lldb.SBBreakpointName(self.target, CALLBACK_NAME)
+        error = callback.SetScriptCallbackFunction(__name__ + ".on_breakpoint", lldb.SBStructuredData())
+        if error.Fail():
+            raise RuntimeError(error.GetCString())
         self.resume()
         return {"symbolLoadErrors": self.sources.symbol_load_errors}
 
@@ -209,7 +218,8 @@ class Session:
                             "records": []}
             self.registrations[id_] = registration
             self.by_breakpoint[bp.GetID()] = registration
-            bp.SetScriptCallbackFunction(__name__ + ".on_breakpoint")
+            if not bp.AddName(CALLBACK_NAME):
+                raise RuntimeError("Could not apply debugger callback")
             return {"locations": bp.GetNumResolvedLocations()}
         except Exception:
             if bp and bp.IsValid():
