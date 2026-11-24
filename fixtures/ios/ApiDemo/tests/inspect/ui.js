@@ -214,4 +214,21 @@ describe('inspect.ui', () => {
     }
   });
 
+  test('visibility accounts for ancestor clipping, transparency and detachment', async () => {
+    expect(await ui.isVisible(scene.button)).toBe(true);
+    await runOnMainThread(() => scene.parent.setAlpha_(0));
+    expect(await ui.isVisible(scene.button)).toBe(false);
+    await runOnMainThread(() => {
+      scene.parent.setAlpha_(1);
+      scene.parent.setClipsToBounds_(true);
+      scene.parent.setBounds_([[0, 0], [0, 0]]);
+    });
+    expect(await ui.isVisible(scene.button)).toBe(false);
+    await runOnMainThread(() => scene.parent.setBounds_([[0, 0], [240, 160]]));
+    expect(await ui.isVisible(scene.button)).toBe(true);
+    await runOnMainThread(() => scene.button.removeFromSuperview());
+    expect(await ui.isVisible(scene.button)).toBe(false);
+    expect(await ui.isExisting(scene.button)).toBe(true);
+  });
+
 });

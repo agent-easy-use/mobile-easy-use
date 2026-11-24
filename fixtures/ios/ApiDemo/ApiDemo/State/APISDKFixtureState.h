@@ -20,6 +20,8 @@
 - (NSString *)single:(NSString *)value;
 - (NSInteger)originalCallCount:(NSString *)methodKey;
 - (NSDictionary<NSString *, NSNumber *> *)originalCallCounts;
+- (BOOL)beginBackgroundWork;
+- (void)endBackgroundWork;
 - (void)emitPrimaryLog;
 - (void)emitSecondaryLog;
 - (void)emitDynamicTagLog;
@@ -36,6 +38,7 @@
 - (NSString *)plain:(NSString *)key;
 - (int)recursive:(int)depth;
 - (void)startWorkers;
+- (void)startLogWorkers:(int)count;
 - (NSInteger)workersDone;
 - (NSInteger)workersPeak;
 - (NSString *)workerResults;
@@ -62,6 +65,8 @@
 @interface APIOverrideFieldsFixture : APIOverrideFieldsBase
 @property(nonatomic) BOOL enabled;
 @property(nonatomic) NSInteger mode;
+@property(nonatomic, getter=readCustomMode, setter=writeCustomMode:) NSInteger customMode;
+@property(nonatomic, readonly) NSInteger readonlyMode;
 @property(nonatomic) int64_t wide;
 @property(nonatomic) double ratio;
 @property(nonatomic) signed char byteMode;

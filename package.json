@@ -28,7 +28,10 @@
     "prestart": "npm run build",
     "start": "node src/index.js",
     "pretest": "npm run build",
-    "test": "node --experimental-vm-modules --test test/*.test.js"
+    "test": "node --experimental-vm-modules --test test/framework/*.test.js test/mcp/*.test.js test/integration/*.test.js test/e2e/*.test.js",
+    "test:framework": "node --test test/framework/*.test.js",
+    "test:e2e": "node test/e2e/run.mjs",
+    "test:integration": "node --experimental-vm-modules --test test/integration/*.test.js"
   },
   "dependencies": {
     "@types/frida-gum": "18.7.2",

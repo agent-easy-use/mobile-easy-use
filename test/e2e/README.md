@@ -81,7 +81,7 @@ npm run test:e2e -- --platform android --reuse-app
 
 ## 测试发现与结果
 
-- 发现 `fixtures/{platform}/ApiDemo/tests/` 的能力子目录内 `.js` 文件，递归发现时排除 `helpers/`；旧的根目录平铺脚本不在本入口执行范围内。
+- 发现 `fixtures/{platform}/ApiDemo/tests/` 的能力子目录内 `.js` 文件，递归发现时排除 `helpers/`；根目录不放测试脚本，固定截图基准保存在 `baselines/`。
 - 每个文件导出 `run()`，返回现有 Test 报告。加载阶段不得操作 App。
 - 顺序执行，首个失败后停止，后续文件保留 `notRun`，避免在未知状态中继续操作。
 - `--timeout 60000` 设置单个文件 run 的 Host 超时；连接和清理有独立超时。
@@ -108,3 +108,26 @@ npm run test:e2e -- --platform android --reuse-app
 ```bash
 npm run test:e2e -- --platform ios --suite drive/click --report-limit 20
 ```
+
+## inspect.ui
+
+```bash
+npm run test:e2e -- --platform android --suite inspect/ui
+npm run test:e2e -- --platform ios --suite inspect/ui
+```
+
+用例在 ApiDemo 中创建真实原生视图及独立窗口，验证状态谓词、树节点引用与深度、四种布局坐标、变换及截图高亮；每个用例结束后移除场景。无需修改 ApiDemo 页面。iOS 需先运行 `bash integration/ios/Scripts/build-mobile-easy-use.sh` 并重新构建 ProbeDebug 模拟器 App，以包含指定窗口截图桥接。
+
+页面高亮效果可单独运行 `--suite inspect/ui-screenshot`（双端均支持）。该用例以 ApiDemo 首页已有的 Input 卡片 / INPUT capability 按钮为目标，不添加临时视图；保存完整窗口原图和原位置高亮图，并验证目标几何未改变。使用 `--reuse-app` 时需先回到首页。
+
+## Debugger E2E
+
+双端内部 debugger 用例位于 `ApiDemo/tests/common/debugger/`，公开 API 用例位于 `tests/inspect/code.js` 与 `tests/override/code.js`。不需要 UI 导航，原生工作线程/队列触发真实断点。
+
+```bash
+npm run test:e2e -- --platform android --suite common/debugger --timeout 180000
+npm run test:e2e -- --platform ios --suite common/debugger --timeout 240000
+npm run test:e2e -- --platform ios --suite common/debugger/index --describe 'LLDB debugger' --test 'swift reads locals, expressions and bounded source frames'
+```
+
+`--suite` 支持文件和目录；`--test` 需与 `--describe` 同时提供。`.lifecycle.js` 用例由 Host 在 arm 与最终 Test.run 之间执行断连/卸载和重连，并验证 PID 没有变化。普通用例仍只调用 run。详见 [迁移清单及原生产物准备](../../docs/testing/debugger-e2e-migration.md)。

@@ -61,7 +61,7 @@ async function discover(directory) {
   return result.sort();
 }
 try {
-  // Only capability subdirectories belong to the new E2E suite; old flat scripts remain untouched.
+  // Discover capability directories; helpers and fixed image baselines are not suites.
   const files = (await Promise.all((await readdir(testsRoot, { withFileTypes: true }))
     .filter(entry => entry.isDirectory() && entry.name !== 'helpers' && entry.name !== 'baselines')
     .map(entry => discover(resolve(testsRoot, entry.name))))).flat();
@@ -118,6 +118,7 @@ try {
           })(), 15000, 'LLDB detach after script unload');
         }
         await bounded(connection.disconnect(), 15000, 'Lifecycle disconnect');
+        if (platform === 'ios') await runtime.activateApp(report.deviceId);
         connection = new GadgetConnection(frida.getDeviceManager(), { evidenceDirectory: output });
         await bounded(connection.connect({ platform, deviceId: report.deviceId, appId, runtimePort: 8484,
           ip: '127.0.0.1', port: transport.port }), 240000, 'Lifecycle reconnect');

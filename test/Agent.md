@@ -21,13 +21,15 @@
 ```text
 fixtures/android/ApiDemo/tests/   Android App 内的 SDK 测试脚本
 fixtures/ios/ApiDemo/tests/       iOS App 内的 SDK 测试脚本
+test/integration/                产物分发、打包、签名与接入脚本测试
+test/mcp/                        src/ 下 MCP/Host 能力的无设备测试
+test/framework/                  test/expect 框架单元测试（mock 外部依赖，无设备）
 test/e2e/                        Host E2E 入口和必要的执行编排（按需建设）
-test/*.test.js                   现有测试，逐步评估，不要求整体迁移
 ```
 
 - 双端测试脚本分开，靠近各自依赖的原生场景，核心场景名称和验收标准对齐。
-- `ApiDemo/tests/` 必须按能力划分子目录，子目录名与对应平台 `sdk/{platform}/` 的实际子目录名保持一致，不使用 API 别名替代。例如当前覆盖能力的目录名是 `overrides`，不是 `override`。
-- 测试文件放入对应子目录，例如 `tests/drive/input.js`、`tests/inspect/code.js`、`tests/overrides/method.js`；新增或迁移用例不得继续平铺在 `tests/` 根目录。
+- `ApiDemo/tests/` 必须按能力划分子目录，子目录名与对应平台 `sdk/{platform}/` 的实际子目录名保持一致，不使用 API 别名替代。例如当前覆盖能力的目录名是 `override`。
+- 测试文件放入对应子目录，例如 `tests/drive/input.js`、`tests/inspect/code.js`、`tests/override/method.js`；新增或迁移用例不得继续平铺在 `tests/` 根目录。
 - 能力专属辅助脚本按需放入对应能力目录的 `helpers/`，测试发现必须排除辅助文件。执行入口应支持发现能力子目录中的测试文件。
 - 允许少量双端重复；只有出现稳定、真正一致的逻辑时才提取公共代码，不预建跨平台适配框架。
 - 不为了此次设计批量移动旧测试或新建 `test/unit/`。迁移应伴随具体能力的实现和验证。
@@ -126,6 +128,8 @@ API 返回 `ok`、方法被调用、命令被发送，均不能单独证明原�
   → 加载验证脚本 B → 检查原生行为已恢复
 ```
 
+iOS 生命周期用例重连前由 Host 显式恢复 App 前台状态，使用 simctl launch 保留已有进程，并核对 PID；App 若需要在后台完成断言，由原生 fixture 申请带过期清理的后台任务。
+
 不要为统一形式给所有 App 内用例增加复杂生命周期协议，也不要只检查 Host 的 closed 标记就认定原生资源清理成功。
 
 ## 8. 报告与执行结果
@@ -147,9 +151,19 @@ API 返回 `ok`、方法被调用、命令被发送，均不能单独证明原�
 - 独立的结果处理逻辑。
 - 少量难以在真实环境中稳定制造的通信失败、重试和请求并发行为。
 
-macOS 原生程序上的真实 Frida/LLDB 测试可以保留，用于快速隔离底层问题，但不替代 ApiDemo E2E。
+SDK（包括内部 JVMTI / LLDB 封装）的行为验证统一迁入双端 ApiDemo E2E，不再维护本机原生宿主或 SDK mock 测试。`src/` 的 MCP/Host 编排、通信与故障处理测试统一放在 `test/mcp/`；同时包含 SDK、原生产物或 skill 等其他能力的混合文件，先保留原位，评估拆分后再迁移。test/expect 自身使用下述 framework 单元测试。
+
+Debugger 内部用例放在 `ApiDemo/tests/common/debugger/`，可直接导入内部实现，不加入公开 common；公开契约分别放在 `tests/inspect/code.js`、`tests/override/code.js`。真实命中、条件、读写、提前返回及清理必须通过原生结果验证，不能仅断言安装成功或 LLDB 返回成功。迁移清单与执行约定见 [debugger E2E migration](../docs/testing/debugger-e2e-migration.md)。
 
 对紧贴实现的断言进行价值评估：仅断言调用了某个内部方法，不能承担对应原生行为的保障。已有稳定 E2E 覆盖后，不重复维护同一行为的低价值 mock 用例；删除前确认它没有额外保护独立的故障或时序场景。
+
+### test/expect 框架自身的测试
+
+- 统一放在 `test/framework/`，运行 `npm run test:framework`；不启动模拟器、不连接 App，也不要求构建 SDK。
+- 直接测试真实 `sdk/common/test` 实现，使用 Node `assert` 验证结果，不 mock 被测 runner 或 expect。
+- 原生 SDK 依赖必须 mock，包括元素查询、主线程调度、状态读取和截图；Host 比较结果及通信失败也通过 mock 提供。
+- 保护注册与筛选、hooks 顺序、异步等待、失败后清理、报告，以及断言正反结果和错误传播。截图断言验证目标传递、比较结果处理和失败报告，不验证原生截图或真实像素比较。
+- Host 图片解码/比较算法的测试独立保留；App 原生能力仍通过 ApiDemo E2E 验证。框架单元测试通过不代表这些能力已验证。
 
 ## 10. Agent 落地要求
 
@@ -159,3 +173,18 @@ macOS 原生程序上的真实 Frida/LLDB 测试可以保留，用于快速隔�
 4. 不通过放宽断言、吞掉异常、静默 skip 或改成检查内部调用来使测试变绿。
 5. 区分“新增了用例”“实际运行通过”“未在该环境验证”；只报告有证据的结论。
 6. 新增文件、测试入口和运行约定应与本文一致；实际设计发生经用户确认的变化时同步更新本文。
+
+### MCP/Host 测试入口
+
+- Node 测试：`node --experimental-vm-modules --test test/mcp/*.test.js`，同时纳入 `npm test`。依赖 SDK 构建产物的测试需先运行 `npm run build`（`npm test` 已有 pretest 构建）。
+- Python 测试：`python3 -m unittest discover -s test/mcp -p "*_test.py"`；不由 `npm test` 执行。
+
+### 集成与产物测试
+
+- 二进制产物、下载校验、打包、签名和接入脚本测试统一放在 `test/integration/`，运行 `npm run test:integration`，同时纳入 `npm test`。
+- 与 Host 测试解耦：integration 验证产物和配置的生成，`test/mcp/` 验证 Host 对产物和配置的消费；通过文件契约建立测试数据，不互相调用构建、签名与 Host 实现作为前置步骤。
+- 本地产物缺失和显式 opt-in 构建可能导致跳过，报告必须区分通过与跳过。
+
+### 剩余 SDK 测试迁移
+
+已移除的 SDK mock/本机宿主测试与真实环境入口、覆盖边界见 [迁移清单](../docs/testing/sdk-test-migration.md)。根目录只保留本约定，不新增 SDK mock 或本机原生宿主测试。报告输出测试放在 `test/e2e/*.test.js` 并纳入 `npm test`；类型声明的编译检查放在 `test/integration/`，使用新公开 API，运行时 E2E 不替代类型检查。

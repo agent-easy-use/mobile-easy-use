@@ -50,3 +50,23 @@ describe('override.method', () => {
     expect(Boolean(state.featureForScope_('disabled-scope'))).toBe(false);
   });
 });
+
+describe('override.method nesting', () => {
+test('nested replacements restore in reverse installation order', async () => {
+  const definition = { className: 'APISDKFixtureState', selector: '+ staticValue' };
+  const owner = ObjC.classes.APISDKFixtureState;
+  const firstValue = ObjC.classes.NSString.stringWithString_('first');
+  const secondValue = ObjC.classes.NSString.stringWithString_('second');
+  const first = await override.method(definition, firstValue.handle);
+  let second;
+  try {
+    second = await override.method(definition, secondValue.handle);
+    expect(String(owner.staticValue())).toBe('second');
+    await second();
+    expect(String(owner.staticValue())).toBe('first');
+    await first();
+    expect(String(owner.staticValue())).toBe('static-original');
+  } finally { if (second) await second(); await first(); }
+});
+
+});

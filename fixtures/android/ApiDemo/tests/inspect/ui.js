@@ -219,4 +219,15 @@ describe('inspect.ui', () => {
     }
   });
 
+  test('visibility accounts for transparent ancestors and detached native Views', async () => {
+    expect(await ui.isVisible(scene.button)).toBe(true);
+    await runOnMainThread(() => scene.parent.setAlpha(0));
+    expect(await ui.isVisible(scene.button)).toBe(false);
+    await runOnMainThread(() => scene.parent.setAlpha(1));
+    expect(await ui.isVisible(scene.button)).toBe(true);
+    await runOnMainThread(() => scene.parent.removeView(scene.button));
+    expect(await ui.isVisible(scene.button)).toBe(false);
+    expect(await ui.isExisting(scene.button)).toBe(true);
+  });
+
 });

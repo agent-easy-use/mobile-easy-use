@@ -34,3 +34,9 @@ export function readSystem(deviceId) {
 export function prepareConnection() {
   return { port: 8484 };
 }
+
+// Restore foreground after a lifecycle fixture deliberately backgrounds the App.
+// simctl launch preserves an already-running process; the shell also checks PID.
+export function activateApp(deviceId) {
+  return command('xcrun', ['simctl', 'launch', deviceId, appId]);
+}

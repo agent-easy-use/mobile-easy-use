@@ -3,23 +3,12 @@
 Dedicated Objective-C/UIKit fixture App for packaged MobileEasyUse iOS SDK capability tests.
 It is not a product-flow sample and does not reuse HelloWorld state or screens.
 
-## Coverage baseline
+## Regression coverage
 
-The checked-in Module operations currently provide 78 actual-runtime probe exports:
-
-| Capability | Operations |
-| --- | ---: |
-| Runtime status / `callFunction` / class discovery | 3 |
-| UI lookup / class-path actions | 7 |
-| `IOS.input` | 18 |
-| `IOS.wait` | 8 |
-| `Override.run` | 13 |
-| State / UI / Chain Evidence | 27 |
-| Window / Driver-failure screenshots | 2 |
-
-`evalScript`, preset loading, connection concurrency, and detach/reconnect are transport-level
-contracts. They are covered by the repository MCP tests and must be exercised as separate Agent
-operations; they are intentionally not hidden inside a `callFunction` probe.
+SDK behavior is tested by `tests/drive`, `tests/element`, `tests/inspect`, `tests/override`,
+and `tests/common` through `test/e2e/run.mjs`. Ordinary legacy probe modules have been retired.
+See [migration decisions](../../../docs/testing/apidemo-probe-migration.md) for coverage and boundaries.
+`probe/presets` remains a separate real-App presets smoke check.
 
 ## Integration shape
 
@@ -76,10 +65,6 @@ iproxy -u '<device-udid>' 28484:8484
 The physical-device Runtime endpoint is `127.0.0.1:28484`. The final App must be development-signed
 with `get-task-allow = true`, or LLDB attachment will fail.
 
-See `probe/README.md` for the one-operation execution contract.
-The [input matrix](probe/input/README.md) expands the 18 input exports into 96
-independent operations covering all target forms, directions and native state oracles.
-
 ## Release boundary
 
 The embed phase runs only in `ProbeDebug`; MobileEasyUse source is never compiled into
@@ -106,5 +91,5 @@ The Release App must contain no `MobileEasyUse.dylib`, `MobileEasyUseRuntime.dyl
 ## Debugger API fixture
 
 OC/Swift breakpoint, observation, override, earlyReturn and lifecycle cases run
-on the actual App. See [debugger fixture](probe/debugger/README.md) for simulator
+on the actual App. See [inspect.code design](../../../docs/runtime-api-design/inspect-code-ios.md) for simulator
 and device execution, expectations and result reporting.

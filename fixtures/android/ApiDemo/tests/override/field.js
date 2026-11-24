@@ -65,4 +65,46 @@ describe('override.field', () => {
       replacement.$dispose();
     }
   });
+  test('remove restores the saved value after an intervening App write', async () => {
+    const remove = await override.field({ instance: state, field: 'mode' }, 3);
+    removals.push(remove);
+    state.mode.value = 9;
+    expect(Number(state.mode.value)).toBe(9);
+    await remove();
+    expect(Number(state.mode.value)).toBe(2);
+  });
+
+  test('instance field overrides are isolated and restore independently', async () => {
+    const other = Java.use(className).$new();
+    let removeOther;
+    try {
+      const remove = await override.field({ instance: state, field: 'mode' }, 3);
+      removals.push(remove);
+      expect(Number(other.mode.value)).toBe(2);
+      removeOther = await override.field({ instance: other, field: 'mode' }, 4);
+      expect(Number(state.mode.value)).toBe(3);
+      expect(Number(other.mode.value)).toBe(4);
+      await remove();
+      expect(Number(state.mode.value)).toBe(2);
+      expect(Number(other.mode.value)).toBe(4);
+      await removeOther();
+      expect(Number(other.mode.value)).toBe(2);
+    } finally {
+      if (removeOther) await removeOther();
+      other.$dispose();
+    }
+  });
+  test('array and null fields accept bridge values and restore their contents', async () => {
+    const removeNumbers = await override.field({ instance: state, field: 'numbers' }, Java.array('int', [8, 9]));
+    removals.push(removeNumbers);
+    const removeRegion = await override.field({ instance: state, field: 'region' }, null);
+    removals.push(removeRegion);
+    expect(Array.from(state.numbers.value)).toEqual([8, 9]);
+    expect(state.region.value).toBe(null);
+    await removeNumbers();
+    await removeRegion();
+    expect(Array.from(state.numbers.value)).toEqual([1, 2]);
+    expect(String(state.region.value)).toBe('original-region');
+  });
+
 });

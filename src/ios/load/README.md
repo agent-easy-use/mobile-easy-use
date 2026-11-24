@@ -55,7 +55,7 @@ and limitations. LC_MAIN is a startup checkpoint, not a universal guarantee
 against initialization dependencies in arbitrary Apps.
 
 Validation: `python3 -m unittest discover -s test -p '*_test.py'` and
-`node --test test/ios-runtime-loader.test.js test/ios-cold-launch.test.js` from
+`node --test test/mcp/ios-runtime-loader.test.js test/mcp/ios-cold-launch.test.js` from
 the repository root. The cold-launch tests mock CoreDevice and verify that
 an existing App is not relaunched and a new App is launched exactly once before
 LLDB attach.
