@@ -11,7 +11,9 @@ export {};
  * Load only this platform declaration; Android and iOS globals belong to separate runtimes.
  * Probe modules should export functions and perform actions when called, not at module load.
  * Await asynchronous SDK calls and check result.ok before relying on an action or wait.
- * Return JSON-serializable values to the Host; convert ObjC objects and NativePointers first.
+ * Return values are serialized by the transport for Host/Agent; ordinary objects need no manual stringify.
+ * Prefer extracting JSON-compatible business values from native objects before returning them:
+ * default serialization may provide only an object description, not business state.
  *
  * Public SDK APIs are callable from any thread; their implementations own required platform-thread
  * dispatch unless a method JSDoc states a caller-thread requirement.
@@ -24,13 +26,51 @@ declare global {
   const element: Readonly<IOSElementApi>;
   const common: Readonly<IOSCommonApi>;
 
+  /** Input operations require a connected Host and independent XCTest Driver with the target App in foreground.
+   * Resolved responses (including ok:false) wait an additional 1000 ms; thrown transport/setup
+   * errors reject without that delay. Success reports action completion, not business readiness.
+   * The 30000 ms operation budget includes App target resolution and Host/Runner requests;
+   * the internal event deadline reserves 1000 ms for the response. Await a UI/business condition
+   * when needed. Resolved coordinates are not tracked if the view moves before dispatch.
+   * iOS 18/26: actions use native synthesized touch/text events. On SYNTHESIS_UNCERTAIN,
+   * completion is unknown: do not retry automatically; restart the Runner and inspect the UI.
+   */
   interface IOSDriveApi {
-    click: IOSInputApi['click'];
-    longPress: IOSInputApi['longPress'];
-    input: IOSInputApi['input'];
-    scroll: IOSInputApi['scroll'];
-    wait: IOSDriveWait;
-    waitUntil: IOSWaitApi['until'];
+    /** Resolve the target in the App and synthesize a real touch at its screen point.
+     * @example const result = await drive.click('form.submit');
+     */
+    click(target: IOSInputTarget): Promise<IOSClickResult>;
+    /** Tap to focus, then synthesize a non-empty text input; existing contents are not cleared.
+     * Tap completion does not verify keyboard focus or the resulting text.
+     * @example const result = await drive.input('form.text', 'hello');
+     */
+    input(target: IOSInputTarget, text: string): Promise<IOSTargetInputResult>;
+    /** Compute endpoints in the App and drag in the finger direction, clamped to visible target
+     * bounds (App bounds for a raw coordinate). Completion does not wait for scrolling inertia.
+     * Distance is fixed at 300 points and may be clamped.
+     * @example const result = await drive.scroll('form.results', 'up');
+     */
+    scroll(target: IOSInputTarget, direction: IOSInputDirection): Promise<IOSScrollResult>;
+    /** Resolve the target in the App and synthesize a real touch held for 600 ms.
+     * @example const result = await drive.longPress({ x: 120, y: 360 });
+     */
+    longPress(target: IOSInputTarget): Promise<IOSLongPressResult>;
+
+    /** Drive UI wait contract.
+     * Identifiers/paths are resolved each poll; native UIViews are checked directly on the main queue.
+     * A valid native UIView satisfies exists even when detached. Coordinates are not accepted.
+     */
+    wait(
+      target: string | IOSUiPath | ObjCBridge.Object,
+      state: IOSUiWaitState,
+      options?: IOSWaitOptions,
+    ): Promise<IOSWaitResult>;
+
+    /** Poll a sync/async boolean predicate sequentially until true. Errors retry until timeout.
+     * Invalid return types fail with INVALID_ARGUMENT. Timeout does not cancel an in-flight predicate.
+     * @example const ready = await drive.waitUntil(() => cacheReady, { timeoutMs: 10000 });
+     */
+    waitUntil(predicate: () => boolean | Promise<boolean>, options?: IOSWaitOptions): Promise<IOSWaitResult>;
   }
   interface IOSElementApi {
     /** Resolve an identifier or path on main, starting at the key window (or first visible window).
@@ -75,9 +115,17 @@ declare global {
      */
     code(definition: IOSCodeDefinition, overrides?: Record<string, string>, earlyReturn?: string): Promise<() => Promise<void>>;
   }
+  /** A failed capture may still contain partial data; do not infer absence from incomplete records.
+   * Capacity limits or collection errors are reported through error, not thrown by this result type.
+   */
   type IOSInspectResult<T> = { ok: true; data: T[]; error: null } | { ok: false; data: T[]; error: string };
   interface IOSWatcher<T> {
+    /** Cumulative records without draining. After stop, returns ok:false with empty data. */
     current(): Promise<IOSInspectResult<T>>;
+    /** Remove observation and return final cumulative records; repeated calls are supported.
+     * Check ok/error for collection or cleanup failures. Does not release caller-owned native values.
+     * Method observation does not wait for running business calls to finish.
+     */
     stop(): Promise<IOSInspectResult<T>>;
   }
   interface IOSLogRecord { timestamp: string; threadId: number; threadName: string | null; tag: string; level: string | null; message: string }
@@ -92,7 +140,7 @@ declare global {
   interface IOSMethodOptions {
     enter?: (context: IOSMethodEnter) => Record<string, any>;
     leave?: (context: IOSMethodLeave) => Record<string, any>;
-    /** Maximum frame count; omitted or zero disables stack capture. */
+    /** Non-negative safe integer frame limit; omitted or zero disables stack capture. */
     stack?: number;
   }
   interface IOSMethodFrame { address: string; moduleName: string | null; name: string | null; fileName: string | null; lineNumber: number | null }
@@ -104,16 +152,25 @@ declare global {
   type IOSCodeDefinition = ({ kind: 'source'; file: string; line: number } | { kind: 'address'; address: string }) & { condition?: string };
   type IOSCodeCapture = Record<string, string>;
   interface IOSCodeFrame { function: string | null; module: string | null; sourceFile: string | null; line: number | null }
-  interface IOSCodeOptions { capture?: IOSCodeCapture; stack?: number }
+  interface IOSCodeOptions {
+    capture?: IOSCodeCapture;
+    /** Integer frame limit in [0, 256]; omitted or zero disables stack capture. */
+    stack?: number;
+  }
   interface IOSCodeRecord {
     hitId: string; timestamp: string; threadId: number; threadName: string | null;
     capture?: Record<string, IOSJsonValue>; stack?: IOSCodeFrame[];
   }
   interface IOSInspectApi {
     ui: IOSInspectUiApi;
-    /** Exact TAG subscriptions; current returns cumulative records, stop unregisters. */
+    /** Independent exact TAG subscriptions; no regex. Installation rejects invalid tags.
+     * Collection stops accepting records at 10000 records or 2 * 1024 * 1024 UTF-16 text units;
+     * current/stop report the capacity error with partial data. Still call stop to remove the subscription.
+     */
     log: { watch(tags: string[]): Promise<IOSWatcher<IOSLogRecord>> };
-    /** Fixed signatures only; arguments/results use NativeCallback ABI. Variadic methods and native exception unwinding are unsupported. */
+    /** Fixed signatures only; arguments/results use NativeCallback ABI. Variadic methods and native exception unwinding are unsupported.
+     * At most 10000 calls; excess calls report a capture error. Remove overlapping method watches/overrides in reverse order.
+     */
     method: { watch(definition: IOSMethodDefinition, options?: IOSMethodOptions): Promise<IOSWatcher<IOSMethodRecord>> };
     code: { watch(definition: IOSCodeDefinition, options?: IOSCodeOptions): Promise<IOSWatcher<IOSCodeRecord>> };
   }
@@ -219,7 +276,7 @@ declare global {
     | `label::${string}`
     | `class::${string}`;
 
-  /** Non-empty path. ui.find/wait/screenshot/evidence/input share the native UIView query.
+  /** Non-empty path. element.findUiView, drive and inspect.ui share native UIView query semantics.
    * Each step selects the first match in the preceding subtree, including its root; no backtracking.
    */
   type IOSUiPath = readonly [IOSUiPathStep, ...IOSUiPathStep[]];
@@ -238,7 +295,7 @@ declare global {
     y: number;
   }
 
-  /** Identifier/path targets resolve with ui.find in the target App, using first-match UIView
+  /** Identifier/path targets use the native element query in the target App, using first-match UIView
    * semantics (no ambiguity error). Lookup, clipping and hit-testing run in one App main-queue turn.
    * A missing UIView fails; a hidden, detached or non-interactive target also fails.
    * The actual touch-down point must hit the target or a descendant through the App's
@@ -314,37 +371,6 @@ declare global {
   type IOSLongPressResult = IOSLongPressSuccess | IOSInputFailure<'longPress'>;
   type IOSInputResult = IOSInputSuccess | IOSInputFailure;
 
-  /** Requires a connected Host and independent XCTest Driver with the target App in foreground.
-   * Resolved responses (including ok:false) wait an additional 1000 ms; thrown transport/setup
-   * errors reject without that delay. Success reports action completion, not business readiness.
-   * The 30000 ms operation budget includes App target resolution and Host/Runner requests;
-   * the internal event deadline reserves 1000 ms for the response. Await a UI/business condition
-   * when needed. Resolved coordinates are not tracked if the view moves before dispatch.
-   * iOS 18/26: actions use native synthesized touch/text events. On SYNTHESIS_UNCERTAIN,
-   * completion is unknown: do not retry automatically; restart the Runner and inspect the UI.
-   */
-  interface IOSInputApi {
-    /** Resolve the target in the App and synthesize a real touch at its screen point.
-     * @example const result = await drive.click('form.submit');
-     */
-    click(target: IOSInputTarget): Promise<IOSClickResult>;
-    /** Tap to focus, then synthesize a non-empty text input; existing contents are not cleared.
-     * Tap completion does not verify keyboard focus or the resulting text.
-     * @example const result = await drive.input('form.text', 'hello');
-     */
-    input(target: IOSInputTarget, text: string): Promise<IOSTargetInputResult>;
-    /** Compute endpoints in the App and drag in the finger direction, clamped to visible target
-     * bounds (App bounds for a raw coordinate). Completion does not wait for scrolling inertia.
-     * Distance is fixed at 300 points and may be clamped.
-     * @example const result = await drive.scroll('form.results', 'up');
-     */
-    scroll(target: IOSInputTarget, direction: IOSInputDirection): Promise<IOSScrollResult>;
-    /** Resolve the target in the App and synthesize a real touch held for 600 ms.
-     * @example const result = await drive.longPress({ x: 120, y: 360 });
-     */
-    longPress(target: IOSInputTarget): Promise<IOSLongPressResult>;
-  }
-
   interface IOSWaitOptions {
     /** Positive finite timeout in milliseconds, default 5000. Cannot preempt a blocked check. */
     timeoutMs?: number;
@@ -369,24 +395,6 @@ declare global {
   }
 
   type IOSWaitResult = IOSWaitSuccess | IOSWaitFailure;
-
-  /** Drive UI wait contract.
-   * Identifiers/paths are resolved each poll; native UIViews are checked directly on the main queue.
-   * A valid native UIView satisfies exists even when detached. Coordinates are not accepted.
-   */
-  type IOSDriveWait = (
-    target: string | IOSUiPath | ObjCBridge.Object,
-    state: IOSUiWaitState,
-    options?: IOSWaitOptions,
-  ) => Promise<IOSWaitResult>;
-
-  interface IOSWaitApi {
-    /** Poll a sync/async boolean predicate sequentially until true. Errors retry until timeout.
-     * Invalid return types fail with INVALID_ARGUMENT. Timeout does not cancel an in-flight predicate.
-     * @example const ready = await drive.waitUntil(() => cacheReady, { timeoutMs: 10000 });
-     */
-    until(predicate: () => boolean | Promise<boolean>, options?: IOSWaitOptions): Promise<IOSWaitResult>;
-  }
 
   const Test: Readonly<IOSTestApi>;
 

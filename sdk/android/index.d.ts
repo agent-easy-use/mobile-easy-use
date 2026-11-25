@@ -10,7 +10,9 @@
  * Load only this platform declaration; Android and iOS globals belong to separate runtimes.
  * Probe modules should export functions and perform actions when called, not at module load.
  * Await asynchronous SDK calls and check result.ok before relying on an action or wait.
- * Return JSON-serializable values to the Host; convert Java wrappers to plain values first.
+ * Return values are serialized by the transport for Host/Agent; ordinary objects need no manual stringify.
+ * Prefer extracting JSON-compatible business values from native objects before returning them:
+ * default serialization may provide only an object description, not business state.
  *
  * Public SDK APIs are callable from any thread; their implementations own required platform-thread
  * dispatch unless an API's JSDoc states a dispatch or caller-thread limitation.
@@ -25,13 +27,86 @@ declare global {
   const element: Readonly<AndroidElementApi>;
   const common: Readonly<AndroidCommonApi>;
 
+  /** Input operations: IDs/paths resolve in the focused Window; View targets must be attached, shown, and non-empty.
+   * Presses use the View center. Coordinates bypass lookup. All events target display 0.
+   * drive schedules target resolution on the main thread; callers need no additional dispatch.
+   * Failures resolve with ok:false, possibly after partial injection; success means injection accepted,
+   * not business completion. The 2000 ms settle delay applies only on success; use wait for readiness.
+   */
   interface AndroidDriveApi {
-    click: AndroidInputApi['click'];
-    longPress: AndroidInputApi['longPress'];
-    input: AndroidInputApi['input'];
-    scroll: AndroidInputApi['scroll'];
-    wait: AndroidDriveWait;
-    waitUntil: AndroidWaitApi['until'];
+    /**
+     * Resolve the target and inject one touchscreen DOWN/UP sequence with a fixed 16 ms press.
+     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
+     * @example const result = await drive.click(R.id.submit_button);
+     */
+    click(resourceId: number): Promise<AndroidClickResult>;
+    click(path: AndroidUiPath): Promise<AndroidClickResult>;
+    click(view: Java.Wrapper): Promise<AndroidClickResult>;
+    click(location: AndroidScreenLocation): Promise<AndroidClickResult>;
+
+    /**
+     * Resolve the target and inject a fixed 600 ms touchscreen press; no duration parameter.
+     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
+     * @example const result = await drive.longPress({ x: 120, y: 360 });
+     */
+    longPress(resourceId: number): Promise<AndroidLongPressResult>;
+    longPress(path: AndroidUiPath): Promise<AndroidLongPressResult>;
+    longPress(view: Java.Wrapper): Promise<AndroidLongPressResult>;
+    longPress(location: AndroidScreenLocation): Promise<AndroidLongPressResult>;
+
+    /**
+     * Click the target (16 ms), wait 50 ms, then inject KeyCharacterMap text events through InputManager.
+     * text must be non-empty and representable by KeyCharacterMap (arbitrary Unicode may fail).
+     * Types into the focused field without clearing its current contents.
+     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
+     * @example const result = await drive.input(R.id.form_input, "hello");
+     */
+    input(resourceId: number, text: string): Promise<AndroidTargetInputResult>;
+    input(path: AndroidUiPath, text: string): Promise<AndroidTargetInputResult>;
+    input(view: Java.Wrapper, text: string): Promise<AndroidTargetInputResult>;
+    input(location: AndroidScreenLocation, text: string): Promise<AndroidTargetInputResult>;
+
+    /**
+     * Inject a fixed 300 ms finger gesture spanning 60% of the target's visible axis, clamped to display 0.
+     * Coordinate targets use the whole display as bounds, centered on the supplied point.
+     * direction describes finger movement, not the direction of newly revealed content.
+     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
+     * @example const result = await drive.scroll(R.id.list, "up");
+     */
+    scroll(
+      resourceId: number,
+      direction: AndroidScrollDirection,
+    ): Promise<AndroidScrollResult>;
+    scroll(
+      path: AndroidUiPath,
+      direction: AndroidScrollDirection,
+    ): Promise<AndroidScrollResult>;
+    scroll(
+      view: Java.Wrapper,
+      direction: AndroidScrollDirection,
+    ): Promise<AndroidScrollResult>;
+    scroll(
+      location: AndroidScreenLocation,
+      direction: AndroidScrollDirection,
+    ): Promise<AndroidScrollResult>;
+
+    /** Drive UI wait contract.
+     * @example const ready = await drive.wait(R.id.submit_button, 'visible');
+     * @example const hidden = await drive.wait(['text::Loading'], 'hidden', { timeoutMs: 10000 });
+     * IDs/paths are resolved each poll; native Views are checked directly on the main thread.
+     * A valid native View satisfies exists even when detached. Coordinates are not accepted.
+     */
+    wait(
+      target: number | AndroidUiPath | Java.Wrapper,
+      state: AndroidUiWaitState,
+      options?: AndroidWaitOptions,
+    ): Promise<AndroidWaitResult>;
+
+    /** Poll a sync/async boolean predicate sequentially until true. Errors retry until timeout.
+     * Invalid return types fail with INVALID_ARGUMENT. Timeout does not cancel an in-flight predicate.
+     * @example const ready = await drive.waitUntil(() => cacheReady, { timeoutMs: 10000 });
+     */
+    waitUntil(predicate: () => boolean | Promise<boolean>, options?: AndroidWaitOptions): Promise<AndroidWaitResult>;
   }
   interface AndroidElementApi {
     /** Resolve an ID or a non-empty path from the focused window on main.
@@ -53,19 +128,29 @@ declare global {
     currentThreadName(): string | null;
 
   }
+  /** Class-wide method selection; constructors unsupported. Supply argumentTypes for ambiguous overloads. */
   interface AndroidMethodDefinition { className: string; method: string; argumentTypes?: readonly string[]; filter?: (...args: any[]) => boolean }
   interface AndroidOverrideRuntimeApi {
     /** Async installation and removal; filter and returnInstead callbacks remain synchronous. When supplied, only literal true passes filter;
-     * callback/filter errors are reported and fall back to the original method. Values use Java bridge conversions. */
+     * callback/filter errors are reported and fall back to the original method. Values use Java bridge conversions.
+     * Rejects a method with an existing implementation, including an active method watch/override. */
     method(definition: AndroidMethodDefinition, returnInstead: any | ((...args: any[]) => any)): Promise<() => Promise<void>>;
     /** Async installation and removal. Write through Frida Java fields; remove restores the saved value. */
     field(definition: { field: string } & ({ className: string; instance?: never } | { instance: Java.Wrapper; className?: never }), value: any): Promise<() => Promise<void>>;
     /** Async installation; invoke and await the returned closure to remove. */
     code(definition: AndroidCodeDefinition, overrides?: Record<string, any>, earlyReturn?: any): Promise<() => Promise<void>>;
   }
+  /** A failed capture may still contain partial data; do not infer absence from incomplete records.
+   * Capacity limits or collection errors are reported through error, not thrown by this result type.
+   */
   type AndroidInspectResult<T> = { ok: true; data: T[]; error: null } | { ok: false; data: T[]; error: string };
   interface AndroidWatcher<T> {
+    /** Cumulative records without draining. After stop, returns ok:false with empty data. */
     current(): Promise<AndroidInspectResult<T>>;
+    /** Remove observation and return final cumulative records; repeated calls are supported.
+     * Check ok/error for collection or cleanup failures. Does not release caller-owned native values.
+     * Method observation does not wait for running business calls to finish.
+     */
     stop(): Promise<AndroidInspectResult<T>>;
   }
   interface AndroidLogRecord { timestamp: string; threadId: number; threadName: string | null; tag: string; level: string; message: string }
@@ -79,7 +164,7 @@ declare global {
   interface AndroidMethodOptions {
     enter?: (context: AndroidMethodEnter) => Record<string, any>;
     leave?: (context: AndroidMethodLeave) => Record<string, any>;
-    /** Maximum frame count; omitted or zero disables stack capture. */
+    /** Non-negative safe integer frame limit; omitted or zero disables stack capture. */
     stack?: number;
   }
   interface AndroidMethodFrame { className: string; methodName: string; signature: string; fileName: string | null; lineNumber: number | null }
@@ -92,16 +177,25 @@ declare global {
   interface AndroidCodeDefinition { className: string; method: string; argumentTypes?: readonly string[]; fileLine: number; condition?: (context: AndroidCodeContext) => boolean }
   type AndroidCodeCapture = Record<string, string | ((context: AndroidCodeContext) => any)>;
   interface AndroidCodeFrame { className: string; methodName: string; sourceFile: string | null; line: number | null }
-  interface AndroidCodeOptions { capture?: AndroidCodeCapture; stack?: number }
+  interface AndroidCodeOptions {
+    capture?: AndroidCodeCapture;
+    /** Integer frame limit in [0, 2147483647]; omitted or zero disables stack capture. */
+    stack?: number;
+  }
   interface AndroidCodeRecord {
     hitId: string; timestamp: string; threadId: number; threadName: string | null;
     capture?: Record<string, any>; stack?: AndroidCodeFrame[];
   }
   interface AndroidInspectApi {
     ui: AndroidInspectUiApi;
-    /** Exact TAG subscriptions; current returns cumulative records, stop unregisters. */
+    /** Independent exact TAG subscriptions; no regex. Installation rejects invalid tags.
+     * Collection stops accepting records at 10000 records or 2 * 1024 * 1024 UTF-16 text units;
+     * current/stop report the capacity error with partial data. Still call stop to remove the subscription.
+     */
     log: { watch(tags: string[]): Promise<AndroidWatcher<AndroidLogRecord>> };
-    /** Java bridge values; original exceptions are preserved. */
+    /** Java bridge values; original exceptions are preserved. Rejects an existing implementation,
+     * including an active method watch/override. At most 10000 calls; excess calls report a capture error.
+     */
     method: { watch(definition: AndroidMethodDefinition, options?: AndroidMethodOptions): Promise<AndroidWatcher<AndroidMethodRecord>> };
     code: { watch(definition: AndroidCodeDefinition, options?: AndroidCodeOptions): Promise<AndroidWatcher<AndroidCodeRecord>> };
   }
@@ -335,70 +429,6 @@ declare global {
   type AndroidScrollResult = AndroidScrollSuccess | AndroidInputFailure<'scroll'>;
   type AndroidTargetInputResult = AndroidTargetInputSuccess | AndroidInputFailure<'input'>;
 
-  /** IDs/paths resolve in the focused Window; View targets must be attached, shown, and non-empty.
-   * Presses use the View center. Coordinates bypass lookup. All events target display 0.
-   * drive schedules target resolution on the main thread; callers need no additional dispatch.
-   * Failures resolve with ok:false, possibly after partial injection; success means injection accepted,
-   * not business completion. The 2000 ms settle delay applies only on success; use wait for readiness.
-   */
-  interface AndroidInputApi {
-    /**
-     * Resolve the target and inject one touchscreen DOWN/UP sequence with a fixed 16 ms press.
-     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await drive.click(R.id.submit_button);
-     */
-    click(resourceId: number): Promise<AndroidClickResult>;
-    click(path: AndroidUiPath): Promise<AndroidClickResult>;
-    click(view: Java.Wrapper): Promise<AndroidClickResult>;
-    click(location: AndroidScreenLocation): Promise<AndroidClickResult>;
-
-    /**
-     * Resolve the target and inject a fixed 600 ms touchscreen press; no duration parameter.
-     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await drive.longPress({ x: 120, y: 360 });
-     */
-    longPress(resourceId: number): Promise<AndroidLongPressResult>;
-    longPress(path: AndroidUiPath): Promise<AndroidLongPressResult>;
-    longPress(view: Java.Wrapper): Promise<AndroidLongPressResult>;
-    longPress(location: AndroidScreenLocation): Promise<AndroidLongPressResult>;
-
-    /**
-     * Click the target (16 ms), wait 50 ms, then inject KeyCharacterMap text events through InputManager.
-     * text must be non-empty and representable by KeyCharacterMap (arbitrary Unicode may fail).
-     * Types into the focused field without clearing its current contents.
-     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await drive.input(R.id.form_input, "hello");
-     */
-    input(resourceId: number, text: string): Promise<AndroidTargetInputResult>;
-    input(path: AndroidUiPath, text: string): Promise<AndroidTargetInputResult>;
-    input(view: Java.Wrapper, text: string): Promise<AndroidTargetInputResult>;
-    input(location: AndroidScreenLocation, text: string): Promise<AndroidTargetInputResult>;
-
-    /**
-     * Inject a fixed 300 ms finger gesture spanning 60% of the target's visible axis, clamped to display 0.
-     * Coordinate targets use the whole display as bounds, centered on the supplied point.
-     * direction describes finger movement, not the direction of newly revealed content.
-     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await drive.scroll(R.id.list, "up");
-     */
-    scroll(
-      resourceId: number,
-      direction: AndroidScrollDirection,
-    ): Promise<AndroidScrollResult>;
-    scroll(
-      path: AndroidUiPath,
-      direction: AndroidScrollDirection,
-    ): Promise<AndroidScrollResult>;
-    scroll(
-      view: Java.Wrapper,
-      direction: AndroidScrollDirection,
-    ): Promise<AndroidScrollResult>;
-    scroll(
-      location: AndroidScreenLocation,
-      direction: AndroidScrollDirection,
-    ): Promise<AndroidScrollResult>;
-  }
-
   interface AndroidWaitOptions {
     /** Positive finite timeout in milliseconds, default 5000. Cannot preempt a blocked check. */
     timeoutMs?: number;
@@ -425,26 +455,6 @@ declare global {
   }
 
   type AndroidWaitResult = AndroidWaitSuccess | AndroidWaitFailure;
-
-  /** Drive UI wait contract.
-   * @example const ready = await drive.wait(R.id.submit_button, 'visible');
-   * @example const hidden = await drive.wait(['text::Loading'], 'hidden', { timeoutMs: 10000 });
-   * IDs/paths are resolved each poll; native Views are checked directly on the main thread.
-   * A valid native View satisfies exists even when detached. Coordinates are not accepted.
-   */
-  type AndroidDriveWait = (
-    target: number | AndroidUiPath | Java.Wrapper,
-    state: AndroidUiWaitState,
-    options?: AndroidWaitOptions,
-  ) => Promise<AndroidWaitResult>;
-
-  interface AndroidWaitApi {
-    /** Poll a sync/async boolean predicate sequentially until true. Errors retry until timeout.
-     * Invalid return types fail with INVALID_ARGUMENT. Timeout does not cancel an in-flight predicate.
-     * @example const ready = await drive.waitUntil(() => cacheReady, { timeoutMs: 10000 });
-     */
-    until(predicate: () => boolean | Promise<boolean>, options?: AndroidWaitOptions): Promise<AndroidWaitResult>;
-  }
 
   /** Dynamically resolved Android application resources, for example `R.id.submit_button`. */
   const R: AndroidR;
