@@ -14,7 +14,7 @@ export async function getSdkDeclarations(input) {
 
   const files = await Promise.all([
     declarationFile('sdk',
-      `${platform === 'android' ? 'Android' : 'iOS'} SDK APIs for input, UI queries, waits, overrides, evidence collection, etc.`,
+      `${platform === 'android' ? 'Android' : 'iOS'} SDK APIs for drive, inspect, override, element, common, and Test.`,
       () => fileURLToPath(new URL('../../package.json', import.meta.url)),
       `sdk/${platform}/index.d.ts`),
     declarationFile('bridge',

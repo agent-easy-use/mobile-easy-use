@@ -2,7 +2,7 @@
 
 [返回 inspect](inspect.md) · [返回总览](README.md) · [Android 设计](inpsect-code-android.md)
 
-状态：新的 iOS inspect.code 已实现，根导出与类型声明尚未接入。基础采集、current、stack、stop、脚本卸载 detach 已在 macOS Swift 宿主验证；断点改由 LLDB callback 直接采集，保留原生 SetCondition，避免按停止原因中的关联 ID 误分发。尚未进行 iOS 真机验证。基于现有 Host LLDB debugger 能力；直接复用并调整现有 debugger 的采集与记录逻辑，只新增 current 读取能力，不保留未发布的旧 API 或旧字段兼容。根 index.js／index.d.ts 暂不调整。
+状态：iOS inspect.code 已实现并接入根导出与类型声明，复用 Host LLDB。断点由 callback 采集，保留原生 SetCondition；平台限制和生命周期见下文。实际设备覆盖以 tests/inspect、tests/common 和运行报告为准。
 
 ## 1. 作用与 API
 

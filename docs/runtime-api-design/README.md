@@ -1,26 +1,32 @@
-# 面向 Agent 的运行时 API 设计
+# 面向 Agent 的运行时 API
 
-状态：MVP 设计草案，供 review；不代表当前 SDK 已实现。
+本文说明当前 SDK 的公开能力和组合方式。精确签名以 [Android 声明](../../sdk/android/index.d.ts) / [iOS 声明](../../sdk/ios/index.d.ts) 为准；双端根入口已导出新 API。设备覆盖和已知限制见各专项文档，不因接口存在而推定所有平台场景均已验证。
 
-目标：让 Agent 逐步探索 App、取得证据、验证假设，并在修改代码后复用探查代码进行自动化断言。脚本与未来 CLI 共用能力、资源生命周期和证据语义。
-
-公开 API 分为四部分：
+目标是让 Agent 探索 App、验证假设，并在实现完成后复用探查逻辑进行自动化断言。
 
 | 分类 | 职责 |
 | --- | --- |
-| `drive` | 驱动 App 执行操作、等待进入目标状态 |
-| `inspect` | 获取 UI 状态、结构、布局与画面，以及日志、方法与代码位置的执行过程证据；非 UI 状态直接使用 Frida |
-| `override` | 临时覆盖状态或行为，构造实验条件 |
-| `test / expect` | 组织测试，并判断事实是否符合预期 |
+| drive | 驱动到场景，等待所需状态 |
+| inspect | 观测 UI、日志、方法及代码位置 |
+| override | 配合 drive 构造依赖条件 |
+| test / expect | 组织测试，断言取得的值 |
 
-共同约定：
+原生对象状态读取和 App 函数调用直接使用 Frida，可与上述能力组合。辅助入口为 element、common、runtimeStatus；Android 另有 Java、顶层 R，iOS 有 ObjC、Swift，common 额外提供 findClass。
 
-- 移除以 action 为中心的强制封装。业务场景使用普通函数组合，不绑定采集与断言策略。
-- 不要求调用方先创建 scope。持续资源具有独立身份，允许跨 CLI 调用管理；一次命令结束不代表资源结束。
-- Android 与 iOS 分别维护类型契约，保留定位方式、原生值类型、表达式和线程限制的差异。
-- 同步/异步逐项确定；inspect.log／method 已确定全部异步。其他示例中的 `await` 表达执行依赖，不表示所有接口已经确定返回 Promise。
-- 代码块中的业务对象、定位函数、目标和 baseline 是项目提供的示意变量。
-- 当前阶段先独立实现模块，两端根 `index.js` 和 `index.d.ts` 保持不变；所有新 API 完成后统一接入导出与类型声明。本文不替代最终类型声明。
+## 返回与生命周期
+
+- drive 六个方法均异步，返回带 ok 的操作/等待结果；失败 error 为含 code/message 的对象。
+- inspect.ui 是异步直接读取；log/method/code 的 watch 返回只含 current/stop 的 watcher。两者异步返回 `{ok, data, error}`，data 是累计记录数组，error 为字符串或 null。
+- override.method/field/code 异步返回异步 remove 闭包。调用方保存并在 finally 中清理；watcher 同样显式 stop。
+- 普通函数组合场景，不要求 action wrapper、scope 或公共 registry。未来 CLI 如何管理跨调用句柄不属于当前公开 API。
+- 清理只移除资源或恢复覆盖，不回滚业务副作用。具体保活、重复清理及平台限制见专项文档。
+- iOS code 按需 attach，Host 在脚本销毁/断连时兜底 detach；Android debugger 底层在脚本卸载时兜底移除剩余断点。SDK 不公开 dispose。
+
+## 返回给 Host / Agent
+
+脚本返回值由传输层序列化，无需手动 stringify 普通对象。原生对象建议先提取所需 JSON 兼容数据；对象描述不等于业务状态，wrapper 不能作为跨进程可操作对象。
+
+MCP eval/call 成功返回 `{result: value}`（undefined 统一为 null），异常返回 `{error: {message, stack}}`。MCP 同时提供 structuredContent 和对应 JSON 文本，异常时 isError 为 true。脚本返回的 `{ok: false}` 属于普通结果，需由调用方判断。旧 evidence 字段及聚合文件协议已移除；截图作为返回数据中的 filePath 使用。
 
 ## 文档导航
 
@@ -40,22 +46,4 @@
 
 ## 阅读约定
 
-各子文档包含作用、API 定义、参数、调用示例、返回与错误、生命周期和 MVP 边界。新增返回结构是本轮供 review 的建议，不代表已经确认或实现。
-
-类型中的 `Result<T> = T | Promise<T>` 只表达同步/异步尚未定稿，最终 API 应给出确定类型，不以此联合类型作为实现目标。`JsonValue` 表示可独立保存的 JSON 数据；平台原生对象、原生表达式与类型转换按各平台契约定义。
-
-## 实现前待确认项
-
-
-| 项目 | 当前结论 / 待确认内容 |
-| --- | --- |
-| 异步 | inspect.log／method 已确定全部异步；其余逐 API 收敛 |
-| 结果结构 | 确定返回可用于断言的事实；具体 envelope、时间字段和错误结构待定 |
-| 持续采集预算 | 需要限制并报告截断；默认值、增量读取和 cursor 待定 |
-| 调试器生命周期 | code watch/override 背后的 attach/detach 自动化待定 |
-| 组合冲突 | 同方法/代码位置的观察与覆盖需定义兼容矩阵和执行顺序 |
-| 字段恢复 | MVP 恢复原值；更细的竞争与恢复策略待定 |
-| 测试入口 | Test.create 为现有能力延续提案，最终命名及图片 matcher 待 review |
-| 迁移 | 在替换 action wrappers 前补齐资源注册、失败报告和跨调用证据收集 |
-
-本文仅定义目标形态，不表示所有平台已支持所有组合。迁移应逐项核对实现、平台类型声明和设备验证结果。
+示例中的业务类、目标、辅助函数和 baseline 需要用项目实际定义替换。类型代码块用于说明契约，不一定是独立可编译的声明文件。专项调查文档保留其历史发现，不替代当前 SDK 类型契约。

@@ -2,8 +2,7 @@
 
 [返回总览](README.md)
 
-状态：drive MVP 模块已在本分支实现，尚未接入 SDK 根入口和类型声明；其余扩展仍为设计草案。drive 的输入和等待均返回 Promise。本文返回结构的新增细节为建议。 类型代码块用于描述签名和数据结构；`inspect.foo(...)`、`Test.create()` 等签名采用文档记法，不是可直接编译的完整 `.d.ts`。
-
+状态：双端已通过根入口导出，输入和等待均返回 Promise。精确结果及错误码见平台 index.d.ts；本文类型为简化签名。
 
 ## 1. API 概览
 
@@ -23,7 +22,7 @@ drive.waitUntil(predicate, options)
 
 输入目标见 [UI target：支持范围与平台定义](target.md)。涵盖 Android resource id/path/View/坐标，以及 iOS identifier/path/UIView/坐标。
 
-定位范围、坐标单位、滚动方向、输入追加/替换语义由平台契约明确，不因方法同名而推断完全一致。
+定位范围、坐标单位、滚动方向、文本追加语义由平台契约明确，不因方法同名而推断完全一致。
 
 - 成功表示该输入操作达到其承诺的完成边界，不表示业务完成或页面正确。
 - 定位失败、目标不可交互、注入失败需要明确报告，不静默切换到猜测坐标。
@@ -75,7 +74,6 @@ MVP 不新增通用 `drive.invoke()`、自动路径规划或 App 启停 API。�
 以下为平台无关的外形；[`InputTarget`、`UiTarget`](target.md) 按用途和平台分别定义，`Direction` 由平台声明定义。
 
 ```typescript
-type Result<T> = Promise<T>;
 interface OperationError {
   code: string;
   message: string;
@@ -88,12 +86,12 @@ type WaitResult = { ok: true } | { ok: false; error: OperationError };
 interface WaitOptions { timeoutMs?: number; intervalMs?: number }
 
 interface DriveApi {
-  click(target: InputTarget): Result<InputResult>;
-  longPress(target: InputTarget): Result<InputResult>;
-  input(target: InputTarget, text: string): Result<InputResult>;
-  scroll(target: InputTarget, direction: Direction): Result<InputResult>;
-  wait(target: UiTarget, state: UiState, options?: WaitOptions): Result<WaitResult>;
-  waitUntil(predicate: () => boolean | Promise<boolean>, options?: WaitOptions): Result<WaitResult>;
+  click(target: InputTarget): Promise<InputResult>;
+  longPress(target: InputTarget): Promise<InputResult>;
+  input(target: InputTarget, text: string): Promise<InputResult>;
+  scroll(target: InputTarget, direction: Direction): Promise<InputResult>;
+  wait(target: UiTarget, state: UiState, options?: WaitOptions): Promise<WaitResult>;
+  waitUntil(predicate: () => boolean | Promise<boolean>, options?: WaitOptions): Promise<WaitResult>;
 }
 ```
 
@@ -106,9 +104,9 @@ interface DriveApi {
 | wait | [target](target.md)：查询目标；state：所需 UI 状态 | WaitResult |
 | waitUntil | predicate：每次重新计算的布尔条件 | WaitResult |
 
-等待默认值建议延续现有 `timeoutMs=5000`、`intervalMs=100`，均为正数。UI 查询目标不接受坐标和直接 View 实例，具体见 [target 支持范围](target.md#1-作用与支持范围)。
+等待默认值为 `timeoutMs=5000`、`intervalMs=100`，均为正数。UI 查询目标支持原生 View/UIView，不接受坐标，具体见 [target 支持范围](target.md#1-作用与支持范围)。
 
-InputResult 是最小公共返回；坐标、注入方式等平台诊断字段可以扩展，逐个平台定稿。正常操作失败使用 `ok:false`；连接中断等无法取得结果的基础设施异常可以抛出/拒绝，不能误报为输入未发生。
+InputResult 是最小公共返回；坐标、注入方式等平台诊断字段可以扩展，详见平台声明。正常操作失败使用 `ok:false`；连接中断等无法取得结果的基础设施异常可以抛出/拒绝，不能误报为输入未发生。
 
 ## 6. 输入与等待示例
 
@@ -133,28 +131,16 @@ if (!pressed.ok) throw new Error(pressed.error.message);
 
 ```javascript
 { ok: true, action: 'click' }
-{ ok: false, action: 'click', error: { code: 'TARGET_NOT_FOUND', message: '目标未找到' } }
+{ ok: false, action: 'click', error: { code: 'VIEW_NOT_FOUND', message: '目标未找到' } }
 { ok: false, error: { code: 'TIMEOUT', message: '等待条件未满足' } }
 ```
 
 错误码示意需映射为实际平台契约。调用方检查每一步结果，不因 `await` 完成就假设成功。
 
-## 7. 本分支实现说明
+## 7. 实现与线程
 
-- Android/iOS 的 `drive/index.js` 各自导出 drive；根 `index.js` 的全局注册及根 `index.d.ts` 的声明留到所有新 API 完成后统一调整。现阶段通过测试直接加载模块。
-- `drive.click / longPress / input / scroll` 内部负责 target 所需的主线程调度。Android 旧入口的调用线程契约不因新增入口而改变。
-- 输入和等待在各平台 `drive/` 子目录中独立实现，元素查询与状态判断由同平台 `element/` 提供，保留全部平台结果与错误，不将结果裁剪为上文最小示意结构。iOS 不支持的参数不会因新入口而新增。
-- Android 成功输入后保留现有 2000 ms settle delay；iOS 已解析输入响应保留现有 1000 ms 延时。这些固定延时不是业务完成保证。
-- target 不新增解析语言或对象句柄，类型在各平台声明中独立定义。
-- `drive.waitUntil` 不替 predicate 调度到 UI 线程；predicate 读取原生 UI 时仍需显式使用平台线程助手。
-- 当前实现不新增 drive 证据事件管道；操作直接返回平台结果。证据关联随后续 inspect/运行时重构落地。
+双端根入口已注册 drive，类型由各平台 index.d.ts 声明。输入和等待位于 sdk/{android,ios}/drive；元素查询与状态读取由同平台 element 提供，iOS 输入使用 XCTest Runner。
 
-现有公开契约仍见 [Android index.d.ts](../../sdk/android/index.d.ts) 和 [iOS index.d.ts](../../sdk/ios/index.d.ts)；新 drive 契约待统一接入，当前以本文和独立模块测试为 review 依据。
+输入 API 自行调度原生 UI 工作，调用方不需要额外包 runOnMainThread。waitUntil 不替 predicate 调度线程；读取原生 UI 属性时使用 common.runOnMainThread。输入后的内部 settle 延时不保证业务完成，仍需显式等待业务条件。
 
-### 实现目录边界
-
-- `sdk/android/drive/`：input 执行、输入目标到触点/手势的转换和 wait。
-- `sdk/ios/drive/`：input 执行及其目标/几何处理和 wait。
-- `sdk/{android,ios}/element/`：`query.js` 负责元素查询，`state.js` 负责 UI 状态判断；各平台的 `target.js` 统一解析 ID 或 identifier/path/原生 View，返回 View 或 null，非法参数抛错；可供后续 inspect/test 使用，不依赖 drive。
-- 新目录不引用旧 `exp/`、`input.js`、`wait.js`、`ui/` 或旧 input 专用 helper。迁移期间允许复制实现，旧 API 删除不会切断 drive 的模块依赖。
-- 仅复用保留的底层基础设施：原生 bridge、线程调度、报告、通用几何及 Controller RPC；iOS 仍使用独立 XCTest Runner 后端。
+操作直接返回结果，不自动截图或建立证据事件管道。Android 的坐标使用物理像素，iOS 输入使用 point；详见 [target](target.md)。

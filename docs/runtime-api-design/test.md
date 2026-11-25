@@ -2,14 +2,11 @@
 
 [返回总览](README.md)
 
-状态：设计草案，供 review；不是已发布 SDK 契约。同步/异步暂未定稿。本文返回结构的新增细节为建议。 类型代码块用于描述签名和数据结构；`inspect.foo(...)`、`Test.create()` 等签名采用文档记法，不是可直接编译的完整 `.d.ts`。
-
-
-本节为基于现有 Test.create 能力的 MVP 提案，具体公开命名及 matcher 尚待 review。
+状态：当前 Test.create/expect 契约。精确类型见平台 index.d.ts；测试注册同步，run 和截图断言异步。
 
 ## 1. 测试组织
 
-建议保留现有 collection 模式，明确测试注册与执行属于哪个集合：
+使用 collection 模式，明确测试注册与执行属于哪个集合：
 
 ```javascript
 const {
@@ -29,18 +26,18 @@ expect 应能在探查函数中独立于 run 使用；不要求所有探查先�
 
 ## 2. 断言对象
 
-| 对象 | 建议能力 |
+| 对象 | 能力 |
 | --- | --- |
-| 普通状态值 | 相等、结构相等、大小、包含、自定义谓词 |
+| 普通状态值 | 相等、结构相等、大小、包含 |
 | 观测事件 | 通过普通数组/谓词检查命中、参数、结果和异常 |
 | UI | 使用 inspect.ui 读取存在、可见、焦点等状态，再用通用 matcher 比较 |
-| 已采集图片 | 比较指定 baseline，返回差异信息 |
+| 即时截图 | 采集元素或窗口图片并与指定 baseline 比较 |
 
 MVP 不引入一套专用链路断言 DSL。先使用稳定的快照与事件结构，确有重复模式再增加便利 matcher。
 
-即时 expect 不隐式轮询、不触发业务动作。等待通过 drive.wait 显式表达；expect.poll 是否增加后续讨论。读取失败不能被 .not 反转成通过。
+即时 expect 不隐式轮询、不触发业务动作。等待通过 drive.wait/drive.waitUntil 显式表达，不提供 expect.poll。读取失败不能被 .not 反转成通过。
 
-针对已取得的截图或状态，断言使用该份证据，不偷偷重读 App。仅保留“即时截图并比较”的便利 matcher，与已采集证据的断言明确区分。已采集图片 matcher 的名称和输入契约尚待定稿。
+普通值断言使用已取得的数据；截图 matcher 会即时采集，不是比较此前保存的截图。当前没有公共“已采集图片”matcher。
 
 ## 3. 从探查转为测试
 
@@ -55,7 +52,7 @@ async function inspectEmptySearch() {
   const ready = await drive.waitUntil(readRequestCompleted);
   if (!ready.ok) throw new Error(ready.error.message);
 
-  return inspect.state.read({ search: readSearchState });
+  return await readSearchState();
 }
 
 // 探查：取得证据，分析实际行为。
@@ -66,16 +63,15 @@ const suite = Test.create();
 suite.describe('搜索空态', () => {
   suite.test('请求完成后关闭 loading', async () => {
     const actual = await inspectEmptySearch();
-    suite.expect(actual.errors).toEqual({});
-    suite.expect(actual.values.search.loading).toBe(false);
-    suite.expect(actual.values.search.resultCount).toBe(0);
+    suite.expect(actual.loading).toBe(false);
+    suite.expect(actual.resultCount).toBe(0);
   });
 });
 ```
 
 测试不得把探查到的缺陷直接固化为正确预期。用于证明假设的 override，在验证真实代码修复时应移除；稳定构造空响应等条件的 override 可以保留为 fixture，并明确记录。
 
-测试报告区分断言不满足、执行错误、采集失败和清理失败，关联实际使用的 evidenceId。复现还需要记录构建身份、场景准备和干预条件；不把资源清理等同于业务场景复位。
+测试报告按 beforeEach/test/afterEach 标注错误阶段，保留断言或执行错误；没有 evidenceId 关联协议。复现还需要记录构建身份、场景准备和干预条件；不把资源清理等同于业务场景复位。
 
 
 ## 4. MVP 定义与返回
@@ -88,7 +84,7 @@ interface TestFailure {
   phase: 'beforeEach' | 'test' | 'afterEach';
   name: string;
   message: string;
-  stack?: string;
+  stack: string;
   matcher?: string;
   actual?: string;
   expected?: string;
@@ -118,7 +114,7 @@ interface TestCollection {
 Test.create(): TestCollection;
 ```
 
-注册只能在 describe 中进行，同组用例名称唯一；describe 的回调同步执行注册，不能用于异步准备。run 选择 test 时必须同时提供 describe。上述 run 的 Promise 延续现有测试运行器；它不代表其他新 API 的异步已经定稿。
+注册只能在 describe 中进行，同组用例名称唯一；describe 的回调同步执行注册，不能用于异步准备。run 选择 test 时必须同时提供 describe。上述 run 的 Promise 延续现有测试运行器；完整签名以平台声明为准。
 
 | API | 返回/失败 |
 | --- | --- |
@@ -153,12 +149,12 @@ interface Matchers {
 
 ```javascript
 const { expect } = Test.create();
-const snapshot = await inspect.state.read({ search: readSearchState });
-expect(snapshot.errors).toEqual({});
-expect(snapshot.values.search.loading).toBe(false);
+const snapshot = await readSearchState();
+expect(snapshot.loading).toBe(false);
 
 const events = await methodWatcher.current();
-expect(events.records.some(event => event.phase === 'return')).toBe(true);
+expect(events.ok, events.error ?? 'Method capture succeeds').toBe(true);
+expect(events.data.some(event => event.status === 'returned')).toBe(true);
 expect(await inspect.ui.isVisible(searchField)).toBe(true); // 明确即时查询 UI，不是读取先前截图。
 ```
 
@@ -200,9 +196,8 @@ suite.describe('功能配置', () => {
     }
   });
   suite.test('配置已启用', async () => {
-    const actual = await inspect.state.read({ config: readConfig });
-    suite.expect(actual.errors).toEqual({});
-    suite.expect(actual.values.config.enableSearch).toBe(true);
+    const actual = await readConfig();
+    suite.expect(actual.enableSearch).toBe(true);
   });
 });
 
@@ -225,4 +220,4 @@ if (!report.ok) {
 }
 ```
 
-证据身份自动关联、采集失败的更细分类属于报告扩展，字段尚待确认；不把当前示意类型当作已实现的完整证据关联协议。
+报告通过普通脚本返回值传给 Host/Agent，不额外生成 evidence manifest。

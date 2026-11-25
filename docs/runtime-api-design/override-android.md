@@ -2,7 +2,7 @@
 
 [返回 override 总览](override.md)
 
-本文描述 Android overrides 当前实现。根导出与类型声明尚未接入；返回函数、错误与清理规则见[总览](override.md#3-返回与移除)。Java 值遵循 Frida bridge 的类型转换规则。
+本文描述 Android override 当前实现。已接入根导出与类型声明；返回函数、错误与清理规则见[总览](override.md#3-返回与移除)。Java 值遵循 Frida bridge 的类型转换规则。
 
 ## 1. method：替代方法执行
 

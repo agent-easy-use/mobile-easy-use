@@ -2,7 +2,7 @@
 
 [返回总览](README.md) · [drive](drive.md) · [inspect](inspect.md)
 
-状态：MVP 设计草案。以现有平台类型声明为能力基线，不因新入口同名而扩大支持范围。本文集中定义输入、UI 等待和截图的目标；不涉及 method/code 的原生方法或代码位置定义。
+状态：当前双端公开 target 契约。以现有平台类型声明为能力基线，不因新入口同名而扩大支持范围。本文集中定义输入、UI 等待和截图的目标；不涉及 method/code 的原生方法或代码位置定义。
 
 ## 1. 作用与支持范围
 
@@ -12,11 +12,11 @@
 | --- | --- | --- | --- |
 | Android resource id | 支持 | 支持 | 支持 |
 | Android UI path | 支持 | 支持 | 支持 |
-| Android 原生 View | 支持 | 支持 | 支持，采集目标所属窗口并高亮 |
+| Android 原生 View | 支持 | 支持 | 支持；高亮仅用于 screenshotElementInWindow |
 | Android 坐标 `{ x, y }` | 支持 | 不接受 | 不接受 |
 | iOS accessibilityIdentifier | 支持 | 支持 | 支持 |
 | iOS UI path | 支持 | 支持 | 支持 |
-| iOS 原生 UIView | 支持 | 支持 | 设计支持，使用原生 UIView 对象 |
+| iOS 原生 UIView | 支持 | 支持 | 支持原生 UIView 对象 |
 | iOS 坐标 `{ x, y }` | 支持 | 不接受 | 不接受 |
 | 省略 target | 不接受 | 不接受 | target 必填；窗口原图使用 screenshotWindow() |
 
@@ -95,7 +95,7 @@ type IOSUiTarget = string | IOSUiPath | ObjC.Object;
 type IOSScreenshotTarget = string | IOSUiPath | ObjC.Object;
 ```
 
-ObjC.Object 在 input 中必须是 UIView 实例。inspect.ui 各入口设计支持直接传入 UIView 对象，读取传入的实例。
+ObjC.Object 在 input 中必须是 UIView 实例。inspect.ui 各入口支持直接传入 UIView 对象，读取传入的实例。
 
 ### 定位规则
 

@@ -2,7 +2,7 @@
 
 [返回 inspect](inspect.md) · [返回总览](README.md)
 
-状态：双端独立 inspect.method 模块已实现；根导出与类型声明尚未接入。watch／current／stop 均为异步。Android 通过模拟行为测试及模块编译，尚未进行设备验证；iOS 通过 macOS Objective-C 宿主上的真实 Frida 验证，尚未进行 iOS 真机验证。
+状态：双端 inspect.method 已实现并接入根导出与类型声明。watch/current/stop 均为异步；平台边界见下文，实际设备覆盖以 tests/inspect 和运行报告为准。
 
 ## 1. 作用与 API
 

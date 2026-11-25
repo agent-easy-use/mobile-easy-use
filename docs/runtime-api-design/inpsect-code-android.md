@@ -2,7 +2,7 @@
 
 [返回 inspect](inspect.md) · [返回总览](README.md) · [Android override](override-android.md)
 
-状态：Android inspect.code 已独立实现，单元测试及 Frida 模块编译通过；尚未进行 Android 设备验证。基于现有 Android JVMTI debugger 能力设计，不要求兼容旧 probe.debugger 的 API 和序列化结果。本文仅描述 Android；iOS 的原生表达式、JSON 传输和 attach／detach 生命周期另行讨论。根 index.js／index.d.ts 暂不调整。
+状态：Android inspect.code 已实现并接入根导出与类型声明，复用 Android JVMTI debugger。实际设备覆盖以 tests/inspect、tests/common 和运行报告为准。iOS 的表达式、传输及生命周期见 [iOS 专项文档](inspect-code-ios.md)。
 
 ## 1. 作用与基本形态
 

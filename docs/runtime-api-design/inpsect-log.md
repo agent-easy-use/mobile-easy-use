@@ -2,7 +2,7 @@
 
 [返回 inspect](inspect.md) · [返回总览](README.md)
 
-状态：双端独立 inspect 模块已实现，根导出与类型声明尚未接入；设备验证未完成。watch／current／stop 均为异步。
+状态：双端 inspect.log 已实现并接入根导出与类型声明。watch/current/stop 均为异步；实际设备覆盖以 tests/inspect 和运行报告为准。
 
 ## 1. 作用与 API
 

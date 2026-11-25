@@ -33,7 +33,7 @@ The agent can inspect the following information, depending on the platform and a
 | --- | --- |
 | Business objects and state | Current data, caches, configuration, and business state, including changes after an action |
 | Method calls | Which methods run, their arguments, return values, call stacks, and execution threads |
-| Execution time and memory changes | Method duration and process memory changes around calls |
+| Method duration | Elapsed time for observed method calls |
 | Business logs | How far execution progresses and what clues point to a failure |
 | UI and control state | Control presence, visibility, position, and properties |
 | Window and element screenshots | Actual appearance and visual changes after an action |
@@ -63,8 +63,13 @@ export { run };
 describe('Counter button', () => {
   test('updates state, UI, and appearance', async () => {
     const button = R.id.api_ui_class_first;
-    const clicked = await AndroidExp.runOnMainThread(() => AndroidExp.input.click(button));
+    const clicked = await drive.click(button);
     expect(clicked.ok).toBe(true);
+
+    const completed = await drive.waitUntil(() => common.runOnMainThread(() =>
+      Java.use('com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState')
+        .getInstance().getClickCount() > 0));
+    expect(completed.ok, 'Native handler completed').toBe(true);
 
     // UI state
     expect(await inspect.ui.isVisible(button)).toBe(true);
@@ -73,16 +78,40 @@ describe('Counter button', () => {
     expect(text).toBe('FIRST:1');
 
     // Screenshot
-    await expect(button).toHaveElementScreenShot('baselines/first-clicked.jpg');
+    await expect(button).toMatchElementScreenshot('baselines/first-clicked.jpg');
 
     // Native business state: access native types and read fields or call getters
-    const count = await AndroidExp.runOnMainThread(() => Java.use(
+    const count = await common.runOnMainThread(() => Java.use(
       'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
     ).getInstance().getClickCount());
     expect(Number(count)).toBe(1);
   });
 });
 ```
+
+## Runtime API
+
+The SDK exposes globals inside the App's Frida runtime. Use the platform declarations for exact signatures: [Android](./sdk/android/index.d.ts) / [iOS](./sdk/ios/index.d.ts).
+
+| Capability | Purpose |
+| --- | --- |
+| `drive` | Reach a scene using click, input, longPress, scroll, wait and waitUntil |
+| `inspect` | Read UI state/images; watch logs, methods and code locations |
+| `override` | Temporarily change a dependency to help establish a scene |
+| Direct Frida | Execute App functions and read native objects/variables; compose with the SDK |
+| `Test.create()` | Register tests and assert observed values |
+
+Supporting globals are `element.findUiView`, `common.runOnMainThread`, `common.currentThreadName` and `runtimeStatus`. Android additionally exposes `Java` and top-level `R`; iOS exposes `ObjC`, `Swift` and `common.findClass`.
+
+Input/waits return promises; check their `ok` before continuing. UI inspection returns its value directly through a promise. Log/method/code watchers use async `watch/current/stop`; current and stop return `{ok, data, error}`, with an array of records and a string/null error. Override installers return an async removal closure. Stop watchers and remove overrides in finally after dependent work; cleanup does not reset business state.
+
+Compose ordinary functions without action wrappers or a mandatory scope. Read native state directly rather than through an inspect.state API. Android method callbacks use Java bridge values; iOS method callbacks use raw NativeCallback ABI arguments/results. See the [API guide](./docs/runtime-api-design/README.md) for platform differences.
+
+### Returning results to the Agent
+
+Return the needed plain values from an inline async IIFE or a module export. Frida RPC serializes them for Host; ordinary objects do not need manual JSON.stringify. For native objects, prefer extracting JSON-compatible business values: default serialization may return only an object description.
+
+MCP eval_script/call_function return either `{result: value}` or `{error: {message, stack}}`; undefined results become null. The MCP response includes structuredContent, an equivalent JSON text content, and isError. A returned `{ok: false}` is still a normal script return; throwing/rejecting marks execution failure. There is no separate evidence manifest. Screenshot results contain Host filePath values.
 
 ## Getting started
 
@@ -153,7 +182,7 @@ does not open the home screen. Explain using relevant method calls,
 business state, and UI evidence.
 ```
 
-Probe uses source code and existing Presets to generate the investigation, connect to the app through MCP, execute actions, and collect relevant evidence. It answers the original question without requiring you to write probe scripts, distinguishing observed facts, source-based explanations, and unverified behavior.
+Probe uses source code and existing Presets to generate the investigation, connect to the app through MCP, drive the scenario, and return the observations needed to answer the question. It answers the original question without requiring you to write probe scripts, distinguishing observed facts, source-based explanations, and unverified behavior.
 
 Use separate Skills to generate and run tests:
 
@@ -174,7 +203,7 @@ Each platform has Skills for integration, exploration, testing, and reuse.
 | --- | --- | --- |
 | **Observable** | Optional coding guidance with minimal intrusion: reuse or selectively add logs, UI identifiers, and runtime entry points so the app works better with Mobile Easy Use | [android-observable-code](./skills/android-observable-code/SKILL.md) / [ios-observable-code](./skills/ios-observable-code/SKILL.md) |
 | **Integrate** | Set up or maintain debug integration, acquire Runtime artifacts, configure the project, and select a compatible MCP version; also prepare or repair iOS Runner signing | [to-android-integrate](./skills/to-android-integrate/SKILL.md) / [to-ios-integrate](./skills/to-ios-integrate/SKILL.md) |
-| **Probe** | Start a runtime investigation in natural language, including probe generation, execution, and evidence analysis | [to-android-probe](./skills/to-android-probe/SKILL.md) / [to-ios-probe](./skills/to-ios-probe/SKILL.md) |
+| **Probe** | Start a runtime investigation in natural language, including script generation, execution, and interpretation of returned values | [to-android-probe](./skills/to-android-probe/SKILL.md) / [to-ios-probe](./skills/to-ios-probe/SKILL.md) |
 | **Test** | Generate test files from explicit expectations; run existing tests and summarize results | Generate: [Android](./skills/to-android-test-script/SKILL.md) / [iOS](./skills/to-ios-test-script/SKILL.md); run: [Android](./skills/to-android-test/SKILL.md) / [iOS](./skills/to-ios-test/SKILL.md) |
 | **Presets** | Turn common navigation, business actions, and state queries into reusable capabilities with type declarations, bundled for probes and tests | [to-android-presets](./skills/to-android-presets/SKILL.md) / [to-ios-presets](./skills/to-ios-presets/SKILL.md) |
 

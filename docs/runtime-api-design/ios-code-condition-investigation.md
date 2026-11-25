@@ -2,7 +2,7 @@
 
 > 迁移说明：下文保留历史调查过程，其中 `test/` 下的桌面原生实验脚本已移除。当前回归入口改为双端 ApiDemo 模拟器 E2E，见 [迁移清单](../testing/debugger-e2e-migration.md)。
 
-状态：已恢复 worker 的 SetCondition 和条件诊断事件处理；不在 hit 中再次求值。当前同位置多断点分发问题已定位，尚未修改分发机制。
+状态：历史调查记录。以下记录切换 callback 前的问题定位；当前实现已使用 LLDB callback 分发并保留 SetCondition，现行契约见 [inspect.code iOS](inspect-code-ios.md)。
 
 ## 复现与观察
 

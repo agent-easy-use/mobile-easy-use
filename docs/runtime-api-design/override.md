@@ -74,7 +74,7 @@ try {
 | field | Android 写回旧字段值；iOS 调用 setter 设置保存的 getter 返回值；释放引用，可能覆盖 App 期间的新值，iOS setter 副作用不撤销 |
 | code | 停止未来干预，完成必要收尾并释放资源，不撤销已发生的修改 |
 
-每个闭包通过局部 removed 标记保证只执行一次；开始清理后，再次调用直接返回，不重复清理，也不重试失败步骤。code 的调用方应等待第一次 remove 返回的 Promise；后续调用不等待正在进行的清理。SDK 不集中登记覆盖，也不提供批量 dispose；调用方负责保存闭包并清理。移除不等于回滚整个业务状态。
+method/field 的移除闭包通过局部标记避免重复清理。code 的并发清理与失败重试按各平台实现处理；调用方应始终 await remove，不依赖重复调用修复失败。SDK 不集中登记覆盖，也不提供批量 dispose；调用方负责保存闭包并清理。移除不等于回滚整个业务状态。
 
 ## 4. 错误与证据
 
@@ -85,6 +85,6 @@ try {
 | `override.callback_error` | method 的 filter／返回值计算抛错时报告，包含方法定位信息（className 及 method／selector）、phase、message；随后调用被覆盖前的实现 |
 | `override.code` | code 移除时发出命中记录，包含 location、records；记录中保留 condition、overrides、earlyReturn 等阶段的错误 |
 
-原生返回类型转换失败不属于 JS 回调异常回退的保证范围。override 不提供 current；命中记录通过上述事件报告，remove 只表示清理完成，不返回命中记录。
+原生返回类型转换失败不属于 JS 回调异常回退的保证范围。override 不提供 current；上述事件是运行时诊断日志，不会由 MCP 聚合为 evidence 文件，也不自动进入脚本 result。remove 只表示清理完成，不返回命中记录；需要可返回的观测数据时使用 inspect。
 
-iOS code 当前要求先显式 attach debugger。会话自动管理与未来 CLI 资源管理不属于本版 API；示例中的业务类、对象和源码路径需替换为目标 App 的实际值。
+iOS code 按需自动 attach debugger，脚本销毁或断连时由 Host 兜底 detach。未来 CLI 的资源标识不属于当前 API；示例中的业务类、对象和源码路径需替换为目标 App 的实际值。
