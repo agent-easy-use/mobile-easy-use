@@ -144,7 +144,7 @@ test('tools/call routes call_function arguments and returns its result', async (
       calls.push(args);
       return {
         result: 3,
-        evidence: [],
+
       };
     },
   }));
@@ -174,12 +174,11 @@ test('tools/call routes call_function arguments and returns its result', async (
   }]);
   assert.deepEqual(response.result.structuredContent, {
     result: 3,
-    evidence: [],
+
   });
 
   const definition = toolDefinitions.find((tool) => tool.name === 'call_function');
-  assert.deepEqual(definition.outputSchema.required, ['evidence']);
-  assert.equal(definition.outputSchema.properties.evidence.type, 'array');
+  assert.equal(Object.hasOwn(definition.outputSchema.properties, 'evidence'), false);
   assert.equal(definition.outputSchema.oneOf.length, 2);
 });
 
@@ -188,7 +187,7 @@ test('tools/call routes eval_script source and returns its result', async () => 
   const server = serverWithConnection(connectionFixture({
     async evalScript(args) {
       calls.push(args);
-      return { result: { available: true }, evidence: [] };
+      return { result: { available: true } };
     },
   }));
   const source = '(async () => { return runtimeStatus(); })()';
@@ -210,7 +209,7 @@ test('tools/call routes eval_script source and returns its result', async () => 
   }]);
   assert.deepEqual(response.result.structuredContent, {
     result: { available: true },
-    evidence: [],
+
   });
   const definition = toolDefinitions.find((tool) => tool.name === 'eval_script');
   assert.deepEqual(definition.inputSchema.required, ['deviceId', 'appId', 'source']);
@@ -218,13 +217,9 @@ test('tools/call routes eval_script source and returns its result', async () => 
     .find((tool) => tool.name === 'call_function').outputSchema);
 });
 
-test('eval_script and call_function failures preserve stack and evidence', async () => {
+test('eval_script and call_function failures preserve message and stack', async () => {
   const failure = new Error('Failed to evaluate script: selector not found');
   failure.stack = 'Error: selector not found\n    at inspect (/eval/source.js:8:11)';
-  failure.evidence = [{
-    actionDescription: 'Inspect form state',
-    evidencePath: '/tmp/evidence.json',
-  }];
   const server = serverWithConnection(connectionFixture({
     async evalScript() {
       throw failure;
@@ -260,10 +255,6 @@ test('eval_script and call_function failures preserve stack and evidence', async
         message: 'Failed to evaluate script: selector not found',
         stack: 'Error: selector not found\n    at inspect (/eval/source.js:8:11)',
       },
-      evidence: [{
-        actionDescription: 'Inspect form state',
-        evidencePath: '/tmp/evidence.json',
-      }],
     });
   }
 });

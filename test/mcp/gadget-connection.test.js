@@ -665,7 +665,6 @@ test('callFunction loads a file and calls an exported function', async () => {
   }]);
   assert.deepEqual(result, {
     result: { greeting: 'hello Codex' },
-    evidence: [],
   });
 });
 
@@ -688,7 +687,6 @@ test('evalScript evaluates an inline async IIFE in the shared SDK runtime', asyn
   }]);
   assert.deepEqual(result, {
     result: { platform: 'android', available: true },
-    evidence: [],
   });
 });
 
@@ -703,7 +701,7 @@ test('evalScript validates the async IIFE shape and normalizes undefined', async
   const result = await connection.evalScript({
     source: '  ( async ( ) => { return undefined; } ) ( ) ;  ',
   });
-  assert.deepEqual(result, { result: null, evidence: [] });
+  assert.deepEqual(result, { result: null });
 
   for (const source of [
     '',
@@ -719,34 +717,6 @@ test('evalScript validates the async IIFE shape and normalizes undefined', async
   }
 });
 
-test('evalScript aggregates action-scoped evidence', async () => {
-  const manager = new FakeDeviceManager();
-  manager.evalResult = { ok: true };
-  manager.evalLogs = [
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"FormState#text","actionDescription":"Inspect text","checkpoint":"before","value":"Cat"}}'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"FormState#text","actionDescription":"Inspect text","checkpoint":"after","value":"Cat"}}'],
-  ];
-  const evidenceDirectory = mkdtempSync(join(tmpdir(), 'mobile-eval-evidence-'));
-  const connection = new GadgetConnection(manager, {
-    createEvalId: () => 'eval-evidence',
-    createEvidenceId: () => 'eval-evidence-result',
-    evidenceDirectory,
-  });
-  await connection.connect(targetInput({ ip: '127.0.0.1' }));
-
-  const result = await connection.evalScript({
-    source: '(async () => { return { ok: true }; })()',
-  });
-
-  assert.deepEqual(result.evidence, [{
-    actionDescription: 'Inspect text',
-    evidencePath: join(evidenceDirectory, 'eval-evidence-result.json'),
-  }]);
-  const evidence = JSON.parse(readFileSync(result.evidence[0].evidencePath, 'utf8'));
-  assert.equal(evidence.actionDescription, 'Inspect text');
-  assert.equal(Object.hasOwn(evidence.state['FormState#text'], 'changed'), false);
-  assert.equal(Object.hasOwn(evidence.state['FormState#text'], 'actionDescription'), false);
-});
 
 test('evalScript rejects concurrent operations and clears its active call after failure', async () => {
   const manager = new FakeDeviceManager();
@@ -754,11 +724,7 @@ test('evalScript rejects concurrent operations and clears its active call after 
   manager.evalResult = new Promise((resolve) => {
     finishEval = resolve;
   });
-  const evidenceDirectory = mkdtempSync(join(tmpdir(), 'mobile-eval-failure-evidence-'));
-  const connection = new GadgetConnection(manager, {
-    evidenceDirectory,
-    createEvidenceId: () => 'eval-failure',
-  });
+  const connection = new GadgetConnection(manager);
   await connection.connect(targetInput({ ip: '127.0.0.1' }));
   const source = '(async () => { return true; })()';
 
@@ -770,20 +736,11 @@ test('evalScript rejects concurrent operations and clears its active call after 
   finishEval(true);
   await firstEval;
 
-  manager.evalLogs = [
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"FormState#text","actionDescription":"Inspect before failure","checkpoint":"before","value":"Cat"}}'],
-  ];
   manager.evalError = new Error('syntax error');
   manager.evalError.stack = 'Error: syntax error\n    at inspect (/eval/source.js:4:9)';
   const failure = await connection.evalScript({ source }).catch((error) => error);
   assert.match(failure.message, /Failed to evaluate script: syntax error/);
   assert.match(failure.stack, /at inspect \(\/eval\/source\.js:4:9\)/);
-  assert.deepEqual(failure.evidence, [{
-    actionDescription: 'Inspect before failure',
-    evidencePath: join(evidenceDirectory, 'eval-failure.json'),
-  }]);
-  assert.equal(JSON.parse(readFileSync(failure.evidence[0].evidencePath, 'utf8'))
-    .state['FormState#text'].before, 'Cat');
   manager.evalError = null;
   manager.evalLogs = [];
   manager.evalResult = true;
@@ -824,186 +781,7 @@ test('callFunction can load corrected content after a failed version', async () 
   assert.equal(manager.loadedModules.length, 1);
 });
 
-test('callFunction writes one aggregated evidence file per action', async () => {
-  const manager = new FakeDeviceManager();
-  manager.functionResult = { ok: true };
-  manager.functionLogs = [
-    ['info', 'ordinary log'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"FormState#text","actionDescription":"Enter Cat","checkpoint":"before","value":""}}'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"chain","payload":{"type":"method","actionDescription":"Open form","method":"open","phase":"enter"}}'],
-    ['info', '@@MOBILE_EVIDENCE@@not-json'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"ui","payload":{"uiKey":"form_input","className":null,"actionDescription":"Open form","checkpoint":"before","value":{"exist":false}}}'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"ui","payload":{"uiKey":"form_input","className":"android.widget.EditText","actionDescription":"Open form","checkpoint":"after","value":{"exist":true}}}'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"FormState#text","actionDescription":"Enter Cat","checkpoint":"after","value":"Cat"}}'],
-  ];
-  const evidenceDirectory = mkdtempSync(join(tmpdir(), 'mobile-evidence-'));
-  let nextEvidenceId = 1;
-  const connection = new GadgetConnection(manager, {
-    evidenceDirectory,
-    createEvidenceId: () => `evidence-${nextEvidenceId++}`,
-  });
-  await connection.connect(targetInput({ ip: '127.0.0.1' }));
-  const filePath = createProbeFile('export function run() {}');
 
-  const result = await connection.callFunction({
-    filePath,
-    functionName: 'run',
-  });
-
-  assert.deepEqual(result, {
-    result: { ok: true },
-    evidence: [
-      {
-        actionDescription: 'Enter Cat',
-        evidencePath: join(evidenceDirectory, 'evidence-1.json'),
-      },
-      {
-        actionDescription: 'Open form',
-        evidencePath: join(evidenceDirectory, 'evidence-2.json'),
-      },
-    ],
-  });
-  assert.deepEqual(JSON.parse(readFileSync(result.evidence[0].evidencePath, 'utf8')), {
-    actionDescription: 'Enter Cat',
-    chain: [],
-    ui: {},
-    state: {
-      'FormState#text': {
-        path: 'FormState#text',
-        before: '',
-        after: 'Cat',
-      },
-    },
-  });
-  assert.deepEqual(JSON.parse(readFileSync(result.evidence[1].evidencePath, 'utf8')), {
-    actionDescription: 'Open form',
-    chain: [{
-      type: 'method',
-      method: 'open',
-      phase: 'enter',
-    }],
-    ui: {
-      form_input: {
-        className: 'android.widget.EditText',
-        before: { exist: false },
-        after: { exist: true },
-      },
-    },
-    state: {},
-  });
-});
-
-test('callFunction nests Window and element screenshots in UI checkpoints', async () => {
-  const manager = new FakeDeviceManager();
-  const image = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
-  const evidenceDirectory = mkdtempSync(join(tmpdir(), 'mobile-screenshot-evidence-'));
-  const evidenceLog = (checkpoint, value, uiKey = 'formInput') => ['info', `@@MOBILE_EVIDENCE@@${JSON.stringify({
-    category: 'ui',
-    payload: {
-      actionDescription: 'Open form',
-      checkpoint,
-      uiKey,
-      className: 'android.widget.EditText',
-      value,
-    },
-  })}`];
-  manager.functionLogs = [
-    evidenceLog('before', {
-      exist: false,
-      visible: false,
-      bounds: null,
-      properties: {},
-      screenshots: {
-        window: join(evidenceDirectory, 'screenshot-1.jpg'),
-        element: null,
-      },
-    }),
-    evidenceLog('after', {
-      exist: true,
-      visible: true,
-      bounds: { x: 10, y: 20, width: 30, height: 40 },
-      properties: {},
-      screenshots: {
-        window: join(evidenceDirectory, 'screenshot-2.jpg'),
-        element: join(evidenceDirectory, 'screenshot-3.jpg'),
-      },
-    }),
-    evidenceLog('before', {
-      exist: true,
-      visible: true,
-      screenshots: { window: join(evidenceDirectory, 'screenshot-1.jpg'), element: null },
-    }, 'stableLabel'),
-    evidenceLog('after', {
-      exist: true,
-      visible: true,
-      screenshots: { window: join(evidenceDirectory, 'screenshot-2.jpg'), element: null },
-    }, 'stableLabel'),
-  ];
-  const fileWriteMessage = (requestId, filePath) => [{
-    type: 'send',
-    payload: {
-      source: 'mobile-easy-use',
-      channel: 'controller.request',
-      payload: {
-        requestId,
-        action: 'file.write',
-        payload: { filePath },
-      },
-    },
-  }, image];
-  manager.functionMessages = [
-    fileWriteMessage('before-window', 'screenshot-1.jpg'),
-    fileWriteMessage('after-window', 'screenshot-2.jpg'),
-    fileWriteMessage('after-element', 'screenshot-3.jpg'),
-  ];
-  let nextEvidenceId = 1;
-  const connection = new GadgetConnection(manager, {
-    evidenceDirectory,
-    createEvidenceId: () => `screenshot-${nextEvidenceId++}`,
-  });
-  await connection.connect(targetInput());
-
-  const result = await connection.callFunction({
-    filePath: createProbeFile('export function run() {}'),
-    functionName: 'run',
-  });
-
-  assert.equal(result.evidence.length, 1);
-  assert.equal(result.evidence[0].evidencePath, join(evidenceDirectory, 'screenshot-1.json'));
-  assert.equal(Object.hasOwn(result.evidence[0], 'screenshots'), false);
-  const manifest = JSON.parse(readFileSync(result.evidence[0].evidencePath, 'utf8'));
-  assert.equal(manifest.actionDescription, 'Open form');
-  assert.equal(Object.hasOwn(manifest, 'screenshots'), false);
-  const before = manifest.ui.formInput.before.screenshots;
-  const after = manifest.ui.formInput.after.screenshots;
-  assert.equal(before.window, join(evidenceDirectory, 'screenshot-1.jpg'));
-  assert.equal(before.element, null);
-  assert.equal(after.window, join(evidenceDirectory, 'screenshot-2.jpg'));
-  assert.equal(after.element, join(evidenceDirectory, 'screenshot-3.jpg'));
-  assert.deepEqual(readFileSync(after.element), image);
-  assert.equal(Object.hasOwn(manifest.ui.formInput, 'changed'), false);
-  assert.equal(Object.hasOwn(manifest.ui.stableLabel, 'changed'), false);
-  assert.deepEqual(
-    manager.createdScripts[0].script.postCalls.map((message) => ({
-      type: message.type,
-      response: message.payload,
-    })),
-    [
-      {
-        type: 'mobile-easy-use.controller.response.before-window',
-        response: { ok: true, responsePayload: { filePath: before.window } },
-      },
-      {
-        type: 'mobile-easy-use.controller.response.after-window',
-        response: { ok: true, responsePayload: { filePath: after.window } },
-      },
-      {
-        type: 'mobile-easy-use.controller.response.after-element',
-        response: { ok: true, responsePayload: { filePath: after.element } },
-      },
-    ],
-  );
-});
 
 test('callFunction returns a fixed Controller response when file.write has no blob', async () => {
   const manager = new FakeDeviceManager();
@@ -1022,7 +800,6 @@ test('callFunction returns a fixed Controller response when file.write has no bl
   const evidenceDirectory = mkdtempSync(join(tmpdir(), 'mobile-empty-screenshot-evidence-'));
   const connection = new GadgetConnection(manager, {
     evidenceDirectory,
-    createEvidenceId: () => 'empty-screenshot',
   });
   await connection.connect(targetInput());
 
@@ -1031,7 +808,7 @@ test('callFunction returns a fixed Controller response when file.write has no bl
     functionName: 'run',
   });
 
-  assert.deepEqual(result.evidence, []);
+  assert.equal(Object.hasOwn(result, 'evidence'), false);
   assert.deepEqual(manager.createdScripts[0].script.postCalls, [{
     type: 'mobile-easy-use.controller.response.empty-window',
     payload: {
@@ -1041,18 +818,11 @@ test('callFunction returns a fixed Controller response when file.write has no bl
   }]);
 });
 
-test('callFunction preserves stack and evidence when the export throws', async () => {
+test('callFunction preserves stack when the export throws', async () => {
   const manager = new FakeDeviceManager();
-  manager.functionLogs = [
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"chain","payload":{"type":"method","actionDescription":"Invoke failing export","method":"run","phase":"enter"}}'],
-  ];
   manager.functionCallError = new Error('export failed');
   manager.functionCallError.stack = 'Error: export failed\n    at run (/probe/module.js:7:3)';
-  const evidenceDirectory = mkdtempSync(join(tmpdir(), 'mobile-call-failure-evidence-'));
-  const connection = new GadgetConnection(manager, {
-    evidenceDirectory,
-    createEvidenceId: () => 'call-failure',
-  });
+  const connection = new GadgetConnection(manager);
   await connection.connect(targetInput({ ip: '127.0.0.1' }));
 
   const failure = await connection.callFunction({
@@ -1062,49 +832,10 @@ test('callFunction preserves stack and evidence when the export throws', async (
 
   assert.match(failure.message, /Failed to call function: export failed/);
   assert.match(failure.stack, /at run \(\/probe\/module\.js:7:3\)/);
-  assert.deepEqual(failure.evidence, [{
-    actionDescription: 'Invoke failing export',
-    evidencePath: join(evidenceDirectory, 'call-failure.json'),
-  }]);
 });
 
-test('callFunction safely aggregates special evidence keys', async () => {
-  const manager = new FakeDeviceManager();
-  manager.functionLogs = [
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"__proto__","actionDescription":"Inspect special path","checkpoint":"before","value":"old"}}'],
-    ['info', '@@MOBILE_EVIDENCE@@{"category":"state","payload":{"path":"__proto__","actionDescription":"Inspect special path","checkpoint":"after","value":"new"}}'],
-  ];
-  const prototypeDescriptors = {
-    before: Object.getOwnPropertyDescriptor(Object.prototype, 'before'),
-    after: Object.getOwnPropertyDescriptor(Object.prototype, 'after'),
-    changed: Object.getOwnPropertyDescriptor(Object.prototype, 'changed'),
-  };
-  const evidenceDirectory = mkdtempSync(join(tmpdir(), 'mobile-evidence-special-key-'));
-  const connection = new GadgetConnection(manager, {
-    evidenceDirectory,
-    createEvidenceId: () => 'evidence-special-key',
-  });
-  await connection.connect(targetInput({ ip: '127.0.0.1' }));
-  const filePath = createProbeFile('export function run() {}');
 
-  const result = await connection.callFunction({ filePath, functionName: 'run' });
-  const evidence = JSON.parse(readFileSync(result.evidence[0].evidencePath, 'utf8'));
-
-  assert.equal(Object.hasOwn(evidence.state, '__proto__'), true);
-  assert.equal(evidence.actionDescription, 'Inspect special path');
-  assert.deepEqual(evidence.state.__proto__, {
-    path: '__proto__',
-    before: 'old',
-    after: 'new',
-  });
-  assert.deepEqual({
-    before: Object.getOwnPropertyDescriptor(Object.prototype, 'before'),
-    after: Object.getOwnPropertyDescriptor(Object.prototype, 'after'),
-    changed: Object.getOwnPropertyDescriptor(Object.prototype, 'changed'),
-  }, prototypeDescriptors);
-});
-
-test('callFunction rejects concurrent calls to keep evidence isolated', async () => {
+test('callFunction rejects concurrent calls to serialize operations', async () => {
   const manager = new FakeDeviceManager();
   let finishCall;
   manager.functionResult = new Promise((resolve) => {
@@ -1206,3 +937,30 @@ for (const reuse of [false, true]) {
     assert.equal(manager.createdScripts[0].script.unloadCalls, 1);
   });
 }
+
+
+test('callFunction writes screenshot files independently of its return value', async () => {
+  const manager = new FakeDeviceManager();
+  const image = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+  const evidenceDirectory = mkdtempSync(join(tmpdir(), 'mobile-screenshot-'));
+  const filePath = join(evidenceDirectory, 'window.jpg');
+  manager.functionMessages = [[{
+    type: 'send',
+    payload: {
+      source: 'mobile-easy-use', channel: 'controller.request',
+      payload: { requestId: 'window', action: 'file.write', payload: { filePath: 'window.jpg' } },
+    },
+  }, image]];
+  manager.functionResult = { screenshotPath: filePath };
+  const connection = new GadgetConnection(manager, { evidenceDirectory });
+  await connection.connect(targetInput());
+  const result = await connection.callFunction({
+    filePath: createProbeFile('export function run() {}'), functionName: 'run',
+  });
+  assert.deepEqual(result, { result: { screenshotPath: filePath } });
+  assert.deepEqual(readFileSync(filePath), image);
+  assert.deepEqual(manager.createdScripts[0].script.postCalls, [{
+    type: 'mobile-easy-use.controller.response.window',
+    payload: { ok: true, responsePayload: { filePath } },
+  }]);
+});

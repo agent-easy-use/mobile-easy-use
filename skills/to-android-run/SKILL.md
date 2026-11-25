@@ -60,4 +60,4 @@ Do not cold-start for invalid arguments or an operation already in progress. Do 
 
 ## Execute
 
-For Inline, call `eval_script({ deviceId, appId, source })` exactly once without rewriting it. For Module, call `call_function({ deviceId, appId, filePath, functionName, args? })` exactly once with the absolute `probe.js` path. Return the response unchanged; do not inspect evidence or retry a failed or timed-out mutation.
+For Inline, call `eval_script({ deviceId, appId, source })` exactly once without rewriting it. For Module, call `call_function({ deviceId, appId, filePath, functionName, args? })` exactly once with the absolute `probe.js` path. Return the tool response unchanged, including its result or error. Do not stringify or reinterpret the returned value, perform a separate result-analysis workflow, or retry a failed or timed-out mutation. The caller handles interpretation.

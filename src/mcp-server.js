@@ -404,7 +404,7 @@ export const toolDefinitions = [
   },
   {
     name: 'call_function',
-    description: 'On the connection instance identified by deviceId and appId, load or reuse a probe ES Module, call one export, and return its result or error with action-scoped evidence.',
+    description: 'On the connection instance identified by deviceId and appId, load or reuse a probe ES Module, call one export, and return its result or error.',
     inputSchema: {
       type: 'object',
       required: ['deviceId', 'appId', 'filePath', 'functionName'],
@@ -432,7 +432,7 @@ export const toolDefinitions = [
   },
   {
     name: 'eval_script',
-    description: 'On the connection instance identified by deviceId and appId, evaluate one inline async IIFE and return its result or error with action-scoped evidence. The source must have the form `(async () => { ... })()`.',
+    description: 'On the connection instance identified by deviceId and appId, evaluate one inline async IIFE and return its result or error. The source must have the form `(async () => { ... })()`.',
     inputSchema: {
       type: 'object',
       required: ['deviceId', 'appId', 'source'],
@@ -468,7 +468,6 @@ function targetSelectorProperties() {
 function operationOutputSchema() {
   return {
     type: 'object',
-    required: ['evidence'],
     properties: {
       result: {},
       error: {
@@ -479,19 +478,6 @@ function operationOutputSchema() {
           stack: { type: 'string' },
         },
         additionalProperties: false,
-      },
-      evidence: {
-        type: 'array',
-        description: 'Evidence JSON files, ordered by the first record for each action.',
-        items: {
-          type: 'object',
-          required: ['actionDescription', 'evidencePath'],
-          properties: {
-            actionDescription: { type: 'string' },
-            evidencePath: { type: 'string' },
-          },
-          additionalProperties: false,
-        },
       },
     },
     oneOf: [

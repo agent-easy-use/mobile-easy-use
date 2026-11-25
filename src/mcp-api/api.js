@@ -13,7 +13,6 @@ import { loadCompatibilityCatalog } from '../compatibility.js';
 export class GadgetConnection {
   constructor(deviceManager, {
     createConnectionId = randomUUID,
-    createEvidenceId = randomUUID,
     createEvalId = randomUUID,
     evidenceDirectory = DEFAULT_EVIDENCE_DIRECTORY,
     loadPresets = loadPresetsSource,
@@ -25,7 +24,6 @@ export class GadgetConnection {
   } = {}) {
     this.deviceManager = deviceManager;
     this.createConnectionId = createConnectionId;
-    this.createEvidenceId = createEvidenceId;
     this.createEvalId = createEvalId;
     this.evidenceDirectory = evidenceDirectory;
     this.loadPresets = loadPresets;

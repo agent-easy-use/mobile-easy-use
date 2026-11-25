@@ -56,12 +56,12 @@ class FakeConnection {
 
   async callFunction(args) {
     this.calls.push(['call_function', args]);
-    return { result: this.deviceId, evidence: [] };
+    return { result: this.deviceId };
   }
 
   async evalScript(args) {
     this.calls.push(['eval_script', args]);
-    return { result: this.deviceId, evidence: [] };
+    return { result: this.deviceId };
   }
 
   async disconnect() {
@@ -141,7 +141,7 @@ test('server rejects operations without an existing target connection', async ()
 
   assert.equal(response.result.isError, true);
   assert.match(response.result.structuredContent.error.message, /Connect to MobileEasyUse/);
-  assert.deepEqual(response.result.structuredContent.evidence, []);
+  assert.equal(Object.hasOwn(response.result.structuredContent, 'evidence'), false);
   assert.equal(logger.records.length, 2);
 });
 
