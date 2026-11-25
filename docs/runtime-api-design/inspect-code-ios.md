@@ -267,7 +267,7 @@ Android 的 CodeFrame 保留 className、methodName、sourceFile、line；两端
 删除当前 watcher 的断点，返回最终累计记录。只影响自身注册，不 detach 共享会话，不停止其他 watcher／override。
 
 - 已经由 worker 开始执行的采集完成后，才能处理排队的 stop 请求。
-- 注册／删除断点时，Host 短暂停止 App，完成变更后恢复原运行状态，避免 Apple LLDB 在运行中修改断点后复用过时的现场。这个停顿不额外采集最后一次现场。
+- Host 不额外执行 Stop/Continue 包装注册／删除。首次 attach 的暂停阶段通过 SBBreakpointName 配置一次 Python callback，后续断点通过 AddName 复用，避免运行中重复编译 callback 时隐式读取并缓存过期栈帧。LLDB 安装软件断点自身仍可能短暂中断进程。
 - stop 开始后 current 返回失败、data 为 []，最终记录通过 stop 获取。
 - 并发 stop 共用一次停止操作；成功后重复 stop 返回最终结果的独立快照，不重复 remove。
 - 删除失败返回错误并允许重试；不能把删除失败报告成已停止。

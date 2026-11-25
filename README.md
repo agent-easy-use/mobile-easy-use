@@ -226,11 +226,9 @@ in array order, on every debugger attach, without deduplication. Missing or empt
 `dsymPaths` leaves symbol discovery entirely to LLDB. Symbols must match the loaded
 modules' UUIDs. A path may identify a dSYM bundle or a DWARF file.
 
-`Probe.debugger.attach()` returns `{ symbolLoadErrors: [] }`. Failed entries include
-`path`, `resolvedPath`, and `message`; they do not prevent subsequent entries from
-loading or stop debugging. Each source breakpoint is checked for a resolved location
-when registered. Connection errors still fail attach. See the
-[iOS SDK contract](sdk/ios/index.d.ts) for the full debugger API.
+The debugger is attached on demand by `inspect.code` and `override.code`.
+Source breakpoints are checked for resolved locations when registered; connection
+errors fail attachment. The former `Probe.debugger` API has been removed.
 
 ## Inspiration
 

@@ -7,13 +7,13 @@ Ordinary SDK probes are retired in favor of real simulator E2E scripts under eac
 | Removed probe directories | Current regression coverage / decision |
 | --- | --- |
 | Both `runtime` | `tests/common/runtime.js`: runtime identity and class discovery. A Promise resolved and compared within one script is not a Host roundtrip test; Host protocol tests remain in `test/mcp`. |
-| Both `wait` | `tests/drive/wait.js` and `wait-transitions.js`: immediate/delayed visibility, attach/detach, resizing, timeout and predicates. Removed getter targets are not restored. |
+| Both `wait` | `tests/drive/wait.js` and `wait-transitions.js`: immediate/delayed visibility, attach/detach, resizing, timeout and predicates. Android function steps inside UI paths remain supported by the current SDK; their E2E coverage is still pending. |
 | Both `screenshot` | `tests/inspect/ui.js`, `visual-element.js`, `visual-window.js`: current screenshot APIs and reviewed fixed baselines. Retire legacy screenshot result schemas. |
 | Android `resource` | `tests/element/resources.js`: compiled IDs/strings, missing resources and subsequent successful lookup. |
 | Both `ui` | `tests/element/query.js`, `class-click.js`, `class-query.js`: native identity, exact and inherited classes, self steps, case sensitivity, no backtracking or subtree escape, hidden lookup, invalid empty class. |
 | Both `input` | Existing `tests/drive/click.js`, `input.js` plus `input-boundaries.js`. Android adds rejected hidden/zero/detached targets with no native events, and held DOWN/UP duration with no short click. iOS adds Unicode append and A/B/A focus switching, UIView touches rather than accessibility activation, clipped/covered element versus raw-coordinate behavior, duplicate identifiers. |
 | Android `window` | `tests/element/windows.js`: dialog/focusable popup roots and recovery, non-focusable popup retaining activity focus, and no query root while backgrounded. Public query behavior replaces removed root-list introspection. |
-| Both `override` | Existing `tests/override` exercise current method/field/code contracts. Android field tests additionally protect independent instances, arrays and null restoration. Retire `Override.run` scoped cleanup, old callback fallback, all-overload selection and direct iOS ivar contracts; they are not current API guarantees. |
+| Both `override` | Existing `tests/override` exercise current method/field/code contracts. Android field tests additionally protect independent instances, arrays and null restoration. Retire `Override.run` scoped cleanup, all-overload selection and direct iOS ivar contracts. Current method overrides still report callback/filter errors and call the original method; this behavior needs public-entry E2E coverage. |
 
 The iOS `tests/drive/windows.js` suite retains window-order and visibility-transition checks and adds covered-window rejection for input, long press and scroll, with native state unchanged.
 

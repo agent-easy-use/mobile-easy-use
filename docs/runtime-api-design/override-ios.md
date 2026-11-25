@@ -149,11 +149,13 @@ override.code(
 
 ### 定位与条件
 
-调用前必须先显式 attach debugger，override.code 不自动建立或关闭 LLDB 会话。当前会话入口为 `sdk/ios/common/debugger.js` 的 `attachDebugger()`／`detachDebugger()`；先移除 code 覆盖，再 detach。
+override.code 与 inspect.code 共用按需建立的 LLDB 会话，无需显式 attach。首次 attach 暂停时配置共享 callback，后续注册通过 LLDB breakpoint name 复用，不额外以 Stop/Continue 包装注册／remove；remove 只删除自身断点，不 detach；Host 在脚本销毁或连接关闭时清理共享会话。底层记录直接采用 capture、精简 CodeFrame 和 `{ ok, data, error }`，不保留旧 debugger 格式。
 
 source 使用 Host 上的绝对源码路径与正整数行号；address 使用十六进制执行地址，必须能解析到已加载映像。注册必须有已解析的可执行位置。不使用 className／instance 定位，也不要求先取得对象。
 
 condition 为非空原生表达式字符串，直接交给 LLDB SetCondition，在命中现场求值。它不是 JS 回调，变量、self／this 的可用性取决于当前语言和执行帧。条件错误记录为 condition 阶段错误，跳过本次干预；不能重复求值条件，以免重复副作用。
+
+涉及覆盖或提前返回的注册，不允许与已有 code 注册共享已解析的执行地址（包括 inspect.code）。安装时直接报错，不根据 condition 推断是否互斥；纯观测之间可以共享地址。检查仅覆盖注册时已解析的位置。
 
 ### 覆盖与提前返回
 
@@ -186,9 +188,24 @@ await remove();
 const removeChange = await override.code(definition, { price: 'price * 0.8' });
 await removeChange();
 
-// Objective-C 对象返回
+// Objective-C 空对象返回的表达式写法；当前提前返回存在下述已知限制
 const removeEmpty = await override.code(objectResultDefinition, undefined, '(id)nil');
 await removeEmpty();
 ```
+
+### earlyReturn 已知问题（待修复）
+
+当前不能保证表达式求值成功、LLDB ReturnFromFrame 未报错时，调用方就能收到正确返回值。以下问题已在 macOS ARM64、LLDB `lldb-1703.0.31.2` 的宿主验证中复现，尚未完成 iOS 设备验证：
+
+| 返回类型／场景 | 实测结果 |
+| --- | --- |
+| Objective-C 类方法的 int、double、BOOL | 本次用例分别正确返回 200、3.5、0，不代表这些类型的所有场景均已验证 |
+| Objective-C 类方法的 long long | 预期 LLONG_MAX，调用方实际收到错误值 |
+| Objective-C 类方法的对象 | 预期指定 NSString，实际收到类对象地址 |
+| Swift 函数的 Int | 预期 200，调用方实际收到错误值 |
+
+上述失败在原停止事件分发与直接 callback 执行路径均出现，属于 override.code 的提前返回问题，不是 inspect.code 的采集限制，也不是切换 callback 引入的问题。根因尚未确定；`'(id)nil'` 等示例仅说明表达式语法，不能视为当前返回行为已通过验证。修复前不应依赖上述失败场景；验证提前返回必须检查调用方实际收到的值，不能仅检查 API 的 ok。
+
+复现与对照结果见 [iOS code 条件与 callback 调查](./ios-code-condition-investigation.md#callback-直接承接-hit-的验证)。
 
 返回 remove 闭包。顺序为 condition → overrides → earlyReturn。普通覆盖失败逐项记录，不回滚成功项，仍尝试提前返回；表达式超时、执行帧失效等不安全状态可能终止调试会话。remove 停止未来干预，不撤销已发生的修改。
