@@ -2,9 +2,9 @@ import { inspectRuntime } from '../runtime/index.js';
 
 export async function inspectPageState() {
   inspectRuntime();
-  return AndroidExp.runOnMainThread(() => {
+  const home = await element.findUiView(R.id.api_main_root);
+  return common.runOnMainThread(() => {
     const state = Java.use('com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState').getInstance();
-    const home = AndroidExp.ui.find(R.id.api_main_root);
     return {
       homeVisible: home !== null && Boolean(home.isShown()),
       generation: state.getGeneration(),

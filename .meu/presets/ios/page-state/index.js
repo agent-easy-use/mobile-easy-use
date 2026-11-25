@@ -2,9 +2,9 @@ import { inspectRuntime } from '../runtime/index.js';
 
 export async function inspectPageState() {
   inspectRuntime();
-  return IOS.runOnMainThread(() => {
+  const home = await element.findUiView('api.main.root');
+  return common.runOnMainThread(() => {
     const state = ObjC.classes.APISDKFixtureState.sharedState();
-    const home = IOS.ui.find('api.main.root');
     return {
       homeAttached: home !== null && home.window() !== null,
       generation: Number(state.generation()),

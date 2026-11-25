@@ -1,5 +1,7 @@
 # ApiDemo presets 验证记录
 
+以下为旧 SDK 版本的历史记录。迁移到 element/common 后尚未重新执行设备验证。
+
 ## Android：真机通过
 
 - 设备：HUAWEI JAD-AL50，`SED0221812009951`。

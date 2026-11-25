@@ -1,5 +1,6 @@
 /** Read Android ApiDemo UI/fixture state on main. Requires connected ApiDemo, makes no changes.
  * activity/scenario describe the last reset and may be stale on home; use homeVisible separately.
+ * Element lookup and native reads are separate main-thread operations, not an atomic snapshot.
  * inputText is truncated to 512 UTF-16 code units. No navigation or waiting.
  */
 export function inspectPageState(): Promise<{

@@ -5,9 +5,9 @@ export async function inspectElement(identifier) {
     throw new Error('identifier must be a non-empty accessibility identifier, at most 128 characters');
   }
   inspectRuntime();
-  return IOS.runOnMainThread(() => {
-    const view = IOS.ui.find(identifier);
-    if (view === null) return null;
+  const view = await element.findUiView(identifier);
+  if (view === null) return null;
+  return common.runOnMainThread(() => {
     const label = view.accessibilityLabel();
     return {
       identifier,

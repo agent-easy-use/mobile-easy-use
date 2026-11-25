@@ -1,4 +1,5 @@
 /** Snapshot the first matching View in Android ApiDemo's focused window on main. No side effects.
+ * Element lookup and native reads are separate main-thread operations, not an atomic snapshot.
  * Requires connected ApiDemo. Returns null for an unknown ID, missing View or absent focused window.
  * shown follows View.isShown(), not viewport intersection or clickability. Text is capped at 512 UTF-16 code units.
  * @param resourceName Resource entry name such as api_menu_ui (no R.id. prefix), at most 128 characters.
