@@ -13,9 +13,9 @@ and scoped condition setup; callers own evidence collection, test registration, 
 Call `get_sdk_declarations({"platform":"ios"})` and read the required SDK, bridge, and Gum
 contracts. Reuse only the relevant rules from the probe-script references:
 
-- [Driver](../to-ios-probe-script/references/driver-generation.md): navigation, UI interactions, and business flows.
-- [Override](../to-ios-probe-script/references/override-generation.md): return definitions for callers to scope, or accept an action and return/await `Override.run`. Restore changes when the action settles.
-- [Direct Frida](../to-ios-probe-script/references/direct-frida-generation.md): native state reads, internal calls, and condition setup.
+- [Driver](../to-ios-probe-script/references/drive.md): navigation, UI interactions, and business flows.
+- [Override](../to-ios-probe-script/references/override.md): return definitions for callers to scope, or accept an action and return/await `Override.run`. Restore changes when the action settles.
+- [Direct Frida](../to-ios-probe-script/references/direct-frida.md): native state reads, internal calls, and condition setup.
 
 Follow platform thread and lifetime contracts. Use this skill's source contract and workflow.
 

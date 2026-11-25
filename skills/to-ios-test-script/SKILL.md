@@ -5,77 +5,49 @@ description: Generate iOS mobile-easy-use test modules for explicit expectations
 
 # To iOS Test Script
 
-Compose Driver, Override, Expect, and Direct Frida into repeatable tests. Reuse `to-ios-probe-script` generation rules for actions and observations; compare observations with expectations through the collection's `expect`. Generate files only; do not connect or execute.
+Turn a runtime question with a known expected outcome into a repeatable test using drive, inspect, optional override, and Test.create().expect. Generate files only; do not connect or execute.
 
-## Before generating code
+## Contracts and preparation
 
-- Call `get_sdk_declarations({"platform":"ios"})`. Read `Test` and the required SDK APIs; read returned `bridge` declarations for Objective-C work and `gum` for native Frida work. SDK declarations govern API details.
-- Resolve scenes, targets, and observations from App source. Derive expectations from requirements or confirmed behavior; clarify missing expectations that determine pass or fail.
-- Reuse presets: resolve `presets.directory` in `.meu/config.json` (default `.meu/presets`), read the iOS entry and relevant feature `index.d.ts` declarations, and import declared exports from `/meu/presets.js`.
+Call get_sdk_declarations({"platform":"ios"}), read Test and the APIs used, plus bridge/Gum for native work. Follow [probe generation](../to-ios-probe-script/SKILL.md) for runtime constraints, preset compatibility, threading and observation lifetime.
 
-## 1. Driver
+Resolve targets, scenes and observations from source. Establish expectations from requirements or confirmed behavior; clarify missing expectations that determine pass/fail. Prepare a known scene instead of assuming home.
 
-Drive the App into the target scene and perform the tested interactions, following [Driver generation](../to-ios-probe-script/references/driver-generation.md). Default to starting from home; put shared navigation in `beforeEach` and case-specific actions in `test`.
+## Test behavior
 
-Prefer `IOS.input` with source-resolved accessibility identifiers, await bounded completion waits, and assert input/wait results before continuing. Failure screenshots must preserve the original assertion failure.
+- Follow [drive](../to-ios-probe-script/references/drive.md). Await and check input/wait results, then assert the business outcome. Delivery alone is insufficient.
+- Install [watchers](../to-ios-probe-script/references/inspect.md) before triggering behavior. Assert capture success before interpreting records; wait for bounded business completion instead of fixed sleeps.
+- Read UI state with inspect.ui and use general value matchers. Read native UI properties through common.runOnMainThread.
+- Await expect(target).toMatchElementScreenshot(baseline) or expect().toMatchWindowScreenshot(baseline) for visuals. Use separately reviewed baselines, never the current output as its own expected image.
+- Follow [override](../to-ios-probe-script/references/override.md). Await installation and removal; do not replace the outcome being tested.
 
-## 2. Override
+Use beforeEach/afterEach for shared setup/cleanup; expect is available in hooks. Check necessary preconditions without repeating assertions everywhere. Save handles acquired in beforeEach for afterEach. Cleanup must tolerate partial setup, attempt every acquired resource and preserve primary and cleanup failures.
 
-Temporarily replace Objective-C method behavior or instance ivar values to establish conditions unavailable through normal configuration or Driver actions. Follow [Override generation](../to-ios-probe-script/references/override-generation.md); do not replace the business result being tested.
+SDK regression tests use public APIs under test, with native fixture setup/verification independent of that API. A drive.click regression must not use drive.click to prepare its target. Ordinary App tests may use drive for navigation.
 
-Use exact `- ` or `+ ` selectors and native-compatible values from the SDK contract; object returns require native objects/handles, such as NSString for text, rather than JS strings.
+## Output
 
-Await `Override.run(definitions, action)` around all dependent actions, waits, and assertions. It restores overrides on success or failure. A scope completed in `beforeEach` does not remain active during `test`.
+Write ESM .js files in the requested directory, defaulting to App tests/. SDK regression subdirectories match SDK directories: drive, inspect, override, element, common. Name files/tests by behavior. No test .d.ts is needed.
 
-Use `beforeEach`/`afterEach` for shared state preparation and restoration; clean up manually installed hooks and explicitly owned native resources in `finally` or `afterEach`.
-
-## 3. Expect
-
-Assert the App outcome, not just action delivery:
-
-- Read control state with `inspect.ui`, then assert the returned value with general matchers. Read native UI properties through `common.runOnMainThread`. Wait for eventual state before asserting; await screenshot assertions.
-- Use `toHaveElementScreenShot` for element appearance or `toHaveWindowScreenShot` for window appearance, with a separately reviewed baseline. Prefer baseline paths relative to the test module. Never update the baseline in the test.
-- Use ordinary value assertions for business data, action results, or observations UI and screenshots cannot express.
-
-## 4. Direct Frida
-
-Read native properties, invoke App methods, prepare state, or drive advanced business entries when the SDK has no suitable interface. Follow [Direct Frida generation](../to-ios-probe-script/references/direct-frida-generation.md), using `ObjC` or Gum APIs and passing observations to `expect`.
-
-Use `IOS.runOnMainThread` for direct UIKit access; respect business queues and Objective-C object lifetimes. `ObjC` requires runtime-exposed classes and selectors, not arbitrary pure Swift symbols. Direct calls verify behavior from that entry onward; use Driver for user interaction paths.
-
-## Test structure and output
-
-Write ESM `.js` files in the requested directory, defaulting to the App's `tests/`. Name files after the tested behavior, such as `class-click.js`. Do not generate `.d.ts` files; `run` uses the SDK's existing Test collection signature.
-
-Create one collection per file, register non-nested groups at top level, and directly export `run`. App actions belong in callbacks; cleanup must tolerate partial setup. Replace the example's names and assertion with the requested scenario:
+Create one collection per file and export run. Register non-nested groups at top level; App work belongs in callbacks. The following sketch requires source-resolved resetCounter/readCounter helpers and target; generated output must provide actual implementations:
 
 ```js
-const { describe, test, beforeEach, afterEach, expect, run } = Test.create();
+const { describe, test, beforeEach, expect, run } = Test.create();
 export { run };
 
+describe('Submit counter', () => {
+  beforeEach(async () => {
+    await resetCounter();
+  });
 
-describe('xxx', () => {
-    beforeEach(async () => {
-        // maybe hook
-    });
-    afterEach(async () => {
-        // hook clear
-    });
-    test('test-1', async () => {
-        // driver
-
-        // expect
-        expect(1).toBe(1);
-    });
+  test('one click increments the counter once', async () => {
+    const clicked = await drive.click(target);
+    expect(clicked.ok, 'Click succeeds').toBe(true);
+    const completed = await drive.waitUntil(async () => (await readCounter()) > 0);
+    expect(completed.ok, 'Native handler completed').toBe(true);
+    expect(await readCounter(), 'Counter increments exactly once').toBe(1);
+  });
 });
 ```
 
-Files share the App and JS environment: run serially and restore state between cases.
-
-## Code generation constraints
-
-Generated code runs in Frida: use the provided SDK globals and Frida APIs, without Node.js
-built-ins or npm module resolution.
-
-Imports must resolve within the Frida runtime; adjacent Host files are not loaded automatically.
-Use relative source imports only when the code will be bundled before execution, as with presets.
+Files share App/JS state. Run serially and restore changed state between cases. Avoid generic lifecycle registries, vacuous assertions and SDK E2E mocks. Report generated files and prerequisites without claiming execution passed.
