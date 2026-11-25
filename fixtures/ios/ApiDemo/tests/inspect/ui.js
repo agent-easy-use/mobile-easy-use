@@ -1,8 +1,6 @@
 import ObjC from 'frida-objc-bridge';
-import { drive } from '../../../../../sdk/ios/drive/index.js';
-import { inspect } from '../../../../../sdk/ios/inspect/index.js';
 const { ui } = inspect;
-import { runOnMainThread } from '../../../../../sdk/ios/common/main-thread.js';
+const { runOnMainThread } = common;
 import { requestController } from '../../../../../sdk/common/controller.js';
 import { createScene, removeScene } from './helpers/ui-scene.js';
 const { describe, test, beforeEach, afterEach, expect, run } = Test.create();

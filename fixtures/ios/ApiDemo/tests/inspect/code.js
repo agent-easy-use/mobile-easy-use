@@ -1,4 +1,4 @@
-import { code } from '../../../../../sdk/ios/inspect/code.js';
+const { code } = inspect;
 import { breakpoint, runNative } from '../common/debugger/helpers/fixture.js';
 const { describe, test, afterEach, expect, run } = Test.create();
 export { run };

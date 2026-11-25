@@ -18,7 +18,7 @@
 export {};
 
 declare global {
-  /** Public runtime namespaces. Legacy implementation types below are not exported entry points. */
+  /** Public runtime namespaces. */
   const drive: Readonly<AndroidDriveApi>;
   const override: Readonly<AndroidOverrideRuntimeApi>;
   const inspect: Readonly<AndroidInspectApi>;
@@ -55,7 +55,8 @@ declare global {
   }
   interface AndroidMethodDefinition { className: string; method: string; argumentTypes?: readonly string[]; filter?: (...args: any[]) => boolean }
   interface AndroidOverrideRuntimeApi {
-    /** Async installation and removal; filter and returnInstead callbacks remain synchronous. Values use Java bridge conversions. */
+    /** Async installation and removal; filter and returnInstead callbacks remain synchronous. When supplied, only literal true passes filter;
+     * callback/filter errors are reported and fall back to the original method. Values use Java bridge conversions. */
     method(definition: AndroidMethodDefinition, returnInstead: any | ((...args: any[]) => any)): Promise<() => Promise<void>>;
     /** Async installation and removal. Write through Frida Java fields; remove restores the saved value. */
     field(definition: { field: string } & ({ className: string; instance?: never } | { instance: Java.Wrapper; className?: never }), value: any): Promise<() => Promise<void>>;
@@ -70,6 +71,11 @@ declare global {
   interface AndroidLogRecord { timestamp: string; threadId: number; threadName: string | null; tag: string; level: string; message: string }
   interface AndroidMethodEnter { receiver: Java.Wrapper; args: any[] }
   interface AndroidMethodLeave extends AndroidMethodEnter { result: any; exception: any }
+  /** Callbacks run synchronously on the intercepted thread. Returned records are not serialized
+   * or deep-copied. A JS reference alone does not extend a borrowed native object's lifetime.
+   * Prefer copying business values in the callback. To use a Java object later, return a
+   * Java.retain(wrapper) reference and call $dispose() when finished. stop() does not dispose it.
+   */
   interface AndroidMethodOptions {
     enter?: (context: AndroidMethodEnter) => Record<string, any>;
     leave?: (context: AndroidMethodLeave) => Record<string, any>;
@@ -440,80 +446,8 @@ declare global {
     until(predicate: () => boolean | Promise<boolean>, options?: AndroidWaitOptions): Promise<AndroidWaitResult>;
   }
 
-  interface AndroidOverrideInvocation {
-    receiver: Java.Wrapper;
-    args: readonly unknown[];
-    argumentTypes: readonly string[];
-  }
-
-  /** Must match the selected Java return type: primitives, null/Java objects, or compatible arrays.
-   * Plain JSON objects are not converted to Java objects; use Java wrappers. undefined is for void.
-   */
-  type AndroidOverrideReturnValue =
-    | string | number | boolean | null
-    | Int64
-    | readonly AndroidOverrideReturnValue[]
-    | Java.Wrapper
-    | undefined;
-
-  interface AndroidOverrideDefinition<
-    TValue extends AndroidOverrideReturnValue = AndroidOverrideReturnValue,
-  > {
-    /** Java class name or class wrapper containing the target method. */
-    target: string | Java.Wrapper;
-    method: string;
-    /** Exact Java type names (e.g. java.lang.String, int); [] selects no arguments. Exclusive with allOverloads. Optional for one overload. */
-    argumentTypes?: readonly string[];
-    /** Explicitly select every overload of a multiply overloaded method. */
-    allOverloads?: boolean;
-    /** Runs on the intercepted thread; only literal true applies withReturn.
-     * False or a thrown error calls the original; thrown errors are reported. Must be synchronous/read-only.
-     */
-    filter?: (invocation: AndroidOverrideInvocation) => boolean;
-    /** Replacement result or synchronous factory on the intercepted thread; skips the original on success.
-     * Factory errors are reported and fall back to the original. Return-type conversion errors are not
-     * covered by that fallback. Match every selected overload's return type; no Promise factories.
-     */
-    withReturn: TValue | ((invocation: AndroidOverrideInvocation) => TValue);
-  }
-
-  type AndroidOverrideFieldValue = boolean | number | string | Int64 | Java.Wrapper | unknown[] | null;
-
-  /**
-   * Write once before action and restore the original value afterward; App writes are not blocked.
-   * Use stable configuration or flow-control fields. Avoid fields the App changes during action:
-   * restoration overwrites those changes. Do not overlap operations on the same field.
-   * Field access uses the runtime thread; fields requiring a specific App thread are unsupported.
-   */
-  interface AndroidOverrideFieldDefinition {
-    /** Instance wrapper for instance fields; class name or wrapper for static fields. */
-    target: string | Java.Wrapper;
-    /** Exact Frida field name (use _name for a method-name collision). */
-    field: string;
-    /** Native-compatible fixed value; use Int64 for large longs and Java.array() for native arrays. */
-    withValue: AndroidOverrideFieldValue;
-  }
-
-  interface AndroidOverrideApi {
-    /** Install a non-empty list of method or field definitions, call action, and restore in reverse order after return/throw or
-     * settlement of a native JS Promise. Custom thenables do not extend the scope; use async action.
-     * Installation errors roll back and throw before action. Action results/errors are preserved.
-     * Overrides are process-wide while active, including unrelated threads; use filter to narrow scope.
-     * Already-hooked overloads (including chain evidence/other overrides) are rejected.
-     * On ARM Android 11+, static-hook setup initializes the declaring class and completes ART visibility;
-     * if the ART symbol is unavailable, setup warns and continues without this preparation. Class initialization may run App code.
-     * @example const result = Override.run([{ target: 'com.example.Flags', method: 'isEnabled', withReturn: true }], () => Java.use('com.example.Flags').isEnabled());
-     */
-    run<TResult>(
-      definitions: readonly (AndroidOverrideDefinition | AndroidOverrideFieldDefinition)[],
-      action: () => TResult,
-    ): TResult extends Promise<infer TResolved> ? Promise<TResolved> : TResult;
-  }
-
   /** Dynamically resolved Android application resources, for example `R.id.submit_button`. */
   const R: AndroidR;
-
-  /** Action-scoped Java method return overrides. */
 
   const Test: Readonly<AndroidTestApi>;
 

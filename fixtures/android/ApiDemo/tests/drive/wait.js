@@ -1,5 +1,5 @@
-import { drive } from '../../../../../sdk/android/drive/index.js';
-import { runOnMainThread } from '../../../../../sdk/android/common/main-thread.js';
+const { runOnMainThread } = common;
+// Synchronous native lookup for scene setup/readback inside main-thread callbacks.
 import { findUiView } from '../../../../../sdk/android/element/query.js';
 import { openScene, returnHome } from './helpers/input-scene.js';
 const { describe, test, beforeEach, afterEach, expect, run } = Test.create();

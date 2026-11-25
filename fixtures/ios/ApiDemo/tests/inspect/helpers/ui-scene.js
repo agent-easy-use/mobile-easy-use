@@ -1,5 +1,5 @@
 import ObjC from 'frida-objc-bridge';
-import { runOnMainThread } from '../../../../../../sdk/ios/common/main-thread.js';
+const { runOnMainThread } = common;
 
 // Fixture setup uses UIKit directly, independently of the inspect API under test.
 export async function createScene() {

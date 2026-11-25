@@ -1,5 +1,5 @@
 import Java from 'frida-java-bridge';
-import { code } from '../../../../../sdk/android/override/code.js';
+const { code } = override;
 import { breakpoint, className, reset, runNative } from '../common/debugger/helpers/fixture.js';
 const { describe, test, beforeEach, afterEach, expect, run } = Test.create();
 export { run };

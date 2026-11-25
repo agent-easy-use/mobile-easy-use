@@ -17,7 +17,7 @@ export {};
  * dispatch unless a method JSDoc states a caller-thread requirement.
  */
 declare global {
-  /** Public runtime namespaces. Legacy implementation types below are not exported entry points. */
+  /** Public runtime namespaces. */
   const drive: Readonly<IOSDriveApi>;
   const override: Readonly<IOSOverrideRuntimeApi>;
   const inspect: Readonly<IOSInspectApi>;
@@ -26,17 +26,26 @@ declare global {
 
   interface IOSDriveApi {
     click: IOSInputApi['click'];
-    longPress(target: Parameters<IOSInputApi['longPress']>[0]): Promise<IOSLongPressResult>;
+    longPress: IOSInputApi['longPress'];
     input: IOSInputApi['input'];
-    scroll(target: Parameters<IOSInputApi['scroll']>[0], direction: Parameters<IOSInputApi['scroll']>[1]): Promise<IOSScrollResult>;
+    scroll: IOSInputApi['scroll'];
     wait: IOSDriveWait;
     waitUntil: IOSWaitApi['until'];
   }
   interface IOSElementApi {
-    /** Resolve on main; missing targets return null. Raw wrapper operations retain native thread requirements. */
+    /** Resolve an identifier or path on main, starting at the key window (or first visible window).
+     * Each step searches the preceding UIView and its descendants, including itself, without backtracking.
+     * Missing targets return null; invalid targets throw. Matching does not require visibility.
+     * Raw wrapper operations retain UIKit thread requirements. Virtual accessibility/SwiftUI nodes
+     * without a UIView are not searchable.
+     * @example const view = await element.findUiView(['identifier::form.container', 'label::Submit']);
+     */
     findUiView(target: string | IOSUiPath): Promise<ObjCBridge.Object | null>;
   }
   interface IOSCommonApi {
+    /** Only the synchronous part before the first await runs on main; returned promises are adopted.
+     * Callback errors reject. Never block waiting for the returned Promise.
+     */
     runOnMainThread<T>(work: () => T | Promise<T>): Promise<T>;
     /** Name of the calling thread; null if unnamed or unavailable. No thread dispatch. */
     currentThreadName(): string | null;
@@ -45,11 +54,25 @@ declare global {
   }
   interface IOSMethodDefinition { className: string; selector: `- ${string}` | `+ ${string}`; filter?: (...args: NativeCallbackArgumentValue[]) => boolean }
   interface IOSOverrideRuntimeApi {
-    /** Async installation and removal; filter and returnInstead callbacks remain synchronous. Arguments and return use NativeCallback ABI values, not high-level ObjC conversion. Remove nested replacements in reverse order. */
+    /** Async installation and removal; filter and returnInstead callbacks remain synchronous. When supplied, only literal true passes filter;
+     * callback/filter errors are reported and fall back to the original method.
+     * Arguments and return use NativeCallback ABI values, not high-level ObjC conversion:
+     * object arguments are pointers, BOOL is numeric, and structs/64-bit values use Frida ABI types.
+     * Remove nested replacements in reverse order.
+     */
     method(definition: IOSMethodDefinition, returnInstead: NativeCallbackReturnValue | ((...args: NativeCallbackArgumentValue[]) => NativeCallbackReturnValue)): Promise<() => Promise<void>>;
-    /** Async installation and removal. Write through Objective-C property accessors; remove restores the saved value. */
+    /** Write through Objective-C property accessors; remove restores the saved value.
+     * No main-thread dispatch: both installation and removal run accessors on the calling thread.
+     * For UIKit or other main-thread properties, dispatch BOTH calls with common.runOnMainThread.
+     * @example const remove = await common.runOnMainThread(() => override.field({ instance: label, property: 'text' }, title));
+     * @example await common.runOnMainThread(remove);
+     */
     field(definition: { instance: ObjCBridge.Object; property: string }, value: any): Promise<() => Promise<void>>;
-    /** Async installation; invoke and await the returned closure to remove. */
+    /** Async installation; invoke and await the returned closure to remove.
+     * earlyReturn is an LLDB expression. Swift early return is not supported reliably:
+     * Swift Int(200) can report success but return an incorrect value to the native caller.
+     * Use Swift local-variable overrides instead. Objective-C returns still require an ABI-compatible expression.
+     */
     code(definition: IOSCodeDefinition, overrides?: Record<string, string>, earlyReturn?: string): Promise<() => Promise<void>>;
   }
   type IOSInspectResult<T> = { ok: true; data: T[]; error: null } | { ok: false; data: T[]; error: string };
@@ -57,9 +80,15 @@ declare global {
     current(): Promise<IOSInspectResult<T>>;
     stop(): Promise<IOSInspectResult<T>>;
   }
-  interface IOSLogRecord { timestamp: string; threadId: number; threadName: string | null; tag: string; level: string; message: string }
+  interface IOSLogRecord { timestamp: string; threadId: number; threadName: string | null; tag: string; level: string | null; message: string }
   interface IOSMethodEnter { receiver: ObjCBridge.Object; args: NativeCallbackArgumentValue[] }
   interface IOSMethodLeave extends IOSMethodEnter { result: NativeCallbackReturnValue; exception: undefined }
+  /** Callbacks run synchronously on the intercepted thread. Returned records are not serialized
+   * or deep-copied. A JS reference alone does not extend a borrowed native object's lifetime.
+   * Prefer copying business values in the callback. To use an ObjC object later, explicitly
+   * retain it before returning the record and release it when finished; stop() does not release it.
+   * Arguments/results use raw NativeCallback ABI values; convert object pointers with ObjC.Object.
+   */
   interface IOSMethodOptions {
     enter?: (context: IOSMethodEnter) => Record<string, any>;
     leave?: (context: IOSMethodLeave) => Record<string, any>;
@@ -197,47 +226,6 @@ declare global {
 
   type IOSUiState = 'exists' | 'visible' | 'hidden' | 'focused' | 'enabled';
 
-  /** Native MEUUIQuery synchronously dispatches queries to main. Searches the first key window,
-   * falling back to the first non-hidden window with alpha > 0.01. Each step includes the current
-   * root, then depth-first descendants (subviews order), visiting at most 10,000 Views per step.
-   * Matches need not be visible. Only UIViews are searched; virtual accessibility/SwiftUI elements
-   * may have no corresponding UIView. Invalid targets or an unavailable native bridge throw.
-   */
-  interface IOSUiApi {
-    /** Find the first UIView matching a non-empty accessibilityIdentifier. Returns null on no match/window.
-     * A plain string is always an identifier, even if it contains ::. Raw methods on the returned ObjC
-     * object retain UIKit thread requirements; use IOS.runOnMainThread for subsequent UI access.
-     * @example const view = IOS.ui.find('form.submit');
-     */
-    find(accessibilityIdentifier: string): ObjCBridge.Object | null;
-    /** Resolve each step in the preceding UIView subtree (including that View). Returns null on any miss.
-     * @example const view = IOS.ui.find(['identifier::form.container', 'label::Submit']);
-     */
-    find(path: IOSUiPath): ObjCBridge.Object | null;
-    /** Resolve and check once on the main queue; no polling. Missing targets return false for every state.
-     * hidden requires an existing, geometrically invisible UIView. visible checks window attachment,
-     * ancestor hidden/alpha > 0.01 and axis-aligned clipping against ancestors, window and screen;
-     * not occlusion, masks or presentation-layer animation geometry. focused uses isFirstResponder().
-     * enabled checks the target's userInteractionEnabled and, for UIControl, isEnabled().
-     * Does not check ancestors, visibility or operation-specific flags. Lookup/getter errors reject.
-     */
-    checkUiState(target: string | IOSUiPath, state: IOSUiState): Promise<boolean>;
-  }
-
-  type IOSScreenshotTarget = string | IOSUiPath;
-
-  interface IOSScreenshotOptions {
-    /** Optional non-empty keys mapped to elements cropped from the captured App Window. UIView objects are not accepted. */
-    targets?: Readonly<Record<string, IOSScreenshotTarget>>;
-    /** Defaults to false with non-empty targets. An absent/empty target map always captures the window. */
-    includeWindow?: boolean;
-  }
-
-  type IOSScreenshotResult =
-    /** Successful values are Host JPEG paths. Unresolved/non-croppable targets are omitted, even when ok is true. */
-    | { ok: true; window?: string; targets: Readonly<Partial<Record<string, string>>> }
-    | { ok: false; error: { message: string }; targets: Readonly<Partial<Record<string, never>>> };
-
   /** Direction of finger movement; content normally moves in the opposite direction. */
   type IOSInputDirection = 'up' | 'down' | 'left' | 'right';
   /** Validated in the target App, then dispatched as screen points to the XCTest Runner. */
@@ -337,25 +325,24 @@ declare global {
    */
   interface IOSInputApi {
     /** Resolve the target in the App and synthesize a real touch at its screen point.
-     * @example const result = await IOS.input.click('form.submit');
+     * @example const result = await drive.click('form.submit');
      */
     click(target: IOSInputTarget): Promise<IOSClickResult>;
     /** Tap to focus, then synthesize a non-empty text input; existing contents are not cleared.
      * Tap completion does not verify keyboard focus or the resulting text.
-     * @example const result = await IOS.input.input('form.text', 'hello');
+     * @example const result = await drive.input('form.text', 'hello');
      */
     input(target: IOSInputTarget, text: string): Promise<IOSTargetInputResult>;
     /** Compute endpoints in the App and drag in the finger direction, clamped to visible target
      * bounds (App bounds for a raw coordinate). Completion does not wait for scrolling inertia.
-     * @param distance Positive finite distance in points; defaults to 300, may be clamped.
-     * @example const result = await IOS.input.scroll('form.results', 'up', 300);
+     * Distance is fixed at 300 points and may be clamped.
+     * @example const result = await drive.scroll('form.results', 'up');
      */
-    scroll(target: IOSInputTarget, direction: IOSInputDirection, distance?: number): Promise<IOSScrollResult>;
-    /** Resolve the target in the App and synthesize a real touch held for the requested duration.
-     * @param durationMs Positive finite duration in milliseconds; defaults to 600.
-     * @example const result = await IOS.input.longPress({ x: 120, y: 360 }, 800);
+    scroll(target: IOSInputTarget, direction: IOSInputDirection): Promise<IOSScrollResult>;
+    /** Resolve the target in the App and synthesize a real touch held for 600 ms.
+     * @example const result = await drive.longPress({ x: 120, y: 360 });
      */
-    longPress(target: IOSInputTarget, durationMs?: number): Promise<IOSLongPressResult>;
+    longPress(target: IOSInputTarget): Promise<IOSLongPressResult>;
   }
 
   interface IOSWaitOptions {
@@ -394,134 +381,12 @@ declare global {
   ) => Promise<IOSWaitResult>;
 
   interface IOSWaitApi {
-    /** Poll ui.checkUiState with wait.until. hidden requires an existing, invisible UIView.
-     * Lookup errors, including invalid targets, retry until TIMEOUT with lastCheckError.
-     * @example const ready = await IOS.wait.ui('form.results', 'visible', { timeoutMs: 10000 });
-     */
-    ui(
-      target: string | IOSUiPath,
-      state: IOSUiWaitState,
-      options?: IOSWaitOptions,
-    ): Promise<IOSWaitResult>;
     /** Poll a sync/async boolean predicate sequentially until true. Errors retry until timeout.
      * Invalid return types fail with INVALID_ARGUMENT. Timeout does not cancel an in-flight predicate.
-     * @example const ready = await IOS.wait.until(() => cacheReady, { timeoutMs: 10000 });
+     * @example const ready = await drive.waitUntil(() => cacheReady, { timeoutMs: 10000 });
      */
     until(predicate: () => boolean | Promise<boolean>, options?: IOSWaitOptions): Promise<IOSWaitResult>;
   }
-
-  type IOSObjCSelector = `- ${string}` | `+ ${string}`;
-
-  interface IOSRuntimeApi {
-    /** Find an Objective-C class or a Swift class registered in the Objective-C Runtime.
-     * First checks className as an exact Runtime name, then checks Runtime names ending in
-     * `.${className}`. selectors is optional and is only needed to disambiguate when className may
-     * match classes from multiple modules. When provided, every selector must exist on a candidate;
-     * inherited methods are included. Returns null for no match and throws with all full Runtime
-     * names when multiple candidates remain.
-     * @example const controller = IOS.runtime.findClass('AuthViewController');
-     * @example const controller = IOS.runtime.findClass('AuthViewController', ['- submit']);
-     */
-    findClass(
-      className: string,
-      selectors?: readonly IOSObjCSelector[],
-    ): ObjCBridge.Object | null;
-  }
-
-  interface IOSApi {
-    /** Schedule work on the iOS main queue. Only the synchronous part before the first await
-     * is guaranteed to run there; a returned Promise is adopted, not kept on the main queue.
-     * Callback errors reject; unavailable ObjC throws synchronously. Never block waiting for this Promise.
-     * @example const label = await IOS.runOnMainThread(() => IOS.ui.find('form.submit')?.accessibilityLabel()?.toString() ?? null);
-     */
-    runOnMainThread<TResult>(work: () => TResult | Promise<TResult>): Promise<TResult>;
-    readonly runtime: IOSRuntimeApi;
-    /** Capture the focused App Window, keyed element crops, or both, using the native UIView query.
-     * Requires MEUScreenshot and Host file controller; image values are saved Host JPEG paths.
-     * Missing/hidden/out-of-window targets can be omitted on success; check each requested key.
-     * Invalid options, failed/incomplete capture, and persistence errors resolve ok:false.
-     * @example const shot = await IOS.screenshot({ targets: { submit: 'form.submit' }, includeWindow: true });
-     */
-    screenshot(options?: IOSScreenshotOptions): Promise<IOSScreenshotResult>;
-    readonly ui: IOSUiApi;
-    readonly input: IOSInputApi;
-    readonly wait: IOSWaitApi;
-  }
-
-  interface IOSOverrideInvocation {
-    receiver: ObjCBridge.Object;
-    /** Raw NativeCallback arguments excluding self/_cmd: pointers for objects/selectors,
-     * native numbers/Int64/UInt64/struct arrays according to ABI. No automatic ObjC object conversion.
-     */
-    args: readonly NativeCallbackArgumentValue[];
-    className: string;
-    selector: `- ${string}` | `+ ${string}`;
-  }
-
-  /** Raw NativeCallback ABI return value matching the selected method. BOOL accepts boolean
-   * (converted to 0/1). Object returns require an ObjC object/handle or NULL; plain JS strings,
-   * null, and JSON objects are not bridged. Use NSString for text, Int64/UInt64 for exact 64-bit values,
-   * ABI-shaped arrays for structs, and undefined for void. Keep returned native objects alive as needed.
-   */
-  type IOSOverrideReturnValue = NativeCallbackReturnValue | boolean;
-
-  interface IOSOverrideDefinition<
-    TValue extends IOSOverrideReturnValue = IOSOverrideReturnValue,
-  > {
-    /** Objective-C Runtime class name resolved through IOS.runtime.findClass, or a class wrapper. */
-    target: string | ObjCBridge.Object;
-    /** Exact Objective-C instance or class selector, including its '- ' or '+ ' prefix. */
-    selector: `- ${string}` | `+ ${string}`;
-    /** Runs on the intercepted thread; only literal true applies withReturn.
-     * False or a thrown error calls the original; thrown errors are reported. Must be synchronous/read-only.
-     */
-    filter?: (invocation: IOSOverrideInvocation) => boolean;
-    /** Replacement result or synchronous factory on the intercepted thread; skips the original on success.
-     * Factory errors are reported and fall back to the original; ABI conversion errors are outside that
-     * fallback. No Promise factories, automatic JSON bridging, or Objective-C exception recovery.
-     */
-    withReturn: TValue | ((invocation: IOSOverrideInvocation) => TValue);
-  }
-
-  type IOSOverrideFieldValue = boolean | number | Int64 | UInt64 | ObjCBridge.Object | null;
-
-  /**
-   * Write once before action and restore the original value afterward; App writes are not blocked.
-   * Use stable configuration or flow-control fields. Avoid fields the App changes during action:
-   * restoration overwrites those changes. Do not overlap operations on the same field.
-   * Replacement objects are held through action. Originals preserve strong/weak ownership;
-   * an original weak object released during action is restored as nil. Unknown/unretained ownership is unsupported.
-   * Object ivars require the runtime ownership SPI; unavailable runtimes fail before action.
-   * Field access uses the runtime thread; fields requiring a specific App thread are unsupported.
-   */
-  interface IOSOverrideFieldDefinition {
-    /** Objective-C instance; boolean, numeric and managed object ivars. No properties, blocks or pure Swift fields. */
-    target: ObjCBridge.Object;
-    /** Exact runtime ivar name. */
-    field: string;
-    /** Native-compatible fixed value. Construct NSString/NSNumber explicitly; no automatic object wrapping. */
-    withValue: IOSOverrideFieldValue;
-  }
-
-  interface IOSOverrideApi {
-    /** Install a non-empty list of method or field definitions, call action, and restore in reverse order after return/throw or
-     * settlement of a native JS Promise. Custom thenables do not extend the scope; use async action.
-     * Installation errors roll back and throw before action. Action results/errors are preserved.
-     * Overrides are process-wide while active; filter narrows matching calls. Requires methods exposed
-     * to the Objective-C runtime (Swift must use ObjC-compatible dispatch). Restore the previous IMP;
-     * overlapping overrides of the same method must finish in reverse installation order.
-     * @example const enabled = Override.run([{ target: 'FeatureFlags', selector: '+ isEnabled', withReturn: true }], () => Boolean(ObjC.classes.FeatureFlags.isEnabled()));
-     */
-    run<TResult>(
-      definitions: readonly (IOSOverrideDefinition | IOSOverrideFieldDefinition)[],
-      action: () => TResult,
-    ): TResult extends Promise<infer TResolved> ? Promise<TResolved> : TResult;
-  }
-
-  /** iOS main-queue work, UIKit queries/screenshots/waits, and XCTest-backed input. */
-
-  /** Action-scoped Objective-C method return overrides. */
-
 
   const Test: Readonly<IOSTestApi>;
 

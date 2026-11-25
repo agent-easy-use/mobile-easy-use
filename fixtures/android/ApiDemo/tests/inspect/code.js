@@ -1,4 +1,4 @@
-import { code } from '../../../../../sdk/android/inspect/code.js';
+const { code } = inspect;
 import { breakpoint, reset, runNative } from '../common/debugger/helpers/fixture.js';
 const { describe, test, afterEach, expect, run } = Test.create();
 export { run };

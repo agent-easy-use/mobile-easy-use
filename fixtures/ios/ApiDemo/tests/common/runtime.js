@@ -46,3 +46,11 @@ describe('runtime identity', () => {
     expect(status.appId).toContain('apidemo');
   });
 });
+
+// Swift source-level debugging is a different path; this checks the installed Frida bridge.
+describe('Swift bridge export', () => {
+  test('the public Swift bridge initializes in the App runtime', () => {
+    expect(Swift.available, 'ApiDemo links the Swift runtime').toBe(true);
+    expect(typeof Swift.NativeFunction).toBe('function');
+  });
+});

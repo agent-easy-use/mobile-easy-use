@@ -1,4 +1,3 @@
-import { drive } from '../../../../../sdk/ios/drive/index.js';
 import { openScene, returnHome, readInputText, readLongPressCount, readOffset } from './helpers/input-scene.js';
 const { describe, test, afterEach, expect, run } = Test.create();
 export { run };
@@ -14,6 +13,7 @@ describe('drive input gestures', () => {
     expect(completed.ok, 'Native text updated').toBe(true);
     expect(await readInputText()).toBe('ApiDemo 123');
     expect((await drive.wait(target, 'focused')).ok).toBe(true);
+    expect(await inspect.ui.isFocused(target)).toBe(true);
   });
   test('long press invokes the native gesture handler once', async () => {
     const target = 'api.input.long-press';

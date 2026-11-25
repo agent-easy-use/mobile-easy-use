@@ -1,7 +1,6 @@
 import Java from 'frida-java-bridge';
-import { drive } from '../../../../../sdk/android/drive/index.js';
-import { ui } from '../../../../../sdk/android/inspect/ui/index.js';
-import { runOnMainThread } from '../../../../../sdk/android/common/main-thread.js';
+const { ui } = inspect;
+const { runOnMainThread } = common;
 import { requestController } from '../../../../../sdk/common/controller.js';
 import { createScene, removeScene, disposeTree } from './helpers/ui-scene.js';
 const { describe, test, beforeEach, afterEach, expect, run } = Test.create();

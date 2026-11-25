@@ -1,7 +1,8 @@
 import Java from 'frida-java-bridge';
+// Native root lookup prepares the fixture; inspection uses the public SDK.
 import { findFocusedRootView } from '../../../../../sdk/android/element/query.js';
-import { ui } from '../../../../../sdk/android/inspect/ui/index.js';
-import { runOnMainThread } from '../../../../../sdk/android/common/main-thread.js';
+const { ui } = inspect;
+const { runOnMainThread } = common;
 import { requestController } from '../../../../../sdk/common/controller.js';
 const { describe, test, expect, run } = Test.create();
 export { run };

@@ -95,6 +95,10 @@ for (const platform of ['android', 'ios']) {
       });
       await methods.current();
       await methods.stop();
+      // @ts-expect-error action-scoped overrides are no longer an entry point
+      override.run([], () => {});
+      // @ts-expect-error legacy types must not suggest a second override contract
+      const legacy: ${prefix}OverrideApi = {};
       // @ts-expect-error installation must be awaited before removal
       installation();
       // @ts-expect-error method definitions use className
@@ -113,6 +117,14 @@ for (const platform of ['android', 'ios']) {
       override.field({ className: 'Flags', instance, field: 'enabled' }, true);
       ` : `
       common.findClass('Flags', ['- enabled']);
+      const unknownLevel: IOSLogRecord['level'] = null;
+      const swiftAvailable: boolean = Swift.available;
+      // @ts-expect-error iOS gesture duration is fixed
+      drive.longPress(target, 800);
+      // @ts-expect-error iOS gesture distance is fixed
+      drive.scroll(target, 'up', 500);
+      // @ts-expect-error the IOS namespace was removed
+      IOS.input.click(target);
       // @ts-expect-error iOS properties require an instance
       override.field({ className: 'Flags', property: 'enabled' }, 1);
       // @ts-expect-error selectors must declare instance or class method

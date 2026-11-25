@@ -1,5 +1,6 @@
 import ObjC from 'frida-objc-bridge';
 import { openScene, returnHome } from './helpers/input-scene.js';
+// Synchronous native lookup for scene setup/readback inside main-thread callbacks.
 import { findUiView } from '../../../../../sdk/ios/element/query.js';
 const { describe, test, afterEach, expect, run } = Test.create();
 export { run };

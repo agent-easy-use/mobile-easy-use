@@ -1,5 +1,6 @@
 import Java from 'frida-java-bridge';
-import { runOnMainThread } from '../../../../../../sdk/android/common/main-thread.js';
+const { runOnMainThread } = common;
+// Native root lookup prepares the fixture; inspection uses the public SDK.
 import { findFocusedRootView } from '../../../../../../sdk/android/element/query.js';
 
 // Create a deterministic native subtree in ApiDemo without calling inspect.ui.

@@ -1,4 +1,4 @@
-import { ui } from '../../../../../sdk/ios/inspect/ui/index.js';
+const { ui } = inspect;
 import { requestController } from '../../../../../sdk/common/controller.js';
 const { describe, test, expect, run } = Test.create();
 export { run };
