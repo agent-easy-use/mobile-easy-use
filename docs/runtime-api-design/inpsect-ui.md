@@ -109,11 +109,11 @@ console.log({ focused, hidden });
 
 | 单次检查 | drive.wait 的状态 | 测试断言 |
 | --- | --- | --- |
-| isExisting(target) | exists | toExist() |
-| isVisible(target) | visible | toBeVisible() |
-| isHidden(target) | hidden | toBeHidden() |
-| isFocused(target) | focused | toBeFocused() |
-| isEnabled(target) | enabled | toBeEnabled() |
+| isExisting(target) | exists | expect(await inspect.ui.isExisting(target)).toBe(true) |
+| isVisible(target) | visible | expect(await inspect.ui.isVisible(target)).toBe(true) |
+| isHidden(target) | hidden | expect(await inspect.ui.isHidden(target)).toBe(true) |
+| isFocused(target) | focused | expect(await inspect.ui.isFocused(target)).toBe(true) |
+| isEnabled(target) | enabled | expect(await inspect.ui.isEnabled(target)).toBe(true) |
 
 三者共用底层状态检查器。inspect 检查一次；wait 根据自己的轮询、重试与超时契约重复检查；测试断言将检查结果转为断言结果。
 

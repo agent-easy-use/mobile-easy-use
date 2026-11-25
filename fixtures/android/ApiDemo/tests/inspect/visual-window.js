@@ -6,7 +6,7 @@ describe('fixed window baseline', () => {
   beforeEach(returnHome);
   afterEach(returnHome);
   test('home matches its reviewed baseline and another page does not', async () => {
-    await expect(R.id.api_menu_ui).toBeVisible();
+    expect(await inspect.ui.isVisible(R.id.api_menu_ui)).toBe(true);
     await expect().toMatchWindowScreenshot(BASELINE, { maxDiffPixelRatio: 0 });
     await openScene('Ui', 'class', R.id.api_ui_ready);
     await expect().not.toMatchWindowScreenshot(BASELINE, { maxDiffPixelRatio: 0 });

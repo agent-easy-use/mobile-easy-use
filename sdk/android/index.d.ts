@@ -522,8 +522,7 @@ declare global {
     | readonly AndroidTestJsonValue[] | { readonly [key: string]: AndroidTestJsonValue };
 
   /** Choose assertions by verification target:
-   * - UI controls and properties: use UI matchers for existence, visibility, focus and enabled state;
-   *   use toSatisfy for custom checks of text and other properties.
+   * - UI controls and properties: read with inspect.ui or native access on main, then assert the returned value.
    * - Visual appearance: use screenshot matchers.
    * - Native business objects and state: read primitive values or plain JSON snapshots,
    *   then use general-purpose matchers.
@@ -549,27 +548,6 @@ declare global {
     toMatch(expected: RegExp): void;
     /** String substring or array membership (not deep equality). */
     toContain(expected: unknown): void;
-    /** Target exists. UI state assertions resolve once on the main thread through element target resolution.
-     * Targets: resource ID, UI path or native View.
-     * Missing targets fail all five positive UI state assertions, including toBeHidden.
-     */
-    toExist(): Promise<void>;
-    /** Attached, not hidden, cumulative ancestor alpha > 0.01, with nonempty clipped screen bounds.
-     * Uses getGlobalVisibleRect and the window's visible display frame.
-     * Excludes occlusion, masks and presentation-layer animation geometry.
-     */
-    toBeVisible(): Promise<void>;
-    /** UI target exists but is not geometrically visible. Missing is not hidden. */
-    toBeHidden(): Promise<void>;
-    /** Target itself has input focus via isFocused(). Not accessibility focus. */
-    toBeFocused(): Promise<void>;
-    /** Native isEnabled(), not necessarily clickable. */
-    toBeEnabled(): Promise<void>;
-    /** Resolve once and invoke a read-only predicate on the main thread; await its boolean result.
-     * After await, native UI access must explicitly use common.runOnMainThread.
-     * Missing targets and non-boolean results are errors.
-     */
-    toSatisfy(predicate: (view: Java.Wrapper) => boolean | Promise<boolean>): Promise<void>;
     /** Capture the current element through inspect.ui.screenshotElement, then compare on Host.
      * Use expect(target); baselinePath points to an existing Host PNG/JPEG.
      * Relative paths resolve against the call_function entry module directory; Inline requires an absolute path.

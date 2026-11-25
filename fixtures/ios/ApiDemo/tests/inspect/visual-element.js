@@ -7,7 +7,9 @@ describe('screenshot', () => {
   afterEach(returnHome);
 
   test('FIRST matches the reviewed baseline', async () => {
-    await expect('api.ui.class.first').toSatisfy(view => String(view.currentTitle()) === 'FIRST');
+    const view = await element.findUiView('api.ui.class.first');
+    const text = await common.runOnMainThread(() => String(view.currentTitle()));
+    expect(text).toBe('FIRST');
     await expect('api.ui.class.first').toMatchElementScreenshot(BASELINE, { maxDiffPixelRatio: 0 });
   });
 });

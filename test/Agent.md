@@ -161,7 +161,7 @@ Debugger 内部用例放在 `ApiDemo/tests/common/debugger/`，可直接导入�
 
 - 统一放在 `test/framework/`，运行 `npm run test:framework`；不启动模拟器、不连接 App，也不要求构建 SDK。
 - 直接测试真实 `sdk/common/test` 实现，使用 Node `assert` 验证结果，不 mock 被测 runner 或 expect。
-- 原生 SDK 依赖必须 mock，包括元素查询、主线程调度、状态读取和截图；Host 比较结果及通信失败也通过 mock 提供。
+- 框架仅依赖原生截图能力，使用 mock 提供截图；UI 状态和属性由脚本显式读取，再交给通用断言；Host 比较结果及通信失败也通过 mock 提供。
 - 保护注册与筛选、hooks 顺序、异步等待、失败后清理、报告，以及断言正反结果和错误传播。截图断言验证目标传递、比较结果处理和失败报告，不验证原生截图或真实像素比较。
 - Host 图片解码/比较算法的测试独立保留；App 原生能力仍通过 ApiDemo E2E 验证。框架单元测试通过不代表这些能力已验证。
 

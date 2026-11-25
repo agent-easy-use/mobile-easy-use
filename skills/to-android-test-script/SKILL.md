@@ -31,7 +31,7 @@ Use `beforeEach`/`afterEach` for shared state preparation and restoration; clean
 
 Assert the App outcome, not just action delivery:
 
-- Prefer UI assertions for observable control state; use `toSatisfy` for native UI properties. Await assertions and wait for eventual state first.
+- Read control state with `inspect.ui`, then assert the returned value with general matchers. Read native UI properties through `common.runOnMainThread`. Wait for eventual state before asserting; await screenshot assertions.
 - Use `toHaveElementScreenShot` for element appearance or `toHaveWindowScreenShot` for window appearance, with a separately reviewed baseline. Prefer baseline paths relative to the test module. Never update the baseline in the test.
 - Use ordinary value assertions for business data, action results, or observations UI and screenshots cannot express.
 

@@ -33,14 +33,14 @@ expect 应能在探查函数中独立于 run 使用；不要求所有探查先�
 | --- | --- |
 | 普通状态值 | 相等、结构相等、大小、包含、自定义谓词 |
 | 观测事件 | 通过普通数组/谓词检查命中、参数、结果和异常 |
-| UI | 复用平台 UI 查询语义检查存在、可见、焦点等 |
+| UI | 使用 inspect.ui 读取存在、可见、焦点等状态，再用通用 matcher 比较 |
 | 已采集图片 | 比较指定 baseline，返回差异信息 |
 
 MVP 不引入一套专用链路断言 DSL。先使用稳定的快照与事件结构，确有重复模式再增加便利 matcher。
 
 即时 expect 不隐式轮询、不触发业务动作。等待通过 drive.wait 显式表达；expect.poll 是否增加后续讨论。读取失败不能被 .not 反转成通过。
 
-针对已取得的截图或状态，断言使用该份证据，不偷偷重读 App。现有“即时查询 UI / 截图并比较”便利 matcher 如保留，须与快照断言明确区分。已采集图片 matcher 的名称和输入契约尚待定稿。
+针对已取得的截图或状态，断言使用该份证据，不偷偷重读 App。仅保留“即时截图并比较”的便利 matcher，与已采集证据的断言明确区分。已采集图片 matcher 的名称和输入契约尚待定稿。
 
 ## 3. 从探查转为测试
 
@@ -80,7 +80,7 @@ suite.describe('搜索空态', () => {
 
 ## 4. MVP 定义与返回
 
-作用：test 组织可重复执行的测试；expect 对已经获取的事实或明确指定的 UI 目标进行判断。测试成功来自执行无错误及断言满足，不由回调返回 true/false 决定。
+作用：test 组织可重复执行的测试；expect 对已经获取的事实进行判断；截图 matcher 额外接受截图目标。测试成功来自执行无错误及断言满足，不由回调返回 true/false 决定。
 
 ```typescript
 interface TestReference { describe: string; test: string }
@@ -143,17 +143,11 @@ interface Matchers {
   toBeLessThanOrEqual(expected: number): void;
   toMatch(expected: RegExp): void;
   toContain(expected: unknown): void;
-  // UI 即时读取：具体 target/语义由平台定义。
-  toExist(): Promise<void>;
-  toBeVisible(): Promise<void>;
-  toBeHidden(): Promise<void>;
-  toBeFocused(): Promise<void>;
-  toBeEnabled(): Promise<void>;
-  toSatisfy(predicate: (view: PlatformView) => boolean | Promise<boolean>): Promise<void>;
+
 }
 ```
 
-上述集合基于现有 matcher。toBe 使用 Object.is，toEqual 比较普通 JSON 结构；toContain 对数组做成员判断，不自动深比较。数值比较不隐式转换类型。toSatisfy 当前是 UI predicate，不能误当作任意值 predicate；普通事件可先用数组方法计算布尔值，再 toBe(true)。
+上述集合基于现有 matcher。toBe 使用 Object.is，toEqual 比较普通 JSON 结构；toContain 对数组做成员判断，不自动深比较。数值比较不隐式转换类型。UI 状态由 inspect.ui 读取，原生属性通过 common.runOnMainThread 读取，再使用通用断言；expect 不隐式查找 UI 或调度主线程。
 
 断言通过返回 void，失败抛出/拒绝 AssertionError；读取或通信失败保留原始错误，.not 只反转匹配结果。UI 不存在不等于 hidden。
 
@@ -165,7 +159,7 @@ expect(snapshot.values.search.loading).toBe(false);
 
 const events = await methodWatcher.current();
 expect(events.records.some(event => event.phase === 'return')).toBe(true);
-await expect(searchField).toBeVisible(); // 明确即时查询 UI，不是读取先前截图。
+expect(await inspect.ui.isVisible(searchField)).toBe(true); // 明确即时查询 UI，不是读取先前截图。
 ```
 
 图片断言使用当前已实现的接口：

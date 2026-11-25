@@ -40,7 +40,7 @@ for (const [matcher, captureName, target] of [
         return { filePath: '/actual.png' };
       },
     };
-    const expect = createExpect(undefined, undefined, undefined, screenshots);
+    const expect = createExpect(screenshots);
     await expect(target)[matcher]('/baseline.png', { maxDiffPixelRatio: 0.1 });
     assert.deepEqual(captures, [target === undefined ? [] : [target]]);
     assert.equal(host.requests[0].action, 'screenshot.compare');
@@ -62,7 +62,7 @@ for (const [matcher, captureName, target] of [
       return true;
     });
 
-    const suite = create(undefined, undefined, undefined, screenshots);
+    const suite = create(screenshots);
     suite.describe('visual', () => {
       suite.test('checkout', () => suite.expect(target)[matcher]('baseline.png'));
     });
@@ -80,7 +80,7 @@ for (const [matcher, captureName, target] of [
       if (captureResult instanceof Error) throw captureResult;
       return captureResult;
     } };
-    const expect = createExpect(undefined, undefined, undefined, screenshots);
+    const expect = createExpect(screenshots);
     await assert.rejects(expect(target).not[matcher]('/baseline.png'), /capture failed/);
     captureResult = {};
     await assert.rejects(expect(target).not[matcher]('/baseline.png'), /requested image/);

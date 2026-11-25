@@ -8,10 +8,10 @@ describe('ui.visibility', () => {
 
   test('hidden and zero-size targets exist but are not visible', async () => {
     for (const target of [id('ui.hidden'), id('ui.zero_size')]) {
-      await expect(target).toExist();
-      await expect(target).toBeHidden();
-      await expect(target).not.toBeVisible();
+      expect(await inspect.ui.isExisting(target)).toBe(true);
+      expect(await inspect.ui.isHidden(target)).toBe(true);
+      expect(await inspect.ui.isVisible(target)).toBe(false);
     }
-    await expect(id('ui.disabled')).not.toBeEnabled();
+    expect(await inspect.ui.isEnabled(id('ui.disabled'))).toBe(false);
   });
 });

@@ -55,6 +55,20 @@ for (const platform of ['android', 'ios']) {
     check(platform, `export {};
       const platform: '${platform}' = runtimeStatus().platform;
       const target = ${target};
+      const { expect } = Test.create();
+      expect(await inspect.ui.isFocused(target)).toBe(true);
+      // @ts-expect-error UI observation belongs to inspect.ui
+      expect(target).toExist();
+      // @ts-expect-error UI observation belongs to inspect.ui
+      expect(target).toBeVisible();
+      // @ts-expect-error UI observation belongs to inspect.ui
+      expect(target).toBeHidden();
+      // @ts-expect-error UI observation belongs to inspect.ui
+      expect(target).toBeFocused();
+      // @ts-expect-error UI observation belongs to inspect.ui
+      expect(target).toBeEnabled();
+      // @ts-expect-error UI observation belongs to inspect.ui
+      expect(target).toSatisfy(() => true);
       const view = await element.findUiView(target);
       if (view) await drive.click(view);
       await drive.click({ x: 1, y: 2 });

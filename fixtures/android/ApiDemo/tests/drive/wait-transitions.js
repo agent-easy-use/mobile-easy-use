@@ -11,7 +11,7 @@ describe('wait.immediate', () => {
 
   test('immediate reaches exists', async () => {
     expect((await drive.wait(R.id.api_wait_existing, 'exists', { timeoutMs: 2000, intervalMs: 25 })).ok).toBe(true);
-    await expect(R.id.api_wait_existing).toExist();
+    expect(await inspect.ui.isExisting(R.id.api_wait_existing)).toBe(true);
   });
 });
 
@@ -20,10 +20,10 @@ describe('wait.delayed_visible', () => {
   afterEach(returnHome);
 
   test('show reaches visible', async () => {
-    await expect(R.id.api_wait_hidden).toBeHidden();
+    expect(await inspect.ui.isHidden(R.id.api_wait_hidden)).toBe(true);
     await common.runOnMainThread(() => Java.use(CONTROLLER).showAfter('api_wait_hidden', 150));
     expect((await drive.wait(R.id.api_wait_hidden, 'visible', { timeoutMs: 2000, intervalMs: 25 })).ok).toBe(true);
-    await expect(R.id.api_wait_hidden).toBeVisible();
+    expect(await inspect.ui.isVisible(R.id.api_wait_hidden)).toBe(true);
   });
 });
 
@@ -32,10 +32,10 @@ describe('wait.delayed_gone', () => {
   afterEach(returnHome);
 
   test('hide reaches hidden', async () => {
-    await expect(R.id.api_wait_gone).toBeVisible();
+    expect(await inspect.ui.isVisible(R.id.api_wait_gone)).toBe(true);
     await common.runOnMainThread(() => Java.use(CONTROLLER).hideAfter('api_wait_gone', 150));
     expect((await drive.wait(R.id.api_wait_gone, 'hidden', { timeoutMs: 2000, intervalMs: 25 })).ok).toBe(true);
-    await expect(R.id.api_wait_gone).toBeHidden();
+    expect(await inspect.ui.isHidden(R.id.api_wait_gone)).toBe(true);
   });
 });
 
@@ -44,16 +44,16 @@ describe('wait.attach_detach', () => {
   afterEach(returnHome);
 
   test('attach reaches exists', async () => {
-    await expect(R.id.api_wait_attach_target).not.toExist();
+    expect(await inspect.ui.isExisting(R.id.api_wait_attach_target)).toBe(false);
     await common.runOnMainThread(() => Java.use(CONTROLLER).attachAfter('api_wait_attach_target', 150));
     expect((await drive.wait(R.id.api_wait_attach_target, 'exists', { timeoutMs: 2000, intervalMs: 25 })).ok).toBe(true);
-    await expect(R.id.api_wait_attach_target).toExist();
+    expect(await inspect.ui.isExisting(R.id.api_wait_attach_target)).toBe(true);
   });
   test('detach removes the target', async () => {
-    await expect(R.id.api_wait_detach_target).toExist();
+    expect(await inspect.ui.isExisting(R.id.api_wait_detach_target)).toBe(true);
     await common.runOnMainThread(() => Java.use(CONTROLLER).detachAfter('api_wait_detach_target', 150));
     expect((await drive.waitUntil(async () => (await element.findUiView(R.id.api_wait_detach_target)) === null, { timeoutMs: 2000, intervalMs: 25 })).ok).toBe(true);
-    await expect(R.id.api_wait_detach_target).not.toExist();
+    expect(await inspect.ui.isExisting(R.id.api_wait_detach_target)).toBe(false);
   });
 });
 
@@ -62,10 +62,10 @@ describe('wait.resize', () => {
   afterEach(returnHome);
 
   test('resize reaches visible', async () => {
-    await expect(R.id.api_wait_zero_size).toBeHidden();
+    expect(await inspect.ui.isHidden(R.id.api_wait_zero_size)).toBe(true);
     await common.runOnMainThread(() => Java.use(CONTROLLER).resizeAfter('api_wait_zero_size', 150));
     expect((await drive.wait(R.id.api_wait_zero_size, 'visible', { timeoutMs: 2000, intervalMs: 25 })).ok).toBe(true);
-    await expect(R.id.api_wait_zero_size).toBeVisible();
+    expect(await inspect.ui.isVisible(R.id.api_wait_zero_size)).toBe(true);
   });
 });
 
@@ -77,7 +77,7 @@ describe('wait.timeout', () => {
     const result = await drive.wait(timeoutTarget(), 'visible', { timeoutMs: 150, intervalMs: 25 });
     expect(result.ok).toBe(false);
     expect(result.error.code).toBe('TIMEOUT');
-    await expect(timeoutTarget()).toBeHidden();
+    expect(await inspect.ui.isHidden(timeoutTarget())).toBe(true);
   });
   test('until polls a boolean predicate', async () => {
     let checks = 0;

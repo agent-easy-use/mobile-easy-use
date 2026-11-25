@@ -156,18 +156,18 @@ test('Test rejects concurrent runs and registration across collections, then rel
   assert.equal((await other.run()).ok, true);
 });
 
-test('Test reports nested runs and asynchronous UI assertion failures without hanging', async () => {
-  const suite = create(() => ({}), async work => work(), () => false);
+test('Test reports nested runs and assertions after asynchronous observations without hanging', async () => {
+  const suite = create();
   suite.describe('group', () => {
     suite.test('nested', () => suite.run());
-    suite.test('ui', () => suite.expect('target').toBeVisible());
-    suite.test('predicate', () => suite.expect('target').toSatisfy(async () => false));
+    suite.test('observation', async () => {
+      const value = await Promise.resolve(false);
+      suite.expect(value).toBe(true);
+    });
   });
   const nested = await suite.run({ describe: 'group', test: 'nested' });
   assert.match(nested.tests[0].errors[0].message, /Concurrent or nested/);
-  for (const name of ['ui', 'predicate']) {
-    const report = await suite.run({ describe: 'group', test: name });
-    assert.equal(report.ok, false);
-    assert.equal(report.tests[0].errors[0].name, 'AssertionError');
-  }
+  const report = await suite.run({ describe: 'group', test: 'observation' });
+  assert.equal(report.ok, false);
+  assert.equal(report.tests[0].errors[0].name, 'AssertionError');
 });

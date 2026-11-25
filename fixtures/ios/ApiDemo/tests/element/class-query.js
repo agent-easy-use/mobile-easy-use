@@ -29,7 +29,7 @@ describe('element class query boundaries', () => {
   test('hidden elements remain queryable', async () => {
     const path = [`identifier::api.ui.class.hidden`, 'class::APIClassButton'];
     expect(await element.findUiView(path) !== null).toBe(true);
-    await expect(path).toBeHidden();
+    expect(await inspect.ui.isHidden(path)).toBe(true);
   });
   test('an empty class name is rejected', async () => {
     let error;

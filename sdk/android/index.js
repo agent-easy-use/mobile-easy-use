@@ -7,15 +7,13 @@ import { inspect } from './inspect/index.js';
 import { runOnMainThread } from './common/main-thread.js';
 import { currentThreadName } from './common/thread.js';
 import { findUiView } from './element/query.js';
-import { resolveView } from './element/target.js';
-import { checkUiStateNow } from './element/state.js';
 import { R } from './element/resources.js';
 
 const element = Object.freeze({
   findUiView: target => runOnMainThread(() => findUiView(target)),
 });
 const common = Object.freeze({ runOnMainThread, currentThreadName });
-const Test = { create: () => createTest(resolveView, runOnMainThread, checkUiStateNow, inspect.ui) };
+const Test = { create: () => createTest(inspect.ui) };
 
 Object.assign(globalThis, { drive, override, inspect, element, common, Test, Java, R });
 globalThis.runtimeStatus = () => {

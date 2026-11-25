@@ -66,19 +66,7 @@ const matchers = {
   },
 };
 
-export function createExpect(findUiView, runOnMainThread, checkUiState, screenshots) {
-  const uiMatchers = {
-    toExist: view => checkUiState(view, 'exists'),
-    toBeVisible: view => checkUiState(view, 'visible'),
-    toBeHidden: view => checkUiState(view, 'hidden'),
-    toBeFocused: view => checkUiState(view, 'focused'),
-    toBeEnabled: view => checkUiState(view, 'enabled'),
-    toSatisfy(view, predicate) {
-      if (typeof predicate !== 'function') throw new TypeError('toSatisfy requires a predicate');
-      if (view === null) throw new Error('UI target not found');
-      return predicate(view);
-    },
-  };
+export function createExpect(screenshots) {
   function assertions(actual, message, negate = false) {
     function check(matches, name, expected, detail = message, observation = actual) {
       if (typeof matches !== 'boolean') throw new TypeError(`${name} must produce a boolean result`);
@@ -87,12 +75,6 @@ export function createExpect(findUiView, runOnMainThread, checkUiState, screensh
     const methods = Object.fromEntries(Object.entries(matchers).map(([name, compare]) => [
       name, expected => check(compare(actual, expected), name, expected),
     ]));
-    for (const [name, compare] of Object.entries(uiMatchers)) {
-      methods[name] = async expected => {
-        const matches = await runOnMainThread(() => compare(findUiView(actual), expected));
-        check(matches, name, true);
-      };
-    }
     async function checkScreenshot(name, actualPath, baselinePath, options) {
       if (typeof actualPath !== 'string' || actualPath.length === 0) {
         throw new Error('Screenshot capture did not return the requested image');

@@ -67,8 +67,10 @@ describe('Counter button', () => {
     expect(clicked.ok).toBe(true);
 
     // Estado de la interfaz
-    await expect(button).toBeVisible();
-    await expect(button).toSatisfy(view => String(view.getText()) === 'FIRST:1');
+    expect(await inspect.ui.isVisible(button)).toBe(true);
+    const view = await element.findUiView(button);
+    const text = await common.runOnMainThread(() => String(view.getText()));
+    expect(text).toBe('FIRST:1');
 
     // Captura
     await expect(button).toHaveElementScreenShot('baselines/first-clicked.jpg');
