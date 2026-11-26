@@ -52,8 +52,8 @@ android {
 }
 
 dependencies {
-    add("autoImplementation", "com.agenteasyuse:mobile-easy-use:0.1.0")
-    add("manualImplementation", "com.agenteasyuse:mobile-easy-use:0.1.0")
+    add("autoImplementation", "com.agenteasyuse:mobile-easy-use:0.2.0")
+    add("manualImplementation", "com.agenteasyuse:mobile-easy-use:0.2.0")
     implementation("androidx.annotation:annotation:1.8.2")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
 }
