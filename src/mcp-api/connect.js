@@ -96,9 +96,8 @@ export async function connect(owner, {
     const sdkSource = await owner.loadSdk(platform);
     sdkScript = await session.createScript(sdkSource, { name: `mobile-${platform}-sdk` });
     connection.sdkScript = sdkScript;
-    sdkScript.logHandler = (_level, text) => {
-      connection.activeCall?.collectLog(text);
-    };
+    // Keep script console output off the MCP stdio transport.
+    sdkScript.logHandler = () => {};
     sdkScript.message?.connect((message, data) => {
       return handleControllerMessage(sdkScript, message, data, owner, connection).catch(() => {
         // The operation will surface a Controller response timeout.

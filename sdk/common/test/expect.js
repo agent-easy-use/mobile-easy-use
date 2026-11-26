@@ -66,19 +66,7 @@ const matchers = {
   },
 };
 
-export function createExpect(findUiView, runOnMainThread, checkUiState, screenshot) {
-  const uiMatchers = {
-    toExist: view => checkUiState(view, 'exists'),
-    toBeVisible: view => checkUiState(view, 'visible'),
-    toBeHidden: view => checkUiState(view, 'hidden'),
-    toBeFocused: view => checkUiState(view, 'focused'),
-    toBeEnabled: view => checkUiState(view, 'enabled'),
-    toSatisfy(view, predicate) {
-      if (typeof predicate !== 'function') throw new TypeError('toSatisfy requires a predicate');
-      if (view === null) throw new Error('UI target not found');
-      return predicate(view);
-    },
-  };
+export function createExpect(screenshots) {
   function assertions(actual, message, negate = false) {
     function check(matches, name, expected, detail = message, observation = actual) {
       if (typeof matches !== 'boolean') throw new TypeError(`${name} must produce a boolean result`);
@@ -87,14 +75,7 @@ export function createExpect(findUiView, runOnMainThread, checkUiState, screensh
     const methods = Object.fromEntries(Object.entries(matchers).map(([name, compare]) => [
       name, expected => check(compare(actual, expected), name, expected),
     ]));
-    for (const [name, compare] of Object.entries(uiMatchers)) {
-      methods[name] = async expected => {
-        const matches = await runOnMainThread(() => compare(findUiView(actual), expected));
-        check(matches, name, true);
-      };
-    }
-    async function checkScreenshot(name, shot, actualPath, baselinePath, options) {
-      if (shot?.ok !== true) throw new Error(shot?.error?.message ?? 'Screenshot capture failed');
+    async function checkScreenshot(name, actualPath, baselinePath, options) {
       if (typeof actualPath !== 'string' || actualPath.length === 0) {
         throw new Error('Screenshot capture did not return the requested image');
       }
@@ -105,17 +86,17 @@ export function createExpect(findUiView, runOnMainThread, checkUiState, screensh
       const detail = [message, responsePayload.message].filter(Boolean).join(': ');
       check(responsePayload.matches, name, responsePayload.baselinePath ?? baselinePath, detail, actualPath);
     }
-    methods.toHaveElementScreenShot = async (baselinePath, options = {}) => {
-      if (actual == null) throw new TypeError('toHaveElementScreenShot requires a UI target');
-      const shot = await screenshot({ includeWindow: false, targets: { element: actual } });
-      await checkScreenshot('toHaveElementScreenShot', shot, shot?.targets?.element, baselinePath, options);
+    methods.toMatchElementScreenshot = async (baselinePath, options = {}) => {
+      if (actual == null) throw new TypeError('toMatchElementScreenshot requires a UI target');
+      const shot = await screenshots.screenshotElement(actual);
+      await checkScreenshot('toMatchElementScreenshot', shot?.filePath, baselinePath, options);
     };
-    methods.toHaveWindowScreenShot = async (baselinePath, options = {}) => {
+    methods.toMatchWindowScreenshot = async (baselinePath, options = {}) => {
       if (actual !== undefined) {
-        throw new TypeError('Use expect().toHaveWindowScreenShot for the current window');
+        throw new TypeError('Use expect().toMatchWindowScreenshot for the current window');
       }
-      const shot = await screenshot({ includeWindow: true });
-      await checkScreenshot('toHaveWindowScreenShot', shot, shot?.window, baselinePath, options);
+      const shot = await screenshots.screenshotWindow();
+      await checkScreenshot('toMatchWindowScreenshot', shot?.filePath, baselinePath, options);
     };
     Object.defineProperty(methods, 'not', { get: () => assertions(actual, message, !negate) });
     return methods;

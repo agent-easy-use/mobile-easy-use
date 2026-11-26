@@ -1,6 +1,6 @@
 interface:
   display_name: "To iOS Probe"
   short_description: "Investigate an iOS App from natural language"
-  default_prompt: "Use $to-ios-probe to navigate to the target iOS page and explain the observed Objective-C runtime chain."
+  default_prompt: "Use $to-ios-probe to explore the requested iOS App scene and answer the question from the script results."
 policy:
   allow_implicit_invocation: false

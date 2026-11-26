@@ -1,37 +1,6 @@
-import { writeEvidenceFiles } from './evidence.js';
-
-export async function finishOperation(owner, evidenceByAction, {
-  didFail,
-  error,
-  failurePrefix,
-  result,
-}) {
-  let evidence;
-  try {
-    evidence = await writeEvidenceFiles(
-      evidenceByAction,
-      owner.evidenceDirectory,
-      owner.createEvidenceId,
-    );
-  } catch (evidenceError) {
-    if (didFail) {
-      throw wrapOperationError(
-        failurePrefix,
-        error,
-        [],
-        `Evidence write also failed: ${errorMessage(evidenceError)}`,
-      );
-    }
-    throw wrapOperationError('Failed to write evidence', evidenceError, []);
-  }
-
-  if (didFail) {
-    throw wrapOperationError(failurePrefix, error, evidence);
-  }
-  return {
-    result: result === undefined ? null : result,
-    evidence,
-  };
+export function finishOperation({ didFail, error, failurePrefix, result }) {
+  if (didFail) throw wrapOperationError(failurePrefix, error);
+  return { result: result === undefined ? null : result };
 }
 
 export function operationErrorResult(error) {
@@ -40,16 +9,14 @@ export function operationErrorResult(error) {
       message: errorMessage(error),
       stack: errorStack(error),
     },
-    evidence: Array.isArray(error?.evidence) ? error.evidence : [],
   };
 }
 
-function wrapOperationError(prefix, error, evidence, suffix = null) {
+function wrapOperationError(prefix, error) {
   const detail = errorMessage(error);
-  const message = `${prefix}: ${detail}${suffix === null ? '' : `; ${suffix}`}`;
+  const message = `${prefix}: ${detail}`;
   const wrapped = new Error(message, error instanceof Error ? { cause: error } : undefined);
   wrapped.stack = `${wrapped.name}: ${message}\nCaused by:\n${errorStack(error)}`;
-  wrapped.evidence = evidence;
   return wrapped;
 }
 

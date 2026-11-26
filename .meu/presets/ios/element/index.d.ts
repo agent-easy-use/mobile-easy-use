@@ -1,4 +1,5 @@
 /** Snapshot the first UIView matching an identifier in iOS ApiDemo's query window on main. No side effects.
+ * Element lookup and native reads are separate main-thread operations, not an atomic snapshot.
  * Requires connected ApiDemo. Returns null when no View/window matches; hidden Views can match.
  * hidden/alpha are this View's properties, not effective visibility or clickability. Label is capped at 512 UTF-16 code units.
  * @param identifier Exact accessibility identifier such as api.menu.ui, non-empty and at most 128 characters.

@@ -1,3 +1,5 @@
+import { closeIOSDebugger } from '../ios/debugger/session.js';
+
 export const GADGET_PROCESS_NAME = 'Gadget';
 
 export function connectionStatus(owner) {
@@ -32,6 +34,9 @@ export function handleDetached(owner, connection, reason, crash) {
   owner.currentConnection = null;
   owner.state = 'disconnected';
   void closeConnectionRunner(connection);
+  void closeIOSDebugger(connection).catch(error => {
+    process.stderr.write(`[mobile-easy-use] debugger cleanup failed: ${error.message}\n`);
+  });
   void removeRemoteDevice(owner.deviceManager, connection.address);
   const crashSummary = crash === null ? '' : ` crash=${crash.summary ?? 'unknown'}`;
   process.stderr.write(
@@ -40,6 +45,12 @@ export function handleDetached(owner, connection, reason, crash) {
 }
 
 export async function closeConnection(owner, connection) {
+  // A stopped iOS process cannot serve Frida RPC. Close LLDB before unloading the SDK.
+  if (connection.platform === 'ios') {
+    try { await closeIOSDebugger(connection); } catch (error) {
+      process.stderr.write(`[mobile-easy-use] debugger cleanup failed: ${error.message}\n`);
+    }
+  }
   if (owner.currentConnection === connection) {
     owner.currentConnection = null;
     owner.state = 'disconnected';

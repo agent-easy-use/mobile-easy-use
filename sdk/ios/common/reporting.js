@@ -1,5 +1,3 @@
-const EVIDENCE_PREFIX = '@@MOBILE_EVIDENCE@@';
-
 function errorMessage(error) {
   try {
     return String(error?.message ?? error);
@@ -33,28 +31,8 @@ function safeEmit(channel, payload) {
   return event;
 }
 
-function writeEvidence(category, payload) {
-  const record = { category, payload };
-  try {
-    safeConsole('log', `${EVIDENCE_PREFIX}${JSON.stringify(record)}`);
-  } catch (_) {
-  }
-  return record;
-}
-
-function reportEvidenceFailure(kind, key, checkpoint, error) {
-  safeConsole('warn', '[mobile-easy-use] iOS evidence capture failed', {
-    kind,
-    key,
-    checkpoint,
-    message: errorMessage(error),
-  });
-}
-
 export {
   errorMessage,
-  reportEvidenceFailure,
   safeConsole,
   safeEmit,
-  writeEvidence,
 };

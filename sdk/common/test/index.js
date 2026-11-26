@@ -14,8 +14,8 @@ function errorRecord(phase, error) {
   return record;
 }
 
-export function create(findUiView, runOnMainThread, checkUiState, screenshot) {
-  const expect = createExpect(findUiView, runOnMainThread, checkUiState, screenshot);
+export function create(screenshots) {
+  const expect = createExpect(screenshots);
   const groups = new Map();
   let currentGroup = null;
   function requireGroup() {

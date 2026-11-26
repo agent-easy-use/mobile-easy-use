@@ -5,10 +5,10 @@ export async function inspectElement(resourceName) {
     throw new Error('resourceName must be an Android resource entry name, at most 128 characters');
   }
   inspectRuntime();
-  return AndroidExp.runOnMainThread(() => {
-    const resourceId = R.id[resourceName];
-    const view = resourceId > 0 ? AndroidExp.ui.find(resourceId) : null;
-    if (view === null) return null;
+  const resourceId = R.id[resourceName];
+  const view = resourceId > 0 ? await element.findUiView(resourceId) : null;
+  if (view === null) return null;
+  return common.runOnMainThread(() => {
     const text = typeof view.getText === 'function' ? view.getText() : null;
     return {
       resourceName,

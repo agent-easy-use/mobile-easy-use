@@ -63,18 +63,25 @@ export { run };
 describe('Counter button', () => {
   test('updates state, UI, and appearance', async () => {
     const button = R.id.api_ui_class_first;
-    const clicked = await AndroidExp.runOnMainThread(() => AndroidExp.input.click(button));
+    const clicked = await drive.click(button);
     expect(clicked.ok).toBe(true);
 
-    // Состояние интерфейса
-    await expect(button).toBeVisible();
-    await expect(button).toSatisfy(view => String(view.getText()) === 'FIRST:1');
+    const completed = await drive.waitUntil(() => common.runOnMainThread(() =>
+      Java.use('com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState')
+        .getInstance().getClickCount() > 0));
+    expect(completed.ok, 'Native handler completed').toBe(true);
 
-    // Снимок экрана
-    await expect(button).toHaveElementScreenShot('baselines/first-clicked.jpg');
+    // UI state
+    expect(await inspect.ui.isVisible(button)).toBe(true);
+    const view = await element.findUiView(button);
+    const text = await common.runOnMainThread(() => String(view.getText()));
+    expect(text).toBe('FIRST:1');
 
-    // Внутреннее бизнес-состояние: доступ к нативным типам, чтение полей или вызов геттеров
-    const count = await AndroidExp.runOnMainThread(() => Java.use(
+    // Screenshot
+    await expect(button).toMatchElementScreenshot('baselines/first-clicked.jpg');
+
+    // Native business state: access native types and read fields or call getters
+    const count = await common.runOnMainThread(() => Java.use(
       'com.agenteasyuse.mobileeasyuse.apidemo.state.ApiDemoState'
     ).getInstance().getClickCount());
     expect(Number(count)).toBe(1);

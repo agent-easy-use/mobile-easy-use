@@ -1,4 +1,3 @@
-import { collectEvidenceLog } from './evidence.js';
 import { loadScript } from './load-script.js';
 import { finishOperation } from './operation-result.js';
 
@@ -12,12 +11,7 @@ export async function callFunction(owner, { filePath, functionName, args = [] } 
     throw new Error('Another function is already running');
   }
 
-  const evidenceByAction = new Map();
-  const activeCall = {
-    collectLog(text) {
-      collectEvidenceLog(evidenceByAction, text);
-    },
-  };
+  const activeCall = {};
   connection.activeCall = activeCall;
   let result;
   let error;
@@ -40,7 +34,7 @@ export async function callFunction(owner, { filePath, functionName, args = [] } 
       didFail = true;
       error = caught;
     }
-    return await finishOperation(owner, evidenceByAction, {
+    return finishOperation({
       didFail,
       error,
       failurePrefix: 'Failed to call function',

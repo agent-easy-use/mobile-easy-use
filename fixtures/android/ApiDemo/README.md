@@ -15,10 +15,9 @@ npm --prefix ../../.. run build:android
 The normal test package is `com.agenteasyuse.mobileeasyuse.apidemo`. The manual flavor uses
 `.manual`; the SDK-free release flavor uses `.none`.
 
-`MainActivity` exposes Input, UI, R / Resources, Wait, Window, Override, and Evidence items. Runtime
-probes live under `probe/` as `probe.js`/`probe.d.ts` Module pairs. Execute exactly one exported probe
-at a time through an agent using `skills/to-android-run`; this project has no standalone probe runner.
-The screenshot probes cover a Window plus visible-element crop and a terminal Driver failure image.
+`MainActivity` exposes Input, UI, R / Resources, Wait, Window, Override, and Evidence items.
+SDK regression tests live in `tests/` and run through `test/e2e/run.mjs`.
+`probe/` retains only presets validation and Android-specific investigations; see its [README](probe/README.md).
 
 ## 自动化 Test 套件
 

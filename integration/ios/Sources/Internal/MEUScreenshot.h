@@ -14,6 +14,11 @@ typedef void (^MEUScreenshotCompletion)(NSDictionary<NSString *, id> *result);
                          quality:(CGFloat)quality
                       completion:(MEUScreenshotCompletion)completion;
 
+/// Explicit window capture for inspect.ui, including windows other than the key window.
++ (void)captureWindow:(UIWindow *)window
+             quality:(CGFloat)quality
+          completion:(MEUScreenshotCompletion)completion;
+
 @end
 
 NS_ASSUME_NONNULL_END

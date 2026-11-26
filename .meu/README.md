@@ -27,6 +27,6 @@ export async function inspect() {
 }
 ```
 
-双端 `fixtures/<platform>/ApiDemo/probe/presets/probe.js` 的 `verifyPresets()`
-在首页验证全部导出、缺失控件和非法参数。它通过 connect 加载的 bundle 导入能力，
-不直接加载 presets 源文件。构建成功不代表设备验证通过。
+实现使用公开的 `element.findUiView` 解析控件，再通过 `common.runOnMainThread` 读取原生属性；返回可 JSON 化的数据。控件查找和属性读取是分开的主线程操作，并非原子快照。
+
+本次迁移的构建和静态检查不代表设备验证通过。此前运行结果见 `VALIDATION.md`，不能作为当前版本的验证结果。

@@ -1,12 +1,21 @@
 #import "MEULog.h"
 
+#import <pthread.h>
 #import <stdarg.h>
+#import <stdatomic.h>
 #import <stdlib.h>
 #import <string.h>
 
-static MEULogFilter *MEULogFilters;
-static unsigned int MEULogFilterCount;
-static MEULogCallback MEULogCallbackFunction;
+struct MEULogSubscription {
+    MEULogFilter *filters;
+    unsigned int count;
+    MEULogCallback callback;
+    struct MEULogSubscription *next;
+};
+
+static pthread_rwlock_t MEULogLock = PTHREAD_RWLOCK_INITIALIZER;
+static MEULogSubscription *MEUSubscriptions;
+static atomic_uint MEUSubscriptionCount;
 
 @implementation MEULog
 @end
@@ -43,69 +52,76 @@ static char *MEUCopyLogMessage(NSString *format, va_list arguments) {
     return utf8 != NULL ? strdup(utf8) : NULL;
 }
 
-static MEULogFilter *MEUFindDynamicLogFilter(NSString *format, va_list arguments) {
-    if (![format isKindOfClass:NSString.class] || ![format hasPrefix:@"[%@]"]) {
-        return NULL;
-    }
-
+static const char *MEUDynamicTag(NSString *format, va_list arguments) {
+    if (![format isKindOfClass:NSString.class] || ![format hasPrefix:@"[%@]"]) return NULL;
     va_list copiedArguments;
     va_copy(copiedArguments, arguments);
     __unsafe_unretained id value = va_arg(copiedArguments, id);
     va_end(copiedArguments);
-    if (![value isKindOfClass:NSString.class]) {
-        return NULL;
-    }
-
-    const char *tag = [(NSString *)value UTF8String];
-    for (unsigned int index = 0; index < MEULogFilterCount; index++) {
-        MEULogFilter *filter = &MEULogFilters[index];
-        if (tag != NULL && filter->tag != NULL && strcmp(tag, filter->tag) == 0) {
-            return filter;
-        }
-    }
-    return NULL;
+    return [value isKindOfClass:NSString.class] ? [(NSString *)value UTF8String] : NULL;
 }
 
 __attribute__((noinline, visibility("default"), used))
-void mobile_easy_use_set_nslog_capture(
-    MEULogFilter *filters,
-    unsigned int count,
-    MEULogCallback callback
+MEULogSubscription *mobile_easy_use_register_nslog_watch(
+    MEULogFilter *filters, unsigned int count, MEULogCallback callback
 ) {
-    MEULogFilters = filters;
-    MEULogFilterCount = count;
-    MEULogCallbackFunction = callback;
+    MEULogSubscription *watch = calloc(1, sizeof(*watch));
+    if (watch == NULL) return NULL;
+    watch->filters = filters;
+    watch->count = count;
+    watch->callback = callback;
+    pthread_rwlock_wrlock(&MEULogLock);
+    watch->next = MEUSubscriptions;
+    MEUSubscriptions = watch;
+    atomic_fetch_add(&MEUSubscriptionCount, 1);
+    pthread_rwlock_unlock(&MEULogLock);
+    return watch;
+}
+
+__attribute__((noinline, visibility("default"), used))
+void mobile_easy_use_unregister_nslog_watch(MEULogSubscription *watch) {
+    pthread_rwlock_wrlock(&MEULogLock);
+    MEULogSubscription **entry = &MEUSubscriptions;
+    while (*entry != NULL && *entry != watch) entry = &(*entry)->next;
+    if (*entry == watch) {
+        *entry = watch->next;
+        atomic_fetch_sub(&MEUSubscriptionCount, 1);
+        free(watch);
+    }
+    pthread_rwlock_unlock(&MEULogLock);
+}
+
+static void MEUCaptureLog(NSString *format, va_list arguments) {
+    if (atomic_load(&MEUSubscriptionCount) == 0) return;
+    const char *rawFormat = [format isKindOfClass:NSString.class] ? format.UTF8String : NULL;
+    const char *dynamicTag = MEUDynamicTag(format, arguments);
+    char *message = NULL;
+    BOOL formatted = NO;
+    // Callbacks only collect records; they must not register/unregister watches.
+    pthread_rwlock_rdlock(&MEULogLock);
+    for (MEULogSubscription *watch = MEUSubscriptions; watch != NULL; watch = watch->next) {
+        for (unsigned int i = 0; i < watch->count; i++) {
+            MEULogFilter *filter = &watch->filters[i];
+            if (!MEUCStringStartsWith(rawFormat, filter->prefix) &&
+                !(dynamicTag != NULL && strcmp(dynamicTag, filter->tag) == 0)) continue;
+            if (!formatted) {
+                message = MEUCopyLogMessage(format, arguments);
+                formatted = YES;
+            }
+            if (message != NULL) watch->callback(filter->tag, message);
+            break;
+        }
+    }
+    pthread_rwlock_unlock(&MEULogLock);
+    free(message);
 }
 
 __attribute__((noinline, visibility("default"), used))
 void mobile_easy_use_replace_nslog(NSString *format, ...) {
     va_list arguments;
     va_start(arguments, format);
-
-    const char *rawFormat = [format isKindOfClass:NSString.class] ? format.UTF8String : NULL;
-    MEULogCallback callback = MEULogCallbackFunction;
-    MEULogFilter *matchedFilter = NULL;
-    for (unsigned int index = 0; callback != NULL && index < MEULogFilterCount; index++) {
-        MEULogFilter *filter = &MEULogFilters[index];
-        if (!MEUCStringStartsWith(rawFormat, filter->prefix)) {
-            continue;
-        }
-        matchedFilter = filter;
-        break;
-    }
-    if (callback != NULL && matchedFilter == NULL) {
-        matchedFilter = MEUFindDynamicLogFilter(format, arguments);
-    }
-    if (callback != NULL && matchedFilter != NULL) {
-        char *message = MEUCopyLogMessage(format, arguments);
-        if (message != NULL) {
-            callback(matchedFilter->tag, message);
-            free(message);
-        }
-    }
-
-    // Preserve the original NSLog output exactly once. NSLogv is only the
-    // internal va_list forwarding primitive; it is not an Evidence source.
+    MEUCaptureLog(format, arguments);
+    // Preserve original output exactly once, even with overlapping watchers.
     NSLogv(format, arguments);
     va_end(arguments);
 }

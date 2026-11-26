@@ -14,8 +14,23 @@ android {
 
     defaultConfig {
         minSdk = 24
+        externalNativeBuild {
+            cmake {
+                arguments += listOf(
+                    "-DMEU_JDK_INCLUDE=${System.getProperty("java.home")}/include",
+                    "-DANDROID_STL=c++_static",
+                )
+            }
+        }
         consumerProguardFiles("consumer-rules.pro")
         buildConfigField("String", "MOBILE_EASY_USE_RELEASE_VERSION", "\"$releaseVersion\"")
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     buildFeatures {

@@ -1,0 +1,11 @@
+{
+  "android": {
+    "avd": "ApiDemo_API_31",
+    "port": 5556,
+    "artifact": "fixtures/android/ApiDemo/app/build/outputs/apk/auto/debug/app-auto-debug.apk"
+  },
+  "ios": {
+    "udid": "FEE282C7-03EB-4A43-A61D-41661A7A6BBD",
+    "artifact": "fixtures/ios/ApiDemo/.derived-data/Build/Products/ProbeDebug-iphonesimulator/ApiDemo.app"
+  }
+}

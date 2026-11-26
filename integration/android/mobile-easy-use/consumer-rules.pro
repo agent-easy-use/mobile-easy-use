@@ -2,3 +2,4 @@
 -keep class com.agenteasyuse.mobileeasyuse.MobileEasyUse { public *; }
 -keep class com.agenteasyuse.mobileeasyuse.internal.MobileEasyUseInitProvider { *; }
 -keep class com.agenteasyuse.mobileeasyuse.internal.MEUUIQuery { public static *; }
+-keep class com.agenteasyuse.mobileeasyuse.internal.MEUDebugger { public static *; }

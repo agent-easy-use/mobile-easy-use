@@ -1,30 +1,24 @@
-# FIRST 按钮视觉基准
+# 固定视觉基准
 
-[查看基准图](class-first.jpg)
+2026-11-24 使用真实 SDK 在当前配置的模拟器采集，已目视检查：FIRST 按钮未点击、文字完整；首页菜单布局正常，无弹窗或键盘。
 
-- 采集日期：2026-09-15。
-- 场景：UI > class，目标 api.ui.class.first（Android 资源名 api_ui_class_first）。
-- 原生状态已断言：按钮文字 FIRST，点击计数 0。
-- 图片已目视检查，完整包含初始按钮，无 FIRST:1 或其他点击后状态。
-- 设备配置：iPhone 17 Pro 模拟器；iOS 26.0；Dynamic Type=large（系统默认）；浅色模式。
-- 裁剪尺寸：726 × 144 像素。
-- SDK：MCP 0.1.2，原生集成 0.1.0。
-- SHA-256：`5240d10baaed1f314927541e03f2e8f1c94772cde316a17eb97b9f4ed0d40345`。
+设备：iPhone 17 模拟器；iOS 26.0.1；默认字体；浅色模式。
 
-这是从真实设备 SDK 截图取得的初始基准。测试重新进入场景，独立截图，再与此固定文件对比；
-测试本身不更新基准。此基准适用于上述配置，其他设备、主题或字体配置应另建并检查基准。
+| 基准 | 像素尺寸 | SHA-256 |
+| --- | --- | --- |
+| [class-first.jpg](class-first.jpg) | 726 × 144 | `5240d10baaed1f314927541e03f2e8f1c94772cde316a17eb97b9f4ed0d40345` |
+| [home-window.jpg](home-window.jpg) | 1206 × 2622 | `b6be2785a4b5a541381b66d689b0823b07625e90619fc0d8feee95954b13bf74` |
 
-运行 [screenshot.js](../screenshot.js) 的 `run()`；文件中的 `BASELINE` 使用相对路径，由 MCP 按执行模块所在目录解析，阈值为 0。
+- [元素视觉回归](../inspect/visual-element.js)：重新进入 class 场景，检查 FIRST 文字并与固定按钮图片比较。
+- [窗口视觉回归](../inspect/visual-window.js)：首页匹配，切换至 UI class 页面后不匹配。
+- `maxDiffPixelRatio=0`；使用比较器默认颜色阈值及抗锯齿处理。
+- 基准路径通过 E2E 注入的 `__MEU_REPO_ROOT__` 定位，不依赖临时打包文件目录。
+- 测试只读基准，不自动生成或更新。变更设备、系统、字体、主题或界面后，重新采集、目视审核，再显式替换并更新本说明。不要以更新基准掩盖非预期变化。
+- 旧设备基准已替换；不声称这些图片适用于其他设备配置。
 
-## 原基准验证记录（旧用例）
+运行：
 
-2026-09-15：以此固定文件为基准，重新进入场景并独立截图，`runVisualTest` 通过（1/1），
-`maxDiffPixelRatio=0`。比较使用 SDK 默认颜色阈值 0.2，忽略抗锯齿差异。
-
-## 首页窗口基准
-
-[查看 home-window.jpg](home-window.jpg)。2026-09-15 通过 SDK 单独采集并目视检查：ApiDemo 首页，菜单布局稳定，未进入场景。设备、主题和字体配置同上。
-
-- 图片尺寸：1206 × 2622 像素。
-- SHA-256：`b6be2785a4b5a541381b66d689b0823b07625e90619fc0d8feee95954b13bf74`。
-- [window-screenshot.js](../window-screenshot.js) 使用独立的新截图验证首页匹配、进入 UI 后不匹配；测试不更新此基准。
+```sh
+npm run test:e2e -- --platform ios --suite inspect/visual-element
+npm run test:e2e -- --platform ios --suite inspect/visual-window
+```

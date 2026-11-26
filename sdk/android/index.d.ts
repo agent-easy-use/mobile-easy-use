@@ -5,12 +5,14 @@
  *
  * This file is documentation and code-generation context only. It is not
  * loaded into Frida. Load the built `android.js` once in the shared Bootstrap runtime
- * before loading business ES Modules that use the global Java, R, AndroidExp,
- * Override, Probe, and runtimeStatus APIs. These are globals, not imports from this file.
+ * before loading business ES Modules that use the global Java, R, drive, override, inspect, element, common, Test,
+ * and runtimeStatus APIs. These are globals, not imports from this file.
  * Load only this platform declaration; Android and iOS globals belong to separate runtimes.
  * Probe modules should export functions and perform actions when called, not at module load.
  * Await asynchronous SDK calls and check result.ok before relying on an action or wait.
- * Return JSON-serializable values to the Host; convert Java wrappers to plain values first.
+ * Return values are serialized by the transport for Host/Agent; ordinary objects need no manual stringify.
+ * Prefer extracting JSON-compatible business values from native objects before returning them:
+ * default serialization may provide only an object description, not business state.
  *
  * Public SDK APIs are callable from any thread; their implementations own required platform-thread
  * dispatch unless an API's JSDoc states a dispatch or caller-thread limitation.
@@ -18,6 +20,253 @@
 export {};
 
 declare global {
+  /** Public runtime namespaces. */
+  const drive: Readonly<AndroidDriveApi>;
+  const override: Readonly<AndroidOverrideRuntimeApi>;
+  const inspect: Readonly<AndroidInspectApi>;
+  const element: Readonly<AndroidElementApi>;
+  const common: Readonly<AndroidCommonApi>;
+
+  /** Input operations: IDs/paths resolve in the focused Window; View targets must be attached, shown, and non-empty.
+   * Presses use the View center. Coordinates bypass lookup. All events target display 0.
+   * drive schedules target resolution on the main thread; callers need no additional dispatch.
+   * Failures resolve with ok:false, possibly after partial injection; success means injection accepted,
+   * not business completion. The 2000 ms settle delay applies only on success; use wait for readiness.
+   */
+  interface AndroidDriveApi {
+    /**
+     * Resolve the target and inject one touchscreen DOWN/UP sequence with a fixed 16 ms press.
+     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
+     * @example const result = await drive.click(R.id.submit_button);
+     */
+    click(resourceId: number): Promise<AndroidClickResult>;
+    click(path: AndroidUiPath): Promise<AndroidClickResult>;
+    click(view: Java.Wrapper): Promise<AndroidClickResult>;
+    click(location: AndroidScreenLocation): Promise<AndroidClickResult>;
+
+    /**
+     * Resolve the target and inject a fixed 600 ms touchscreen press; no duration parameter.
+     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
+     * @example const result = await drive.longPress({ x: 120, y: 360 });
+     */
+    longPress(resourceId: number): Promise<AndroidLongPressResult>;
+    longPress(path: AndroidUiPath): Promise<AndroidLongPressResult>;
+    longPress(view: Java.Wrapper): Promise<AndroidLongPressResult>;
+    longPress(location: AndroidScreenLocation): Promise<AndroidLongPressResult>;
+
+    /**
+     * Click the target (16 ms), wait 50 ms, then inject KeyCharacterMap text events through InputManager.
+     * text must be non-empty and representable by KeyCharacterMap (arbitrary Unicode may fail).
+     * Types into the focused field without clearing its current contents.
+     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
+     * @example const result = await drive.input(R.id.form_input, "hello");
+     */
+    input(resourceId: number, text: string): Promise<AndroidTargetInputResult>;
+    input(path: AndroidUiPath, text: string): Promise<AndroidTargetInputResult>;
+    input(view: Java.Wrapper, text: string): Promise<AndroidTargetInputResult>;
+    input(location: AndroidScreenLocation, text: string): Promise<AndroidTargetInputResult>;
+
+    /**
+     * Inject a fixed 300 ms finger gesture spanning 60% of the target's visible axis, clamped to display 0.
+     * Coordinate targets use the whole display as bounds, centered on the supplied point.
+     * direction describes finger movement, not the direction of newly revealed content.
+     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
+     * @example const result = await drive.scroll(R.id.list, "up");
+     */
+    scroll(
+      resourceId: number,
+      direction: AndroidScrollDirection,
+    ): Promise<AndroidScrollResult>;
+    scroll(
+      path: AndroidUiPath,
+      direction: AndroidScrollDirection,
+    ): Promise<AndroidScrollResult>;
+    scroll(
+      view: Java.Wrapper,
+      direction: AndroidScrollDirection,
+    ): Promise<AndroidScrollResult>;
+    scroll(
+      location: AndroidScreenLocation,
+      direction: AndroidScrollDirection,
+    ): Promise<AndroidScrollResult>;
+
+    /** Drive UI wait contract.
+     * @example const ready = await drive.wait(R.id.submit_button, 'visible');
+     * @example const hidden = await drive.wait(['text::Loading'], 'hidden', { timeoutMs: 10000 });
+     * IDs/paths are resolved each poll; native Views are checked directly on the main thread.
+     * A valid native View satisfies exists even when detached. Coordinates are not accepted.
+     */
+    wait(
+      target: number | AndroidUiPath | Java.Wrapper,
+      state: AndroidUiWaitState,
+      options?: AndroidWaitOptions,
+    ): Promise<AndroidWaitResult>;
+
+    /** Poll a sync/async boolean predicate sequentially until true. Errors retry until timeout.
+     * Invalid return types fail with INVALID_ARGUMENT. Timeout does not cancel an in-flight predicate.
+     * @example const ready = await drive.waitUntil(() => cacheReady, { timeoutMs: 10000 });
+     */
+    waitUntil(predicate: () => boolean | Promise<boolean>, options?: AndroidWaitOptions): Promise<AndroidWaitResult>;
+  }
+  interface AndroidElementApi {
+    /** Resolve an ID or a non-empty path from the focused window on main.
+     * Each path step searches the preceding View and its descendants, without backtracking.
+     * Missing focus/match returns null; invalid targets throw. Matching does not require visibility.
+     * Returns the actual runtime-class Frida wrapper; raw operations retain native thread requirements.
+     * @example const view = await element.findUiView(R.id.submit_button);
+     * @example const view = await element.findUiView([`id::${R.id.form}`, 'text::Submit']);
+     */
+    findUiView(target: number | AndroidUiPath): Promise<Java.Wrapper | null>;
+  }
+  interface AndroidCommonApi {
+    /** Schedule work on main; only execution before the first await is guaranteed on main.
+     * Returned promises are adopted. Callback errors reject; unavailable Java throws synchronously.
+     * Never block waiting for the returned Promise.
+     */
+    runOnMainThread<T>(work: () => T | Promise<T>): Promise<T>;
+    /** Name of the calling thread; null if unnamed or unavailable. No thread dispatch. */
+    currentThreadName(): string | null;
+
+  }
+  /** Class-wide method selection; constructors unsupported. Supply argumentTypes for ambiguous overloads. */
+  interface AndroidMethodDefinition { className: string; method: string; argumentTypes?: readonly string[]; filter?: (...args: any[]) => boolean }
+  interface AndroidOverrideRuntimeApi {
+    /** Async installation and removal; filter and returnInstead callbacks remain synchronous. When supplied, only literal true passes filter;
+     * callback/filter errors are reported and fall back to the original method. Values use Java bridge conversions.
+     * Rejects a method with an existing implementation, including an active method watch/override. */
+    method(definition: AndroidMethodDefinition, returnInstead: any | ((...args: any[]) => any)): Promise<() => Promise<void>>;
+    /** Async installation and removal. Write through Frida Java fields; remove restores the saved value. */
+    field(definition: { field: string } & ({ className: string; instance?: never } | { instance: Java.Wrapper; className?: never }), value: any): Promise<() => Promise<void>>;
+    /** Async installation; invoke and await the returned closure to remove. */
+    code(definition: AndroidCodeDefinition, overrides?: Record<string, any>, earlyReturn?: any): Promise<() => Promise<void>>;
+  }
+  /** A failed capture may still contain partial data; do not infer absence from incomplete records.
+   * Capacity limits or collection errors are reported through error, not thrown by this result type.
+   */
+  type AndroidInspectResult<T> = { ok: true; data: T[]; error: null } | { ok: false; data: T[]; error: string };
+  interface AndroidWatcher<T> {
+    /** Cumulative records without draining. After stop, returns ok:false with empty data. */
+    current(): Promise<AndroidInspectResult<T>>;
+    /** Remove observation and return final cumulative records; repeated calls are supported.
+     * Check ok/error for collection or cleanup failures. Does not release caller-owned native values.
+     * Method observation does not wait for running business calls to finish.
+     */
+    stop(): Promise<AndroidInspectResult<T>>;
+  }
+  interface AndroidLogRecord { timestamp: string; threadId: number; threadName: string | null; tag: string; level: string; message: string }
+  interface AndroidMethodEnter { receiver: Java.Wrapper; args: any[] }
+  interface AndroidMethodLeave extends AndroidMethodEnter { result: any; exception: any }
+  /** Callbacks run synchronously on the intercepted thread. Returned records are not serialized
+   * or deep-copied. A JS reference alone does not extend a borrowed native object's lifetime.
+   * Prefer copying business values in the callback. To use a Java object later, return a
+   * Java.retain(wrapper) reference and call $dispose() when finished. stop() does not dispose it.
+   */
+  interface AndroidMethodOptions {
+    enter?: (context: AndroidMethodEnter) => Record<string, any>;
+    leave?: (context: AndroidMethodLeave) => Record<string, any>;
+    /** Non-negative safe integer frame limit; omitted or zero disables stack capture. */
+    stack?: number;
+  }
+  interface AndroidMethodFrame { className: string; methodName: string; signature: string; fileName: string | null; lineNumber: number | null }
+  interface AndroidMethodRecord {
+    callId: number; timestamp: string; threadId: number; threadName: string | null;
+    status: "running" | "returned" | "threw"; durationMs: number | null;
+    enter?: Record<string, any>; leave?: Record<string, any>; stack?: AndroidMethodFrame[];
+  }
+  interface AndroidCodeContext { get(name: string): any }
+  interface AndroidCodeDefinition { className: string; method: string; argumentTypes?: readonly string[]; fileLine: number; condition?: (context: AndroidCodeContext) => boolean }
+  type AndroidCodeCapture = Record<string, string | ((context: AndroidCodeContext) => any)>;
+  interface AndroidCodeFrame { className: string; methodName: string; sourceFile: string | null; line: number | null }
+  interface AndroidCodeOptions {
+    capture?: AndroidCodeCapture;
+    /** Integer frame limit in [0, 2147483647]; omitted or zero disables stack capture. */
+    stack?: number;
+  }
+  interface AndroidCodeRecord {
+    hitId: string; timestamp: string; threadId: number; threadName: string | null;
+    capture?: Record<string, any>; stack?: AndroidCodeFrame[];
+  }
+  interface AndroidInspectApi {
+    ui: AndroidInspectUiApi;
+    /** Independent exact TAG subscriptions; no regex. Installation rejects invalid tags.
+     * Collection stops accepting records at 10000 records or 2 * 1024 * 1024 UTF-16 text units;
+     * current/stop report the capacity error with partial data. Still call stop to remove the subscription.
+     */
+    log: { watch(tags: string[]): Promise<AndroidWatcher<AndroidLogRecord>> };
+    /** Java bridge values; original exceptions are preserved. Rejects an existing implementation,
+     * including an active method watch/override. At most 10000 calls; excess calls report a capture error.
+     */
+    method: { watch(definition: AndroidMethodDefinition, options?: AndroidMethodOptions): Promise<AndroidWatcher<AndroidMethodRecord>> };
+    code: { watch(definition: AndroidCodeDefinition, options?: AndroidCodeOptions): Promise<AndroidWatcher<AndroidCodeRecord>> };
+  }
+
+  /** UI inspection. All UI methods schedule native access on the main thread.
+   */
+  interface AndroidInspectUiApi {
+    /** Missing target returns false. Native objects refer to the supplied instance. */
+    isExisting(target: AndroidInspectUiTarget): Promise<boolean>;
+    /** Existing geometric visibility semantics; excludes occlusion. */
+    isVisible(target: AndroidInspectUiTarget): Promise<boolean>;
+    /** Existing but geometrically invisible; missing targets return false. */
+    isHidden(target: AndroidInspectUiTarget): Promise<boolean>;
+    /** Target's native input focus, not accessibility focus. */
+    isFocused(target: AndroidInspectUiTarget): Promise<boolean>;
+    /** Own isEnabled() flag. */
+    isEnabled(target: AndroidInspectUiTarget): Promise<boolean>;
+    /** Root is depth 0; default 3; integer 0..64. Empty children may mean depth limit.
+     * Node targets are Java.cast wrappers managed by bridge GC; optional $dispose() releases them early.
+     * @example const root = await inspect.ui.tree(target, 2);
+     */
+    tree(target: AndroidInspectUiTarget, depth?: number): Promise<AndroidUITreeNode>;
+    /** Local bounds in px. Local origin is (0,0). */
+    layout(target: AndroidInspectUiTarget): Promise<AndroidUILocalLayout>;
+    /** Reference bounds and transformed target AABB in the same coordinate space; no clipping. */
+    layoutInParent(target: AndroidInspectUiTarget): Promise<AndroidUIRelativeLayout>;
+    layoutInWindow(target: AndroidInspectUiTarget): Promise<AndroidUIRelativeLayout>;
+    layoutInScreen(target: AndroidInspectUiTarget): Promise<AndroidUIRelativeLayout>;
+    /** Current App window image. Uses the platform window hierarchy renderer. */
+    screenshotWindow(): Promise<AndroidUIScreenshot>;
+    /** Element image using the existing native window-render-and-crop implementation; no highlight. */
+    screenshotElement(target: AndroidInspectUiTarget): Promise<AndroidUIScreenshot>;
+    /** Required target; capture its owning window and draw an inward border on Host.
+     * Rejects missing targets, missing windows and empty intersection. Preserves App hierarchy.
+     */
+    /** Dashed stroke: 2 dp using window density. */
+    /** highlight defaults to true; false returns the target owning window original. */
+    screenshotElementInWindow(target: AndroidInspectUiTarget, highlight?: boolean): Promise<AndroidUIScreenshot>;
+  }
+  type AndroidInspectUiTarget = number | AndroidUiPath | Java.Wrapper;
+  interface AndroidUITreeNode {
+    className: string;
+    target: Java.Wrapper;
+    /** Local bounds in px, captured during traversal. */
+    bounds: AndroidUIRect;
+    children: AndroidUITreeNode[];
+  }
+  interface AndroidUIRect { x: number; y: number; width: number; height: number }
+  interface AndroidUILocalLayout {
+    bounds: AndroidUIRect;
+    unit: 'px';
+    /** Target Resources DisplayMetrics.density; dp = px / density. */
+    density: number;
+  }
+  interface AndroidUIRelativeLayout extends AndroidUILocalLayout { targetBounds: AndroidUIRect }
+  interface AndroidUIScreenshot {
+    filePath: string;
+    width: number;
+    height: number;
+    format: 'png' | 'jpeg';
+    unit: 'px';
+    /** Captured window or element region in screen coordinates. */
+    region: AndroidUIRect;
+    /** Captured rectangle in window/root coordinates, used for image mapping. */
+    sourceBounds: AndroidUIRect;
+    /** Actual highlighted rectangle in output image pixels; null for window originals. */
+    highlight: AndroidUIRect | null;
+    capturedAt: string;
+    captureMethod: 'view-draw';
+  }
+
   interface AndroidRuntimeStatus {
     platform: 'android';
     /** Java availability only; does not guarantee UI, input, or bridge readiness. */
@@ -32,12 +281,6 @@ declare global {
    * @example const status = runtimeStatus();
    */
   function runtimeStatus(): AndroidRuntimeStatus;
-
-  type ProbeJsonPrimitive = string | number | boolean | null;
-  type ProbeJsonValue =
-    | ProbeJsonPrimitive
-    | readonly ProbeJsonValue[]
-    | { readonly [key: string]: ProbeJsonValue };
 
   /** Runtime IDs from the current application's package via Resources.getIdentifier().
    * Missing resources return 0 (not a valid UI target); unavailable Application throws.
@@ -76,15 +319,6 @@ declare global {
     readonly [resourceType: string]: AndroidResourceClass;
   }
 
-  interface AndroidWindowApi {
-    /** Return all WindowManagerGlobal roots in framework order, including unfocused/popup roots.
-     * Returns [] when none exist; Java/framework lookup errors throw. Wrappers are cast to View.
-     * Synchronous Java VM attachment only; no main-thread dispatch or visibility filtering.
-     * @example const roots = await AndroidExp.runOnMainThread(() => AndroidExp.window.getRootViews());
-     */
-    getRootViews(): Java.Wrapper[];
-  }
-
   /** id:: requires a positive integer ID; text::, tag:: and class:: require non-empty values.
    * text:: uses Android's text search (may match substrings); tag:: matches a String tag.
    * class:: matches a full runtime class name case-sensitively, including subclasses.
@@ -100,58 +334,7 @@ declare global {
   /** Non-empty path. Each search includes the preceding View itself and its descendants. */
   type AndroidUiPath = readonly [AndroidUiPathStep, ...AndroidUiPathStep[]];
 
-  /** Non-empty map of non-empty Evidence keys to focused-Window UI paths; raw IDs/Views are not accepted. */
-  interface ProbeUiTargets {
-    readonly [uiKey: string]: AndroidUiPath;
-  }
-
   type AndroidUiState = 'exists' | 'visible' | 'hidden' | 'focused' | 'enabled';
-
-  /** Synchronous find queries attach to the Java VM without main-thread dispatch. For consistent UI
-   * reads, call through AndroidExp.runOnMainThread. Raw methods on returned wrappers retain
-   * Android's own thread requirements; getters run on the querying thread.
-   */
-  interface AndroidUiApi {
-    /**
-     * Find a View by resource ID from the focused Window root. The returned Wrapper uses the
-     * View's actual runtime class. Java object results returned by its methods lazily promote to
-     * their runtime wrapper when a member is absent from Frida's declared-type wrapper.
-     * Requires a positive integer. Missing focus/match returns null; invalid targets throw.
-     * @example const view = await AndroidExp.runOnMainThread(() => AndroidExp.ui.find(R.id.submit_button));
-     */
-    find(resourceId: number): Java.Wrapper | null;
-    /**
-     * Find a View by applying each id/text/tag/class/getter step below the preceding View, without backtracking.
-     * The first getter receives the focused Window root. A text step uses the first View returned by
-     * View.findViewsWithText() when multiple Views match. Each getter receives the preceding View
-     * wrapped as its actual runtime class, and the returned Wrapper preserves the final runtime class.
-     * Java object results returned by its methods use the same lazy runtime-wrapper promotion.
-     * Missing focus/step returns null; invalid paths or getters throw. Matching does not require visibility.
-     * @example const view = await AndroidExp.runOnMainThread(() => AndroidExp.ui.find([`id::${R.id.form}`, 'text::Submit']));
-     */
-    find(path: AndroidUiPath): Java.Wrapper | null;
-    /** Resolve and check once on the main thread; no polling. Missing targets return false for every state.
-     * exists means a View was resolved; hidden requires an existing, geometrically invisible View.
-     * visible checks attachment, visibility, ancestor alpha > 0.01 and clipped visible display bounds,
-     * not occlusion or masks. focused/enabled use isFocused()/isEnabled(). Lookup/getter errors reject.
-     */
-    checkUiState(target: number | AndroidUiPath, state: AndroidUiState): Promise<boolean>;
-  }
-
-  /** View targets must belong to the focused App Window; IDs/paths are resolved within that Window. */
-  type AndroidScreenshotTarget = number | AndroidUiPath | Java.Wrapper;
-
-  interface AndroidScreenshotOptions {
-    /** Optional non-empty keys mapped to elements cropped from the captured App Window. */
-    targets?: Readonly<Record<string, AndroidScreenshotTarget>>;
-    /** Defaults to false with non-empty targets. An absent/empty target map always captures the window. */
-    includeWindow?: boolean;
-  }
-
-  type AndroidScreenshotResult =
-    /** Successful values are Host JPEG paths. Unresolved/non-croppable targets are omitted, even when ok is true. */
-    | { ok: true; window?: string; targets: Readonly<Partial<Record<string, string>>> }
-    | { ok: false; error: { message: string }; targets: Readonly<Partial<Record<string, never>>> };
 
   interface AndroidScreenLocation {
     /** Absolute X in physical pixels on display 0; finite and non-negative. */
@@ -246,70 +429,6 @@ declare global {
   type AndroidScrollResult = AndroidScrollSuccess | AndroidInputFailure<'scroll'>;
   type AndroidTargetInputResult = AndroidTargetInputSuccess | AndroidInputFailure<'input'>;
 
-  /** IDs/paths resolve in the focused Window; View targets must be attached, shown, and non-empty.
-   * Presses use the View center. Coordinates bypass lookup. All events target display 0.
-   * Target resolution reads Views on the invoking thread; use runOnMainThread for that phase.
-   * Failures resolve with ok:false, possibly after partial injection; success means injection accepted,
-   * not business completion. The 2000 ms settle delay applies only on success; use wait for readiness.
-   */
-  interface AndroidInputApi {
-    /**
-     * Resolve the target and inject one touchscreen DOWN/UP sequence with a fixed 16 ms press.
-     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await AndroidExp.runOnMainThread(() => AndroidExp.input.click(R.id.submit_button));
-     */
-    click(resourceId: number): Promise<AndroidClickResult>;
-    click(path: AndroidUiPath): Promise<AndroidClickResult>;
-    click(view: Java.Wrapper): Promise<AndroidClickResult>;
-    click(location: AndroidScreenLocation): Promise<AndroidClickResult>;
-
-    /**
-     * Resolve the target and inject a fixed 600 ms touchscreen press; no duration parameter.
-     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await AndroidExp.input.longPress({ x: 120, y: 360 });
-     */
-    longPress(resourceId: number): Promise<AndroidLongPressResult>;
-    longPress(path: AndroidUiPath): Promise<AndroidLongPressResult>;
-    longPress(view: Java.Wrapper): Promise<AndroidLongPressResult>;
-    longPress(location: AndroidScreenLocation): Promise<AndroidLongPressResult>;
-
-    /**
-     * Click the target (16 ms), wait 50 ms, then inject KeyCharacterMap text events through InputManager.
-     * text must be non-empty and representable by KeyCharacterMap (arbitrary Unicode may fail).
-     * Types into the focused field without clearing its current contents.
-     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await AndroidExp.runOnMainThread(() => AndroidExp.input.input(R.id.form_input, "hello"));
-     */
-    input(resourceId: number, text: string): Promise<AndroidTargetInputResult>;
-    input(path: AndroidUiPath, text: string): Promise<AndroidTargetInputResult>;
-    input(view: Java.Wrapper, text: string): Promise<AndroidTargetInputResult>;
-    input(location: AndroidScreenLocation, text: string): Promise<AndroidTargetInputResult>;
-
-    /**
-     * Inject a fixed 300 ms finger gesture spanning 60% of the target's visible axis, clamped to display 0.
-     * Coordinate targets use the whole display as bounds, centered on the supplied point.
-     * direction describes finger movement, not the direction of newly revealed content.
-     * Injects asynchronously, then waits a fixed 2000 ms after the terminal event before resolving.
-     * @example const result = await AndroidExp.runOnMainThread(() => AndroidExp.input.scroll(R.id.list, "up"));
-     */
-    scroll(
-      resourceId: number,
-      direction: AndroidScrollDirection,
-    ): Promise<AndroidScrollResult>;
-    scroll(
-      path: AndroidUiPath,
-      direction: AndroidScrollDirection,
-    ): Promise<AndroidScrollResult>;
-    scroll(
-      view: Java.Wrapper,
-      direction: AndroidScrollDirection,
-    ): Promise<AndroidScrollResult>;
-    scroll(
-      location: AndroidScreenLocation,
-      direction: AndroidScrollDirection,
-    ): Promise<AndroidScrollResult>;
-  }
-
   interface AndroidWaitOptions {
     /** Positive finite timeout in milliseconds, default 5000. Cannot preempt a blocked check. */
     timeoutMs?: number;
@@ -337,255 +456,8 @@ declare global {
 
   type AndroidWaitResult = AndroidWaitSuccess | AndroidWaitFailure;
 
-  interface AndroidWaitApi {
-    /** Poll ui.checkUiState with wait.until. hidden requires an existing, invisible View.
-     * No focused Window resolves as missing. Geometry matches expect, not pixel-level visibility.
-     * Lookup errors, including invalid targets, retry until TIMEOUT with lastCheckError.
-     * @example const ready = await AndroidExp.wait.ui(R.id.submit_button, 'visible');
-     */
-    ui(
-      resourceId: number,
-      state: AndroidUiWaitState,
-      options?: AndroidWaitOptions,
-    ): Promise<AndroidWaitResult>;
-
-    /** Re-resolve the path on the main thread each check; uses the same result/error contract as ID waits.
-     * @example const hidden = await AndroidExp.wait.ui(['text::Loading'], 'hidden', { timeoutMs: 10000 });
-     */
-    ui(
-      path: AndroidUiPath,
-      state: AndroidUiWaitState,
-      options?: AndroidWaitOptions,
-    ): Promise<AndroidWaitResult>;
-
-    /** Poll a sync/async boolean predicate sequentially until true. Errors retry until timeout.
-     * Invalid return types fail with INVALID_ARGUMENT. Timeout does not cancel an in-flight predicate.
-     * @example const ready = await AndroidExp.wait.until(() => cacheReady, { timeoutMs: 10000 });
-     */
-    until(predicate: () => boolean | Promise<boolean>, options?: AndroidWaitOptions): Promise<AndroidWaitResult>;
-  }
-
-  interface AndroidExpApi {
-    /** Schedule work on Android's main thread. Only the synchronous part before the first await
-     * is guaranteed to run there; a returned Promise is adopted, not kept on the main thread.
-     * Callback errors reject; unavailable Java throws synchronously. Never block waiting for this Promise.
-     * @example const title = await AndroidExp.runOnMainThread(() => AndroidExp.ui.find(R.id.title)?.getText().toString() ?? null);
-     */
-    runOnMainThread<TResult>(work: () => TResult | Promise<TResult>): Promise<TResult>;
-    /** Capture the focused App Window, keyed element crops, or both; requires the native screenshot bridge
-     * and Host file controller. Resolves ok:false for invalid options, capture, or persistence errors.
-     * Missing/hidden/out-of-window targets can be omitted on success; check each requested key.
-     * @example const shot = await AndroidExp.screenshot({ targets: { submit: R.id.submit_button }, includeWindow: true });
-     */
-    screenshot(options?: AndroidScreenshotOptions): Promise<AndroidScreenshotResult>;
-    readonly window: AndroidWindowApi;
-    readonly ui: AndroidUiApi;
-    readonly input: AndroidInputApi;
-    readonly wait: AndroidWaitApi;
-  }
-
-  interface AndroidOverrideInvocation {
-    receiver: Java.Wrapper;
-    args: readonly unknown[];
-    argumentTypes: readonly string[];
-  }
-
-  /** Must match the selected Java return type: primitives, null/Java objects, or compatible arrays.
-   * Plain JSON objects are not converted to Java objects; use Java wrappers. undefined is for void.
-   */
-  type AndroidOverrideReturnValue =
-    | ProbeJsonPrimitive
-    | Int64
-    | readonly AndroidOverrideReturnValue[]
-    | Java.Wrapper
-    | undefined;
-
-  interface AndroidOverrideDefinition<
-    TValue extends AndroidOverrideReturnValue = AndroidOverrideReturnValue,
-  > {
-    /** Java class name or class wrapper containing the target method. */
-    target: string | Java.Wrapper;
-    method: string;
-    /** Exact Java type names (e.g. java.lang.String, int); [] selects no arguments. Exclusive with allOverloads. Optional for one overload. */
-    argumentTypes?: readonly string[];
-    /** Explicitly select every overload of a multiply overloaded method. */
-    allOverloads?: boolean;
-    /** Runs on the intercepted thread; only literal true applies withReturn.
-     * False or a thrown error calls the original; thrown errors are reported. Must be synchronous/read-only.
-     */
-    filter?: (invocation: AndroidOverrideInvocation) => boolean;
-    /** Replacement result or synchronous factory on the intercepted thread; skips the original on success.
-     * Factory errors are reported and fall back to the original. Return-type conversion errors are not
-     * covered by that fallback. Match every selected overload's return type; no Promise factories.
-     */
-    withReturn: TValue | ((invocation: AndroidOverrideInvocation) => TValue);
-  }
-
-  type AndroidOverrideFieldValue = boolean | number | string | Int64 | Java.Wrapper | unknown[] | null;
-
-  /**
-   * Write once before action and restore the original value afterward; App writes are not blocked.
-   * Use stable configuration or flow-control fields. Avoid fields the App changes during action:
-   * restoration overwrites those changes. Do not overlap operations on the same field.
-   * Field access uses the runtime thread; fields requiring a specific App thread are unsupported.
-   */
-  interface AndroidOverrideFieldDefinition {
-    /** Instance wrapper for instance fields; class name or wrapper for static fields. */
-    target: string | Java.Wrapper;
-    /** Exact Frida field name (use _name for a method-name collision). */
-    field: string;
-    /** Native-compatible fixed value; use Int64 for large longs and Java.array() for native arrays. */
-    withValue: AndroidOverrideFieldValue;
-  }
-
-  interface AndroidOverrideApi {
-    /** Install a non-empty list of method or field definitions, call action, and restore in reverse order after return/throw or
-     * settlement of a native JS Promise. Custom thenables do not extend the scope; use async action.
-     * Installation errors roll back and throw before action. Action results/errors are preserved.
-     * Overrides are process-wide while active, including unrelated threads; use filter to narrow scope.
-     * Already-hooked overloads (including chain evidence/other overrides) are rejected.
-     * On ARM Android 11+, static-hook setup initializes the declaring class and completes ART visibility;
-     * if the ART symbol is unavailable, setup warns and continues without this preparation. Class initialization may run App code.
-     * @example const result = Override.run([{ target: 'com.example.Flags', method: 'isEnabled', withReturn: true }], () => Java.use('com.example.Flags').isEnabled());
-     */
-    run<TResult>(
-      definitions: readonly (AndroidOverrideDefinition | AndroidOverrideFieldDefinition)[],
-      action: () => TResult,
-    ): TResult extends Promise<infer TResolved> ? Promise<TResolved> : TResult;
-  }
-
-  interface ProbeHookInvocation {
-    receiver: Java.Wrapper;
-    args: readonly unknown[];
-    argumentTypes: readonly string[];
-  }
-
-  type AndroidChainMemoryMetric = 'javaHeapUsedBytes' | 'nativeHeapAllocatedBytes';
-
-  interface ProbeChainCapture {
-    /** Default off. true or {} captures the entry stack with at most 5 frames.
-     * maxFrames must be an integer from 1 to 64; actual stacks may be shorter.
-     * Emits capture.stack {kind: 'java', frames: [...]} on enter only.
-     * Java frames contain className, methodName, signature, fileName and lineNumber.
-     * @example stack: true // or stack: {maxFrames: 3}
-     */
-    stack?: boolean | { maxFrames?: number };
-    /** Synchronous, read-only extraction at entry; returns data serialized as JSON. */
-    args?: (invocation: ProbeHookInvocation) => ProbeJsonValue;
-    /** Synchronous, read-only extraction on normal return only; never on throw. */
-    result?: (invocation: ProbeHookInvocation & { result: unknown }) => ProbeJsonValue;
-    /** Default off. Emits elapsedMs in fractional milliseconds, measured with a monotonic clock.
-     * Includes children/waits; not CPU time or async completion time.
-     */
-    timing?: boolean;
-    /** Default off. Read each selected process metric before/after; no polling or forced GC.
-     * Deltas include concurrent work/GC and do not measure this method's allocations or leaks.
-     */
-    memory?: {
-      /** Non-empty selection; unsupported names are rejected before the action runs. */
-      metrics: readonly AndroidChainMemoryMetric[];
-    };
-  }
-
-  interface ProbeChainMethodHook {
-    /** Java class name or class wrapper; hooks all matching instances during the action scope. */
-    target: string | Java.Wrapper;
-    method: string;
-    /** Exact Java type names (e.g. java.lang.String, int); [] selects no arguments. Exclusive with allOverloads. Optional for one overload. */
-    argumentTypes?: readonly string[];
-    /** Explicitly select every overload of a multiply overloaded method. */
-    allOverloads?: boolean;
-    /** Runs on the intercepted thread; keep only literal true. False/throw skips capture and preserves the original call. Must be synchronous/read-only. */
-    filter?: (invocation: ProbeHookInvocation) => boolean;
-    /** Optional method data: args/stack on enter; timing/memory on leave/throw; result on leave only.
-     * Writes to Evidence; the action result is unchanged. Omit to record execution only.
-     * Invalid configuration rejects before the action. Collection failures preserve business behavior
-     * and emit captureErrors [{field,message}]; failed fields are omitted, failed memory readings/deltas are null.
-     * Memory output: memory[metric] {unit:'bytes',before,after,delta}.
-     * Nested probes add overhead to parent timings; keep capture selective.
-     * @example capture: { stack: true, timing: true }
-     */
-    capture?: ProbeChainCapture;
-  }
-
-  /** Read-only getters keyed by state path; await each result and return plain JSON. */
-  type ProbeStateGetters = Readonly<Record<string, () => ProbeJsonValue | Promise<ProbeJsonValue>>>;
-
-  interface ProbeEvidenceApi {
-    /** Capture selected Java methods and exact-TAG liblog messages during action.
-     * Await action and remove hooks on completion or failure; return its result or propagate its error.
-     * Records are written to Evidence. Method events include actual argumentTypes on enter/leave/throw. Method/log events include threadName (null when unavailable).
-     * Supports multiple TAGs per call; at most one log-capture scope may be active (including nesting).
-     * Hooks observe all matching process calls, including unrelated concurrent work; use filter.
-     * Already-hooked Java overloads are rejected. Setup errors roll back and reject before action.
-     * On ARM Android 11+, static-hook setup initializes the declaring class and completes ART visibility;
-     * if the ART symbol is unavailable, setup warns and continues without this preparation. Class initialization may run App code.
-     * Callbacks execute on intercepted threads and must be synchronous. Empty hooks plus no TAG capture nothing.
-     * @param action Trigger the action and await its required completion before returning.
-     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
-     * execution, shared only by wrappers observing that same execution.
-     * @param logTag Exact TAG or TAG set; omit for method-only capture.
-     * @param methodHooks Methods to observe; omit for log-only capture.
-     * @example const result = await Probe.evidence.withChainEvidence(() => AndroidExp.input.click({ x: 120, y: 360 }), 'Submit form', 'Form');
-     */
-    withChainEvidence<TResult>(
-      action: () => TResult,
-      actionDescription: string,
-      logTag?: string | Set<string>,
-      methodHooks?: readonly ProbeChainMethodHook[],
-    ): Promise<Awaited<TResult>>;
-
-    /** Await state getters sequentially before action and again in finally.
-     * Getter results are serialized as JSON; dispatch to the required thread
-     * inside the getter. Bound external waits; getters that never settle block the checkpoint.
-     * Evidence entries contain path and successful before/after values (including null).
-     * Getter failures omit the checkpoint value and set errors.before/after; action results/errors are preserved.
-     * Multiple getters are not an atomic snapshot; read related fields together in one getter.
-     * An empty map records nothing. Values go to Evidence, not the return value.
-     * @example let count = 0; await Probe.evidence.withStateEvidence(() => ++count, 'Increment', { count: () => count });
-     * @param action Trigger the action and await its required completion before returning.
-     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
-     * execution, shared only by wrappers observing that same execution.
-     */
-    withStateEvidence<TResult>(
-      action: () => TResult,
-      actionDescription: string,
-      stateGetters: ProbeStateGetters,
-    ): Promise<Awaited<TResult>>;
-
-    /** Capture keyed UI state plus App-window and visible element screenshots before and after action,
-     * including an after checkpoint on action failure. Non-empty key-to-path map required.
-     * Re-resolves paths on the main thread; invalid targets reject before action. Per-target query errors
-     * are reported/skipped; screenshot failure yields null image paths. UI and images are separate reads.
-     * Evidence includes className, exist, visible, pixel bounds, empty properties, and screenshot paths.
-     * Returns awaited action result (not snapshots), propagates action error; finalizer errors are reported.
-     * @example await Probe.evidence.withUiEvidence(() => AndroidExp.input.click({ x: 120, y: 360 }), 'Submit', { submit: [`id::${R.id.submit_button}`] });
-     * @param action Trigger the action and await its required completion before returning.
-     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
-     * execution, shared only by wrappers observing that same execution.
-     */
-    withUiEvidence<TResult>(
-      action: () => TResult,
-      actionDescription: string,
-      uiTargets: ProbeUiTargets,
-    ): Promise<Awaited<TResult>>;
-  }
-
-  interface ProbeApi {
-    readonly evidence: ProbeEvidenceApi;
-  }
-
   /** Dynamically resolved Android application resources, for example `R.id.submit_button`. */
   const R: AndroidR;
-
-  /** Android UI helpers, waits, and controlled input extensions. */
-  const AndroidExp: Readonly<AndroidExpApi>;
-
-  /** Action-scoped Java method return overrides. */
-  const Override: Readonly<AndroidOverrideApi>;
-
-  /** Action-scoped chain, state, and UI evidence capture. */
-  const Probe: Readonly<ProbeApi>;
 
   const Test: Readonly<AndroidTestApi>;
 
@@ -594,8 +466,7 @@ declare global {
     | readonly AndroidTestJsonValue[] | { readonly [key: string]: AndroidTestJsonValue };
 
   /** Choose assertions by verification target:
-   * - UI controls and properties: use UI matchers for existence, visibility, focus and enabled state;
-   *   use toSatisfy for custom checks of text and other properties.
+   * - UI controls and properties: read with inspect.ui or native access on main, then assert the returned value.
    * - Visual appearance: use screenshot matchers.
    * - Native business objects and state: read primitive values or plain JSON snapshots,
    *   then use general-purpose matchers.
@@ -621,50 +492,29 @@ declare global {
     toMatch(expected: RegExp): void;
     /** String substring or array membership (not deep equality). */
     toContain(expected: unknown): void;
-    /** Target exists. UI state assertions resolve via AndroidExp.ui.find once on the main thread.
-     * Targets: resource ID or UI path.
-     * Missing targets fail all five positive UI state assertions, including toBeHidden.
-     */
-    toExist(): Promise<void>;
-    /** Attached, not hidden, cumulative ancestor alpha > 0.01, with nonempty clipped screen bounds.
-     * Uses getGlobalVisibleRect and the window's visible display frame.
-     * Excludes occlusion, masks and presentation-layer animation geometry.
-     */
-    toBeVisible(): Promise<void>;
-    /** UI target exists but is not geometrically visible. Missing is not hidden. */
-    toBeHidden(): Promise<void>;
-    /** Target itself has input focus via isFocused(). Not accessibility focus. */
-    toBeFocused(): Promise<void>;
-    /** Native isEnabled(), not necessarily clickable. */
-    toBeEnabled(): Promise<void>;
-    /** Resolve once and invoke a read-only predicate on the main thread; await its boolean result.
-     * After await, native UI access must explicitly use AndroidExp.runOnMainThread.
-     * Missing targets and non-boolean results are errors.
-     */
-    toSatisfy(predicate: (view: Java.Wrapper) => boolean | Promise<boolean>): Promise<void>;
-    /** Capture the current element through AndroidExp.screenshot, then compare on Host.
+    /** Capture the current element through inspect.ui.screenshotElement, then compare on Host.
      * Use expect(target); baselinePath points to an existing Host PNG/JPEG.
      * Relative paths resolve against the call_function entry module directory; Inline requires an absolute path.
      * Handles platform thread dispatch internally. No baseline updates or diff images.
      * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
      * On mismatch, AssertionError actual/expected contain the captured/baseline Host paths.
      * Capture, missing-image, file/decoding/transport errors propagate, including under .not.
-     * @example await Test.create().expect(123).toHaveElementScreenShot('/absolute/baseline.png');
+     * @example await Test.create().expect(123).toMatchElementScreenshot('/absolute/baseline.png');
      */
-    toHaveElementScreenShot(baselinePath: string, options?: {
+    toMatchElementScreenshot(baselinePath: string, options?: {
       /** Allowed differing pixel ratio in [0, 1], inclusive. Defaults to 0. */
       maxDiffPixelRatio?: number;
     }): Promise<void>;
-    /** Capture the current window through AndroidExp.screenshot, then compare on Host.
+    /** Capture the current window through inspect.ui.screenshotWindow, then compare on Host.
      * Use expect(); baselinePath points to an existing Host PNG/JPEG.
      * Relative paths resolve against the call_function entry module directory; Inline requires an absolute path.
      * Handles platform thread dispatch internally. No baseline updates or diff images.
      * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
      * On mismatch, AssertionError actual/expected contain the captured/baseline Host paths.
      * Capture, missing-image, file/decoding/transport errors propagate, including under .not.
-     * @example await Test.create().expect().toHaveWindowScreenShot('/absolute/baseline.png');
+     * @example await Test.create().expect().toMatchWindowScreenshot('/absolute/baseline.png');
      */
-    toHaveWindowScreenShot(baselinePath: string, options?: {
+    toMatchWindowScreenshot(baselinePath: string, options?: {
       /** Allowed differing pixel ratio in [0, 1], inclusive. Defaults to 0. */
       maxDiffPixelRatio?: number;
     }): Promise<void>;

@@ -1,21 +1,249 @@
 /// <reference types="frida-gum" />
 
 import ObjCBridge from 'frida-objc-bridge';
+import SwiftBridge from 'frida-swift-bridge';
 
 export {};
 
 /**
  * Canonical API contract for generating iOS probe scripts. Load the built ios.js in Bootstrap,
- * then use ObjC, IOS, Override, Probe, and runtimeStatus as globals; do not import this file at runtime.
+ * then use ObjC, Swift, drive, override, inspect, element, common, Test, and runtimeStatus as globals; do not import this file at runtime.
  * Load only this platform declaration; Android and iOS globals belong to separate runtimes.
  * Probe modules should export functions and perform actions when called, not at module load.
  * Await asynchronous SDK calls and check result.ok before relying on an action or wait.
- * Return JSON-serializable values to the Host; convert ObjC objects and NativePointers first.
+ * Return values are serialized by the transport for Host/Agent; ordinary objects need no manual stringify.
+ * Prefer extracting JSON-compatible business values from native objects before returning them:
+ * default serialization may provide only an object description, not business state.
  *
  * Public SDK APIs are callable from any thread; their implementations own required platform-thread
  * dispatch unless a method JSDoc states a caller-thread requirement.
  */
 declare global {
+  /** Public runtime namespaces. */
+  const drive: Readonly<IOSDriveApi>;
+  const override: Readonly<IOSOverrideRuntimeApi>;
+  const inspect: Readonly<IOSInspectApi>;
+  const element: Readonly<IOSElementApi>;
+  const common: Readonly<IOSCommonApi>;
+
+  /** Input operations require a connected Host and independent XCTest Driver with the target App in foreground.
+   * Resolved responses (including ok:false) wait an additional 1000 ms; thrown transport/setup
+   * errors reject without that delay. Success reports action completion, not business readiness.
+   * The 30000 ms operation budget includes App target resolution and Host/Runner requests;
+   * the internal event deadline reserves 1000 ms for the response. Await a UI/business condition
+   * when needed. Resolved coordinates are not tracked if the view moves before dispatch.
+   * iOS 18/26: actions use native synthesized touch/text events. On SYNTHESIS_UNCERTAIN,
+   * completion is unknown: do not retry automatically; restart the Runner and inspect the UI.
+   */
+  interface IOSDriveApi {
+    /** Resolve the target in the App and synthesize a real touch at its screen point.
+     * @example const result = await drive.click('form.submit');
+     */
+    click(target: IOSInputTarget): Promise<IOSClickResult>;
+    /** Tap to focus, then synthesize a non-empty text input; existing contents are not cleared.
+     * Tap completion does not verify keyboard focus or the resulting text.
+     * @example const result = await drive.input('form.text', 'hello');
+     */
+    input(target: IOSInputTarget, text: string): Promise<IOSTargetInputResult>;
+    /** Compute endpoints in the App and drag in the finger direction, clamped to visible target
+     * bounds (App bounds for a raw coordinate). Completion does not wait for scrolling inertia.
+     * Distance is fixed at 300 points and may be clamped.
+     * @example const result = await drive.scroll('form.results', 'up');
+     */
+    scroll(target: IOSInputTarget, direction: IOSInputDirection): Promise<IOSScrollResult>;
+    /** Resolve the target in the App and synthesize a real touch held for 600 ms.
+     * @example const result = await drive.longPress({ x: 120, y: 360 });
+     */
+    longPress(target: IOSInputTarget): Promise<IOSLongPressResult>;
+
+    /** Drive UI wait contract.
+     * Identifiers/paths are resolved each poll; native UIViews are checked directly on the main queue.
+     * A valid native UIView satisfies exists even when detached. Coordinates are not accepted.
+     */
+    wait(
+      target: string | IOSUiPath | ObjCBridge.Object,
+      state: IOSUiWaitState,
+      options?: IOSWaitOptions,
+    ): Promise<IOSWaitResult>;
+
+    /** Poll a sync/async boolean predicate sequentially until true. Errors retry until timeout.
+     * Invalid return types fail with INVALID_ARGUMENT. Timeout does not cancel an in-flight predicate.
+     * @example const ready = await drive.waitUntil(() => cacheReady, { timeoutMs: 10000 });
+     */
+    waitUntil(predicate: () => boolean | Promise<boolean>, options?: IOSWaitOptions): Promise<IOSWaitResult>;
+  }
+  interface IOSElementApi {
+    /** Resolve an identifier or path on main, starting at the key window (or first visible window).
+     * Each step searches the preceding UIView and its descendants, including itself, without backtracking.
+     * Missing targets return null; invalid targets throw. Matching does not require visibility.
+     * Raw wrapper operations retain UIKit thread requirements. Virtual accessibility/SwiftUI nodes
+     * without a UIView are not searchable.
+     * @example const view = await element.findUiView(['identifier::form.container', 'label::Submit']);
+     */
+    findUiView(target: string | IOSUiPath): Promise<ObjCBridge.Object | null>;
+  }
+  interface IOSCommonApi {
+    /** Only the synchronous part before the first await runs on main; returned promises are adopted.
+     * Callback errors reject. Never block waiting for the returned Promise.
+     */
+    runOnMainThread<T>(work: () => T | Promise<T>): Promise<T>;
+    /** Name of the calling thread; null if unnamed or unavailable. No thread dispatch. */
+    currentThreadName(): string | null;
+    /** Exact name first, then module-qualified suffix; null if absent, throws if ambiguous. Objective-C runtime classes only. */
+    findClass(className: string, selectors?: readonly string[]): ObjCBridge.Object | null;
+  }
+  interface IOSMethodDefinition { className: string; selector: `- ${string}` | `+ ${string}`; filter?: (...args: NativeCallbackArgumentValue[]) => boolean }
+  interface IOSOverrideRuntimeApi {
+    /** Async installation and removal; filter and returnInstead callbacks remain synchronous. When supplied, only literal true passes filter;
+     * callback/filter errors are reported and fall back to the original method.
+     * Arguments and return use NativeCallback ABI values, not high-level ObjC conversion:
+     * object arguments are pointers, BOOL is numeric, and structs/64-bit values use Frida ABI types.
+     * Remove nested replacements in reverse order.
+     */
+    method(definition: IOSMethodDefinition, returnInstead: NativeCallbackReturnValue | ((...args: NativeCallbackArgumentValue[]) => NativeCallbackReturnValue)): Promise<() => Promise<void>>;
+    /** Write through Objective-C property accessors; remove restores the saved value.
+     * No main-thread dispatch: both installation and removal run accessors on the calling thread.
+     * For UIKit or other main-thread properties, dispatch BOTH calls with common.runOnMainThread.
+     * @example const remove = await common.runOnMainThread(() => override.field({ instance: label, property: 'text' }, title));
+     * @example await common.runOnMainThread(remove);
+     */
+    field(definition: { instance: ObjCBridge.Object; property: string }, value: any): Promise<() => Promise<void>>;
+    /** Async installation; invoke and await the returned closure to remove.
+     * earlyReturn is an LLDB expression. Swift early return is not supported reliably:
+     * Swift Int(200) can report success but return an incorrect value to the native caller.
+     * Use Swift local-variable overrides instead. Objective-C returns still require an ABI-compatible expression.
+     */
+    code(definition: IOSCodeDefinition, overrides?: Record<string, string>, earlyReturn?: string): Promise<() => Promise<void>>;
+  }
+  /** A failed capture may still contain partial data; do not infer absence from incomplete records.
+   * Capacity limits or collection errors are reported through error, not thrown by this result type.
+   */
+  type IOSInspectResult<T> = { ok: true; data: T[]; error: null } | { ok: false; data: T[]; error: string };
+  interface IOSWatcher<T> {
+    /** Cumulative records without draining. After stop, returns ok:false with empty data. */
+    current(): Promise<IOSInspectResult<T>>;
+    /** Remove observation and return final cumulative records; repeated calls are supported.
+     * Check ok/error for collection or cleanup failures. Does not release caller-owned native values.
+     * Method observation does not wait for running business calls to finish.
+     */
+    stop(): Promise<IOSInspectResult<T>>;
+  }
+  interface IOSLogRecord { timestamp: string; threadId: number; threadName: string | null; tag: string; level: string | null; message: string }
+  interface IOSMethodEnter { receiver: ObjCBridge.Object; args: NativeCallbackArgumentValue[] }
+  interface IOSMethodLeave extends IOSMethodEnter { result: NativeCallbackReturnValue; exception: undefined }
+  /** Callbacks run synchronously on the intercepted thread. Returned records are not serialized
+   * or deep-copied. A JS reference alone does not extend a borrowed native object's lifetime.
+   * Prefer copying business values in the callback. To use an ObjC object later, explicitly
+   * retain it before returning the record and release it when finished; stop() does not release it.
+   * Arguments/results use raw NativeCallback ABI values; convert object pointers with ObjC.Object.
+   */
+  interface IOSMethodOptions {
+    enter?: (context: IOSMethodEnter) => Record<string, any>;
+    leave?: (context: IOSMethodLeave) => Record<string, any>;
+    /** Non-negative safe integer frame limit; omitted or zero disables stack capture. */
+    stack?: number;
+  }
+  interface IOSMethodFrame { address: string; moduleName: string | null; name: string | null; fileName: string | null; lineNumber: number | null }
+  interface IOSMethodRecord {
+    callId: number; timestamp: string; threadId: number; threadName: string | null;
+    status: "running" | "returned"; durationMs: number | null;
+    enter?: Record<string, any>; leave?: Record<string, any>; stack?: IOSMethodFrame[];
+  }
+  type IOSCodeDefinition = ({ kind: 'source'; file: string; line: number } | { kind: 'address'; address: string }) & { condition?: string };
+  type IOSCodeCapture = Record<string, string>;
+  interface IOSCodeFrame { function: string | null; module: string | null; sourceFile: string | null; line: number | null }
+  interface IOSCodeOptions {
+    capture?: IOSCodeCapture;
+    /** Integer frame limit in [0, 256]; omitted or zero disables stack capture. */
+    stack?: number;
+  }
+  interface IOSCodeRecord {
+    hitId: string; timestamp: string; threadId: number; threadName: string | null;
+    capture?: Record<string, IOSJsonValue>; stack?: IOSCodeFrame[];
+  }
+  interface IOSInspectApi {
+    ui: IOSInspectUiApi;
+    /** Independent exact TAG subscriptions; no regex. Installation rejects invalid tags.
+     * Collection stops accepting records at 10000 records or 2 * 1024 * 1024 UTF-16 text units;
+     * current/stop report the capacity error with partial data. Still call stop to remove the subscription.
+     */
+    log: { watch(tags: string[]): Promise<IOSWatcher<IOSLogRecord>> };
+    /** Fixed signatures only; arguments/results use NativeCallback ABI. Variadic methods and native exception unwinding are unsupported.
+     * At most 10000 calls; excess calls report a capture error. Remove overlapping method watches/overrides in reverse order.
+     */
+    method: { watch(definition: IOSMethodDefinition, options?: IOSMethodOptions): Promise<IOSWatcher<IOSMethodRecord>> };
+    code: { watch(definition: IOSCodeDefinition, options?: IOSCodeOptions): Promise<IOSWatcher<IOSCodeRecord>> };
+  }
+
+  /** UI inspection. All UI methods schedule native access on the main thread.
+   */
+  interface IOSInspectUiApi {
+    /** Missing target returns false. Native objects refer to the supplied instance. */
+    isExisting(target: IOSInspectUiTarget): Promise<boolean>;
+    /** Existing geometric visibility semantics; excludes occlusion. */
+    isVisible(target: IOSInspectUiTarget): Promise<boolean>;
+    /** Existing but geometrically invisible; missing targets return false. */
+    isHidden(target: IOSInspectUiTarget): Promise<boolean>;
+    /** Target's native input focus, not accessibility focus. */
+    isFocused(target: IOSInspectUiTarget): Promise<boolean>;
+    /** Own userInteractionEnabled, additionally isEnabled() for UIControl. */
+    isEnabled(target: IOSInspectUiTarget): Promise<boolean>;
+    /** Root is depth 0; default 3; integer 0..64. Empty children may mean depth limit.
+     * Requires an attached window to convert bounds to px.
+     * Node targets are borrowed UIView references owned by their UI hierarchy. Retain/release explicitly on main if needed beyond that lifetime.
+     * @example const root = await inspect.ui.tree(target, 2);
+     */
+    tree(target: IOSInspectUiTarget, depth?: number): Promise<IOSUITreeNode>;
+    /** Local bounds in px. Uses UIView.bounds and the attached screen scale; requires a window. */
+    layout(target: IOSInspectUiTarget): Promise<IOSUILocalLayout>;
+    /** Reference bounds and transformed target AABB in the same coordinate space; no clipping. */
+    layoutInParent(target: IOSInspectUiTarget): Promise<IOSUIRelativeLayout>;
+    layoutInWindow(target: IOSInspectUiTarget): Promise<IOSUIRelativeLayout>;
+    layoutInScreen(target: IOSInspectUiTarget): Promise<IOSUIRelativeLayout>;
+    /** Current App window image. Uses the platform window hierarchy renderer. */
+    screenshotWindow(): Promise<IOSUIScreenshot>;
+    /** Element image using the existing native window-render-and-crop implementation; no highlight. */
+    screenshotElement(target: IOSInspectUiTarget): Promise<IOSUIScreenshot>;
+    /** Required target; capture its owning window and draw an inward border on Host.
+     * Rejects missing targets, missing windows and empty intersection. Preserves App hierarchy.
+     */
+    /** Dashed stroke: 2 pt using window UIScreen.scale. */
+    /** highlight defaults to true; false returns the target owning window original. */
+    screenshotElementInWindow(target: IOSInspectUiTarget, highlight?: boolean): Promise<IOSUIScreenshot>;
+  }
+  type IOSInspectUiTarget = string | IOSUiPath | ObjCBridge.Object;
+  interface IOSUITreeNode {
+    className: string;
+    target: ObjCBridge.Object;
+    /** Local bounds in px, captured during traversal. */
+    bounds: IOSUIRect;
+    children: IOSUITreeNode[];
+  }
+  interface IOSUIRect { x: number; y: number; width: number; height: number }
+  interface IOSUILocalLayout {
+    bounds: IOSUIRect;
+    unit: 'px';
+    /** Owning UIScreen.scale, not nativeScale; pt = px / scale. */
+    scale: number;
+  }
+  interface IOSUIRelativeLayout extends IOSUILocalLayout { targetBounds: IOSUIRect }
+  interface IOSUIScreenshot {
+    filePath: string;
+    width: number;
+    height: number;
+    format: 'png' | 'jpeg';
+    unit: 'px';
+    /** Captured window or element region in screen coordinates. */
+    region: IOSUIRect;
+    /** Captured rectangle in window/root coordinates, used for image mapping. */
+    sourceBounds: IOSUIRect;
+    /** Actual highlighted rectangle in output image pixels; null for window originals. */
+    highlight: IOSUIRect | null;
+    capturedAt: string;
+    captureMethod: 'draw-view-hierarchy';
+  }
+
+  const Swift: typeof SwiftBridge;
   // The ObjC global namespace is supplied by the frida-gum reference above.
   // The SDK binds it to frida-objc-bridge; UIKit calls retain their own thread requirements.
 
@@ -48,52 +276,12 @@ declare global {
     | `label::${string}`
     | `class::${string}`;
 
-  /** Non-empty path. ui.find/wait/screenshot/evidence/input share the native UIView query.
+  /** Non-empty path. element.findUiView, drive and inspect.ui share native UIView query semantics.
    * Each step selects the first match in the preceding subtree, including its root; no backtracking.
    */
   type IOSUiPath = readonly [IOSUiPathStep, ...IOSUiPathStep[]];
 
   type IOSUiState = 'exists' | 'visible' | 'hidden' | 'focused' | 'enabled';
-
-  /** Native MEUUIQuery synchronously dispatches queries to main. Searches the first key window,
-   * falling back to the first non-hidden window with alpha > 0.01. Each step includes the current
-   * root, then depth-first descendants (subviews order), visiting at most 10,000 Views per step.
-   * Matches need not be visible. Only UIViews are searched; virtual accessibility/SwiftUI elements
-   * may have no corresponding UIView. Invalid targets or an unavailable native bridge throw.
-   */
-  interface IOSUiApi {
-    /** Find the first UIView matching a non-empty accessibilityIdentifier. Returns null on no match/window.
-     * A plain string is always an identifier, even if it contains ::. Raw methods on the returned ObjC
-     * object retain UIKit thread requirements; use IOS.runOnMainThread for subsequent UI access.
-     * @example const view = IOS.ui.find('form.submit');
-     */
-    find(accessibilityIdentifier: string): ObjCBridge.Object | null;
-    /** Resolve each step in the preceding UIView subtree (including that View). Returns null on any miss.
-     * @example const view = IOS.ui.find(['identifier::form.container', 'label::Submit']);
-     */
-    find(path: IOSUiPath): ObjCBridge.Object | null;
-    /** Resolve and check once on the main queue; no polling. Missing targets return false for every state.
-     * hidden requires an existing, geometrically invisible UIView. visible checks window attachment,
-     * ancestor hidden/alpha > 0.01 and axis-aligned clipping against ancestors, window and screen;
-     * not occlusion, masks or presentation-layer animation geometry. focused uses isFirstResponder().
-     * enabled requires UIControl and uses isEnabled(); other views throw. Lookup/getter errors reject.
-     */
-    checkUiState(target: string | IOSUiPath, state: IOSUiState): Promise<boolean>;
-  }
-
-  type IOSScreenshotTarget = string | IOSUiPath;
-
-  interface IOSScreenshotOptions {
-    /** Optional non-empty keys mapped to elements cropped from the captured App Window. UIView objects are not accepted. */
-    targets?: Readonly<Record<string, IOSScreenshotTarget>>;
-    /** Defaults to false with non-empty targets. An absent/empty target map always captures the window. */
-    includeWindow?: boolean;
-  }
-
-  type IOSScreenshotResult =
-    /** Successful values are Host JPEG paths. Unresolved/non-croppable targets are omitted, even when ok is true. */
-    | { ok: true; window?: string; targets: Readonly<Partial<Record<string, string>>> }
-    | { ok: false; error: { message: string }; targets: Readonly<Partial<Record<string, never>>> };
 
   /** Direction of finger movement; content normally moves in the opposite direction. */
   type IOSInputDirection = 'up' | 'down' | 'left' | 'right';
@@ -107,7 +295,7 @@ declare global {
     y: number;
   }
 
-  /** Identifier/path targets resolve with ui.find in the target App, using first-match UIView
+  /** Identifier/path targets use the native element query in the target App, using first-match UIView
    * semantics (no ambiguity error). Lookup, clipping and hit-testing run in one App main-queue turn.
    * A missing UIView fails; a hidden, detached or non-interactive target also fails.
    * The actual touch-down point must hit the target or a descendant through the App's
@@ -183,38 +371,6 @@ declare global {
   type IOSLongPressResult = IOSLongPressSuccess | IOSInputFailure<'longPress'>;
   type IOSInputResult = IOSInputSuccess | IOSInputFailure;
 
-  /** Requires a connected Host and independent XCTest Driver with the target App in foreground.
-   * Resolved responses (including ok:false) wait an additional 1000 ms; thrown transport/setup
-   * errors reject without that delay. Success reports action completion, not business readiness.
-   * The 30000 ms operation budget includes App target resolution and Host/Runner requests;
-   * the internal event deadline reserves 1000 ms for the response. Await a UI/business condition
-   * when needed. Resolved coordinates are not tracked if the view moves before dispatch.
-   * iOS 18/26: actions use native synthesized touch/text events. On SYNTHESIS_UNCERTAIN,
-   * completion is unknown: do not retry automatically; restart the Runner and inspect the UI.
-   */
-  interface IOSInputApi {
-    /** Resolve the target in the App and synthesize a real touch at its screen point.
-     * @example const result = await IOS.input.click('form.submit');
-     */
-    click(target: IOSInputTarget): Promise<IOSClickResult>;
-    /** Tap to focus, then synthesize a non-empty text input; existing contents are not cleared.
-     * Tap completion does not verify keyboard focus or the resulting text.
-     * @example const result = await IOS.input.input('form.text', 'hello');
-     */
-    input(target: IOSInputTarget, text: string): Promise<IOSTargetInputResult>;
-    /** Compute endpoints in the App and drag in the finger direction, clamped to visible target
-     * bounds (App bounds for a raw coordinate). Completion does not wait for scrolling inertia.
-     * @param distance Positive finite distance in points; defaults to 300, may be clamped.
-     * @example const result = await IOS.input.scroll('form.results', 'up', 300);
-     */
-    scroll(target: IOSInputTarget, direction: IOSInputDirection, distance?: number): Promise<IOSScrollResult>;
-    /** Resolve the target in the App and synthesize a real touch held for the requested duration.
-     * @param durationMs Positive finite duration in milliseconds; defaults to 600.
-     * @example const result = await IOS.input.longPress({ x: 120, y: 360 }, 800);
-     */
-    longPress(target: IOSInputTarget, durationMs?: number): Promise<IOSLongPressResult>;
-  }
-
   interface IOSWaitOptions {
     /** Positive finite timeout in milliseconds, default 5000. Cannot preempt a blocked check. */
     timeoutMs?: number;
@@ -240,276 +396,6 @@ declare global {
 
   type IOSWaitResult = IOSWaitSuccess | IOSWaitFailure;
 
-  interface IOSWaitApi {
-    /** Poll ui.checkUiState with wait.until. hidden requires an existing, invisible UIView.
-     * Lookup errors, including invalid targets, retry until TIMEOUT with lastCheckError.
-     * @example const ready = await IOS.wait.ui('form.results', 'visible', { timeoutMs: 10000 });
-     */
-    ui(
-      target: string | IOSUiPath,
-      state: IOSUiWaitState,
-      options?: IOSWaitOptions,
-    ): Promise<IOSWaitResult>;
-    /** Poll a sync/async boolean predicate sequentially until true. Errors retry until timeout.
-     * Invalid return types fail with INVALID_ARGUMENT. Timeout does not cancel an in-flight predicate.
-     * @example const ready = await IOS.wait.until(() => cacheReady, { timeoutMs: 10000 });
-     */
-    until(predicate: () => boolean | Promise<boolean>, options?: IOSWaitOptions): Promise<IOSWaitResult>;
-  }
-
-  type IOSObjCSelector = `- ${string}` | `+ ${string}`;
-
-  interface IOSRuntimeApi {
-    /** Find an Objective-C class or a Swift class registered in the Objective-C Runtime.
-     * First checks className as an exact Runtime name, then checks Runtime names ending in
-     * `.${className}`. selectors is optional and is only needed to disambiguate when className may
-     * match classes from multiple modules. When provided, every selector must exist on a candidate;
-     * inherited methods are included. Returns null for no match and throws with all full Runtime
-     * names when multiple candidates remain.
-     * @example const controller = IOS.runtime.findClass('AuthViewController');
-     * @example const controller = IOS.runtime.findClass('AuthViewController', ['- submit']);
-     */
-    findClass(
-      className: string,
-      selectors?: readonly IOSObjCSelector[],
-    ): ObjCBridge.Object | null;
-  }
-
-  interface IOSApi {
-    /** Schedule work on the iOS main queue. Only the synchronous part before the first await
-     * is guaranteed to run there; a returned Promise is adopted, not kept on the main queue.
-     * Callback errors reject; unavailable ObjC throws synchronously. Never block waiting for this Promise.
-     * @example const label = await IOS.runOnMainThread(() => IOS.ui.find('form.submit')?.accessibilityLabel()?.toString() ?? null);
-     */
-    runOnMainThread<TResult>(work: () => TResult | Promise<TResult>): Promise<TResult>;
-    readonly runtime: IOSRuntimeApi;
-    /** Capture the focused App Window, keyed element crops, or both, using the native UIView query.
-     * Requires MEUScreenshot and Host file controller; image values are saved Host JPEG paths.
-     * Missing/hidden/out-of-window targets can be omitted on success; check each requested key.
-     * Invalid options, failed/incomplete capture, and persistence errors resolve ok:false.
-     * @example const shot = await IOS.screenshot({ targets: { submit: 'form.submit' }, includeWindow: true });
-     */
-    screenshot(options?: IOSScreenshotOptions): Promise<IOSScreenshotResult>;
-    readonly ui: IOSUiApi;
-    readonly input: IOSInputApi;
-    readonly wait: IOSWaitApi;
-  }
-
-  interface IOSOverrideInvocation {
-    receiver: ObjCBridge.Object;
-    /** Raw NativeCallback arguments excluding self/_cmd: pointers for objects/selectors,
-     * native numbers/Int64/UInt64/struct arrays according to ABI. No automatic ObjC object conversion.
-     */
-    args: readonly NativeCallbackArgumentValue[];
-    className: string;
-    selector: `- ${string}` | `+ ${string}`;
-  }
-
-  /** Raw NativeCallback ABI return value matching the selected method. BOOL accepts boolean
-   * (converted to 0/1). Object returns require an ObjC object/handle or NULL; plain JS strings,
-   * null, and JSON objects are not bridged. Use NSString for text, Int64/UInt64 for exact 64-bit values,
-   * ABI-shaped arrays for structs, and undefined for void. Keep returned native objects alive as needed.
-   */
-  type IOSOverrideReturnValue = NativeCallbackReturnValue | boolean;
-
-  interface IOSOverrideDefinition<
-    TValue extends IOSOverrideReturnValue = IOSOverrideReturnValue,
-  > {
-    /** Objective-C Runtime class name resolved through IOS.runtime.findClass, or a class wrapper. */
-    target: string | ObjCBridge.Object;
-    /** Exact Objective-C instance or class selector, including its '- ' or '+ ' prefix. */
-    selector: `- ${string}` | `+ ${string}`;
-    /** Runs on the intercepted thread; only literal true applies withReturn.
-     * False or a thrown error calls the original; thrown errors are reported. Must be synchronous/read-only.
-     */
-    filter?: (invocation: IOSOverrideInvocation) => boolean;
-    /** Replacement result or synchronous factory on the intercepted thread; skips the original on success.
-     * Factory errors are reported and fall back to the original; ABI conversion errors are outside that
-     * fallback. No Promise factories, automatic JSON bridging, or Objective-C exception recovery.
-     */
-    withReturn: TValue | ((invocation: IOSOverrideInvocation) => TValue);
-  }
-
-  type IOSOverrideFieldValue = boolean | number | Int64 | UInt64 | ObjCBridge.Object | null;
-
-  /**
-   * Write once before action and restore the original value afterward; App writes are not blocked.
-   * Use stable configuration or flow-control fields. Avoid fields the App changes during action:
-   * restoration overwrites those changes. Do not overlap operations on the same field.
-   * Replacement objects are held through action. Originals preserve strong/weak ownership;
-   * an original weak object released during action is restored as nil. Unknown/unretained ownership is unsupported.
-   * Object ivars require the runtime ownership SPI; unavailable runtimes fail before action.
-   * Field access uses the runtime thread; fields requiring a specific App thread are unsupported.
-   */
-  interface IOSOverrideFieldDefinition {
-    /** Objective-C instance; boolean, numeric and managed object ivars. No properties, blocks or pure Swift fields. */
-    target: ObjCBridge.Object;
-    /** Exact runtime ivar name. */
-    field: string;
-    /** Native-compatible fixed value. Construct NSString/NSNumber explicitly; no automatic object wrapping. */
-    withValue: IOSOverrideFieldValue;
-  }
-
-  interface IOSOverrideApi {
-    /** Install a non-empty list of method or field definitions, call action, and restore in reverse order after return/throw or
-     * settlement of a native JS Promise. Custom thenables do not extend the scope; use async action.
-     * Installation errors roll back and throw before action. Action results/errors are preserved.
-     * Overrides are process-wide while active; filter narrows matching calls. Requires methods exposed
-     * to the Objective-C runtime (Swift must use ObjC-compatible dispatch). Restore the previous IMP;
-     * overlapping overrides of the same method must finish in reverse installation order.
-     * @example const enabled = Override.run([{ target: 'FeatureFlags', selector: '+ isEnabled', withReturn: true }], () => Boolean(ObjC.classes.FeatureFlags.isEnabled()));
-     */
-    run<TResult>(
-      definitions: readonly (IOSOverrideDefinition | IOSOverrideFieldDefinition)[],
-      action: () => TResult,
-    ): TResult extends Promise<infer TResolved> ? Promise<TResolved> : TResult;
-  }
-
-  interface IOSMethodHookInvocation {
-    receiver: ObjCBridge.Object;
-    className: string;
-    selector: `- ${string}` | `+ ${string}`;
-  }
-
-  type IOSChainMemoryMetric = 'physicalFootprintBytes';
-  /** Pointer/object/selector arguments remain NativePointer; convert known objects with ObjC.Object.
-   * Integer <=32-bit values are numbers, BOOL is boolean, 64-bit integers are decimal strings.
-   * Float/double/aggregate argument signatures are unsupported and report captureErrors.
-   */
-  interface IOSChainArgsInvocation extends IOSMethodHookInvocation {
-    /** Explicit method arguments only; excludes self and _cmd. */
-    readonly args: readonly (NativePointer | number | boolean | string)[];
-  }
-
-  interface IOSChainCapture {
-    /** Default off. true or {} captures the entry stack with at most 5 frames.
-     * maxFrames must be an integer from 1 to 16; actual stacks may be shorter.
-     * Emits capture.stack {kind: 'native', frames: [...]} on enter only.
-     * Native frames contain address, moduleName, name, fileName and lineNumber; symbols may be null.
-     * @example stack: true // or stack: {maxFrames: 3}
-     */
-    stack?: boolean | { maxFrames?: number };
-    /** Synchronous read-only entry extraction; returns data serialized as JSON. */
-    args?: (invocation: IOSChainArgsInvocation) => IOSJsonValue;
-    /** Synchronous, read-only JSON extraction on normal return only.
-     * Same scalar decoding as args; void is undefined (omit extraction or explicitly return JSON null).
-     * Float/double/aggregate returns are unsupported. Receiver/entry args are not retained.
-     */
-    result?: (invocation: { className: string; selector: `- ${string}` | `+ ${string}`;
-      result: NativePointer | number | boolean | string | undefined }) => IOSJsonValue;
-    /** Default off. Emits elapsedMs in fractional milliseconds, measured with a monotonic clock.
-     * Includes children/thread waits, excludes system sleep.
-     * Requires arm64/x64. Not CPU time or async completion time.
-     */
-    timing?: boolean;
-    /** Default off. Read process physical footprint in bytes before/after; requires arm64/x64.
-     * No polling/forced collection; process delta includes concurrent activity, not method allocations.
-     */
-    memory?: {
-      /** Non-empty selection; unsupported names are rejected before the action runs. */
-      metrics: readonly IOSChainMemoryMetric[];
-    };
-  }
-
-  interface IOSMethodHook {
-    /** Objective-C Runtime class name resolved through IOS.runtime.findClass, or a class wrapper.
-     * Matches that class and subclasses using this IMP;
-     * subclass overrides at other addresses require separate hooks. Events use the configured className.
-     */
-    target: string | ObjCBridge.Object;
-    /** Exact Objective-C instance or class selector, including its '- ' or '+ ' prefix. */
-    selector: `- ${string}` | `+ ${string}`;
-    /** Runs on the intercepted thread; only literal true keeps evidence. False/throw skips capture and preserves the call. Synchronous/read-only; args are available only to capture.args. */
-    filter?: (invocation: IOSMethodHookInvocation) => boolean;
-    /** Optional method data: args/stack on enter; result/timing/memory on leave. No generic Objective-C throw capture.
-     * Writes to Evidence; the action result is unchanged. Omit to record execution only.
-     * Invalid configuration rejects before the action. Collection failures preserve business behavior
-     * and emit captureErrors [{field,message}]; failed fields are omitted, failed memory readings/deltas are null.
-     * Memory output: memory[metric] {unit:'bytes',before,after,delta}.
-     * Nested probes add overhead to parent timings; keep capture selective.
-     * @example capture: { stack: true, timing: true }
-     */
-    capture?: IOSChainCapture;
-  }
-
-  /** Read-only getters keyed by state path; await each result and return plain JSON. */
-  type IOSStateGetters = Readonly<Record<string, () => IOSJsonValue | Promise<IOSJsonValue>>>;
-  /** Non-empty map with non-empty keys; identifiers/paths only, no UIView objects. */
-  type IOSUiTargets = Readonly<Record<string, string | IOSUiPath>>;
-
-  interface IOSProbeEvidenceApi {
-    /** Capture selected Objective-C methods and TAG-prefixed NSLog messages during action.
-     * Await action and remove hooks on completion or failure; return its result or propagate its error.
-     * Records are written to Evidence. Method/log events include threadName (null when unavailable).
-     * Supports multiple TAGs per call; at most one log-capture scope may be active (including nesting).
-     * Hooks observe matching process calls, including unrelated concurrent work; use filter.
-     * Requires Interceptor support; methods must be exposed to the Objective-C runtime (Swift needs
-     * ObjC-compatible dispatch). Setup errors roll back and reject before action.
-     * NSLog capture requires MobileEasyUse.dylib; os_log/Swift print are not captured.
-     * Callbacks execute on intercepted threads and must be synchronous. Empty hooks plus no TAG capture nothing.
-     * @param action Trigger the action and await its required completion before returning.
-     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
-     * execution, shared only by wrappers observing that same execution.
-     * @param logTag Non-empty exact TAG or set of non-empty TAGs; omit for method-only capture; matches `[TAG] ` or `[%@]` with TAG as the first NSString argument.
-     * @param methodHooks Methods to observe; omit for log-only capture.
-     * @example const result = await Probe.evidence.withChainEvidence(() => IOS.input.click('form.submit'), 'Submit form', 'Form');
-     */
-    withChainEvidence<TResult>(
-      action: () => TResult,
-      actionDescription: string,
-      logTag?: string | Set<string>,
-      methodHooks?: readonly IOSMethodHook[],
-    ): Promise<Awaited<TResult>>;
-
-    /** Await state getters sequentially before action and again in finally.
-     * Getter results are serialized as JSON; dispatch to the required thread
-     * inside the getter. Bound external waits; getters that never settle block the checkpoint.
-     * Evidence entries contain path and successful before/after values (including null).
-     * Getter failures omit the checkpoint value and set errors.before/after; action results/errors are preserved.
-     * Multiple getters are not an atomic snapshot; read related fields together in one getter.
-     * An empty map records nothing. Values go to Evidence, not the return value.
-     * @example let count = 0; await Probe.evidence.withStateEvidence(() => ++count, 'Increment', { count: () => count });
-     * @param action Trigger the action and await its required completion before returning.
-     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
-     * execution, shared only by wrappers observing that same execution.
-     */
-    withStateEvidence<TResult>(
-      action: () => TResult,
-      actionDescription: string,
-      stateGetters: IOSStateGetters,
-    ): Promise<Awaited<TResult>>;
-
-    /** Capture UIKit state plus App-window and visible element screenshots before and after action,
-     * including an after checkpoint on action failure. Non-empty key-to-identifier/path map required.
-     * Re-resolves paths on main; invalid targets reject before action. Per-target query errors are
-     * reported/skipped; screenshot failures yield null paths. UI and images are separate reads.
-     * Evidence includes className, exist, visible, screen-point bounds, accessibility properties,
-     * userInteractionEnabled when readable, and screenshots. Here visible tests only the View's own
-     * hidden/alpha/bounds and window attachment; wait.ui additionally checks ancestors.
-     * Returns awaited action result (not snapshots), propagates action error; finalizer errors are reported.
-     * @example await Probe.evidence.withUiEvidence(() => IOS.input.click('form.submit'), 'Submit', { submit: 'form.submit' });
-     * @param action Trigger the action and await its required completion before returning.
-     * @param actionDescription Non-empty sole aggregation key within the operation; unique per action
-     * execution, shared only by wrappers observing that same execution.
-     */
-    withUiEvidence<TResult>(
-      action: () => TResult,
-      actionDescription: string,
-      uiTargets: IOSUiTargets,
-    ): Promise<Awaited<TResult>>;
-  }
-
-  interface IOSProbeApi {
-    readonly evidence: IOSProbeEvidenceApi;
-  }
-
-  /** iOS main-queue work, UIKit queries/screenshots/waits, and XCTest-backed input. */
-  const IOS: Readonly<IOSApi>;
-  /** Action-scoped Objective-C method return overrides. */
-  const Override: Readonly<IOSOverrideApi>;
-  /** Action-scoped chain, state, and UIKit evidence capture. */
-  const Probe: Readonly<IOSProbeApi>;
-
   const Test: Readonly<IOSTestApi>;
 
   type IOSTestCallback = () => unknown;
@@ -517,8 +403,7 @@ declare global {
     | readonly IOSTestJsonValue[] | { readonly [key: string]: IOSTestJsonValue };
 
   /** Choose assertions by verification target:
-   * - UI controls and properties: use UI matchers for existence, visibility, focus and enabled state;
-   *   use toSatisfy for custom checks of text and other properties.
+   * - UI controls and properties: read with inspect.ui or native access on main, then assert the returned value.
    * - Visual appearance: use screenshot matchers.
    * - Native business objects and state: read primitive values or plain JSON snapshots,
    *   then use general-purpose matchers.
@@ -544,50 +429,29 @@ declare global {
     toMatch(expected: RegExp): void;
     /** String substring or array membership (not deep equality). */
     toContain(expected: unknown): void;
-    /** Target exists. UI state assertions resolve via IOS.ui.find once on the main thread.
-     * Targets: accessibility identifier or native UI path.
-     * Missing targets fail all five positive UI state assertions, including toBeHidden.
-     */
-    toExist(): Promise<void>;
-    /** Attached, not hidden, cumulative ancestor alpha > 0.01, with nonempty clipped screen bounds.
-     * Intersects axis-aligned bounds with clipping ancestors, window and screen.
-     * Excludes occlusion, masks and presentation-layer animation geometry.
-     */
-    toBeVisible(): Promise<void>;
-    /** UI target exists but is not geometrically visible. Missing is not hidden. */
-    toBeHidden(): Promise<void>;
-    /** Target itself has input focus via isFirstResponder(). Not accessibility focus. */
-    toBeFocused(): Promise<void>;
-    /** Native isEnabled(), not necessarily clickable. Requires UIControl; other views throw. */
-    toBeEnabled(): Promise<void>;
-    /** Resolve once and invoke a read-only predicate on the main thread; await its boolean result.
-     * After await, native UI access must explicitly use IOS.runOnMainThread.
-     * Missing targets and non-boolean results are errors.
-     */
-    toSatisfy(predicate: (view: ObjCBridge.Object) => boolean | Promise<boolean>): Promise<void>;
-    /** Capture the current element through IOS.screenshot, then compare on Host.
+    /** Capture the current element through inspect.ui.screenshotElement, then compare on Host.
      * Use expect(target); baselinePath points to an existing Host PNG/JPEG.
      * Relative paths resolve against the call_function entry module directory; Inline requires an absolute path.
      * Handles platform thread dispatch internally. No baseline updates or diff images.
      * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
      * On mismatch, AssertionError actual/expected contain the captured/baseline Host paths.
      * Capture, missing-image, file/decoding/transport errors propagate, including under .not.
-     * @example await Test.create().expect('button').toHaveElementScreenShot('/absolute/baseline.png');
+     * @example await Test.create().expect('button').toMatchElementScreenshot('/absolute/baseline.png');
      */
-    toHaveElementScreenShot(baselinePath: string, options?: {
+    toMatchElementScreenshot(baselinePath: string, options?: {
       /** Allowed differing pixel ratio in [0, 1], inclusive. Defaults to 0. */
       maxDiffPixelRatio?: number;
     }): Promise<void>;
-    /** Capture the current window through IOS.screenshot, then compare on Host.
+    /** Capture the current window through inspect.ui.screenshotWindow, then compare on Host.
      * Use expect(); baselinePath points to an existing Host PNG/JPEG.
      * Relative paths resolve against the call_function entry module directory; Inline requires an absolute path.
      * Handles platform thread dispatch internally. No baseline updates or diff images.
      * Color threshold is 0.2; anti-alias differences are ignored. Size mismatch fails.
      * On mismatch, AssertionError actual/expected contain the captured/baseline Host paths.
      * Capture, missing-image, file/decoding/transport errors propagate, including under .not.
-     * @example await Test.create().expect().toHaveWindowScreenShot('/absolute/baseline.png');
+     * @example await Test.create().expect().toMatchWindowScreenshot('/absolute/baseline.png');
      */
-    toHaveWindowScreenShot(baselinePath: string, options?: {
+    toMatchWindowScreenshot(baselinePath: string, options?: {
       /** Allowed differing pixel ratio in [0, 1], inclusive. Defaults to 0. */
       maxDiffPixelRatio?: number;
     }): Promise<void>;

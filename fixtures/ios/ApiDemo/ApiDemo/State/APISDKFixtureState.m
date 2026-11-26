@@ -1,6 +1,8 @@
 #import "APISDKFixtureState.h"
+#import <UIKit/UIKit.h>
 
 @interface APISDKFixtureState ()
+@property(nonatomic) UIBackgroundTaskIdentifier backgroundTask;
 @property(nonatomic) NSInteger generation;
 @property(nonatomic, copy) NSString *category;
 @property(nonatomic, copy) NSString *scenario;
@@ -17,6 +19,7 @@
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         state = [[APISDKFixtureState alloc] init];
+        state.backgroundTask = UIBackgroundTaskInvalid;
         state.category = @"main";
         state.scenario = @"catalog";
         state.text = @"";
@@ -94,6 +97,21 @@
     }
 }
 
+// Keep the fixture executable while a test verifies actual background input rejection.
+// Native expiration cleanup remains valid across Frida script unload.
+- (BOOL)beginBackgroundWork {
+    [self endBackgroundWork];
+    self.backgroundTask = [UIApplication.sharedApplication beginBackgroundTaskWithName:@"ApiDemo input validation" expirationHandler:^{
+        [self endBackgroundWork];
+    }];
+    return self.backgroundTask != UIBackgroundTaskInvalid;
+}
+- (void)endBackgroundWork {
+    UIBackgroundTaskIdentifier task = self.backgroundTask;
+    self.backgroundTask = UIBackgroundTaskInvalid;
+    if (task != UIBackgroundTaskInvalid) [UIApplication.sharedApplication endBackgroundTask:task];
+}
+
 - (void)emitPrimaryLog {
     NSLog(@"[MEU.ApiDemo] chain-primary value=%d", 42);
 }
@@ -167,6 +185,25 @@
         });
     }
 }
+- (void)startLogWorkers:(int)count {
+    NSParameterAssert(count >= 0 && count <= 10000);
+    @synchronized(self) { self.done = 0; }
+    for (int identifier = 1; identifier <= 2; identifier++) {
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+            @autoreleasepool {
+                NSThread *thread = NSThread.currentThread;
+                NSString *previousName = thread.name;
+                thread.name = [NSString stringWithFormat:@"capture-worker-%d", identifier];
+                @try {
+                    for (int i = 0; i < count; i++) NSLog(@"[MEU.Context] stress:%d:%d", identifier, i);
+                } @finally {
+                    thread.name = previousName;
+                    @synchronized(self) { self.done++; }
+                }
+            }
+        });
+    }
+}
 - (int)worker:(int)identifier {
     @synchronized(self) { self.callCount++; self.active++; self.peak=MAX(self.peak,self.active); }
     NSLog(@"[MEU.Context] worker:%d", identifier);
@@ -215,6 +252,7 @@
 @end
 
 @implementation APIOverrideFieldsFixture
+- (NSInteger)readonlyMode { return _mode; }
 - (instancetype)init {
     if ((self = [super init])) {
         _enabled = NO; _mode = 2; _wide = 7; _ratio = 0.5;

@@ -1,33 +1,55 @@
 ---
 name: to-android-probe-script
-description: Generate Android mobile-easy-use probe code as either a temporary inline async IIFE or a reusable ES module with matching TypeScript declarations. Use for runtime discovery, inspection, instrumentation, App driving, temporary Java method or field overrides, scoped evidence, or other bounded Frida work; prefer Inline for small one-off exploration and Module for larger or relatively stable work.
+description: Generate Android mobile-easy-use exploration scripts using drive, inspect, override and Frida, as an inline snippet or a reusable typed module. Generates code without executing it.
 ---
 
 # To Android Probe Script
 
-Generate the smallest Android runtime code that answers the requested runtime question. Prefer Driver for requested user-visible actions, use Override only when normal App configuration or Driver actions cannot establish a required condition, add Evidence only when needed to answer the question, and use Direct Frida only when the encapsulated capabilities are insufficient. Driver, Override, Evidence, and Direct Frida can compose within their API boundaries; use only what the question requires and avoid unnecessary probing. Generate code only; do not connect to a device or execute it.
+Generate the smallest script that answers the runtime question. Compose capabilities according to their purpose: drive reaches a scene, inspect observes it, override helps drive establish the scene, and direct Frida executes functions or reads variables alongside any of them. Use only what the question needs. Generate code only; do not connect or execute.
 
-## Before generating code
+## Read the contracts
 
-Call `get_sdk_declarations({"platform":"android"})` to obtain declaration paths in `files[].path`. It returns `sdk` (platform SDK), `bridge` (Frida Java bridge), and `gum` (native Frida APIs) declarations. The capability sections below specify which declarations to read.
+Call `get_sdk_declarations({"platform":"android"})` and read relevant returned `files[].path`: `sdk` for public APIs, `bridge` for Java, and `gum` for native Frida APIs. Declarations govern signatures; use public globals rather than SDK internal imports.
 
-Resolve `presets.directory` from `<project-root>/.meu/config.json`
-relative to the project root, defaulting to `.meu/presets`. If `<base-directory>/android/`
-contains `presets.dist.js`, read `presets.entry.js` to identify public exports and the
-corresponding feature `index.d.ts` files for their contracts. Prefer reusing capabilities that
-satisfy the request; import only names exported by the entry, including any aliases.
+Resolve `presets.directory` from project `.meu/config.json`, relative to the project root (default `.meu/presets`). If `android/` contains `presets.dist.js`, read `presets.entry.js` and relevant feature declarations. Reuse compatible exports only; an older preset does not prove its APIs still exist. Module code imports declared exports from `/meu/presets.js`; connect loads presets.
 
-When reusing a preset, use Module mode and import its declared export, for example:
-`import { inspectPageState } from '/meu/presets.js';`. Connect loads presets; generated code
-only needs the import.
+## 1. drive — reach the scene
+
+Generate the navigation and interactions that bring the App from a known starting state into the requested scene. Resolve targets from source or runtime evidence. Await input results and bounded completion conditions; successful input delivery alone does not establish that the scene is ready.
+
+Read [drive generation](references/drive.md) for targets, input and waits. Use direct Frida calls to App functions when the requested entry is a route or business operation; use drive input when the user interaction itself matters.
+
+## 2. inspect — observe the scene
+
+Choose observations that answer the question about the scene or the process of reaching it:
+
+Read [inspect](references/inspect.md) for logs, method inputs/results, local variables, expressions, UI state, hierarchy, layout and screenshots.
+
+For events during navigation, install watchers before the relevant trigger. For current UI state or images, read directly at the required checkpoint. Watch/current/stop are asynchronous; UI inspection uses direct reads. Select before/after checkpoints explicitly when comparing changes.
+
+Native object fields and accessors can complement these observations through direct Frida; there is no public inspect.state API. Observation should capture the evidence needed for analysis and subsequent assertions.
+
+## 3. override — help drive establish the scene
+
+Temporarily change a method result, field/property value or code behavior to establish a condition needed by the scenario. Combine that condition with drive navigation or direct App calls. For example, override a dependency's availability result, then drive to the page whose behavior depends on it.
+
+Read [override generation](references/override.md). Install before the dependent operation, keep the override active through its completion, and await the returned removal closure afterward. Inspect the resulting behavior independently; overriding an expected outcome does not demonstrate that the App produced it correctly.
+
+## 4. direct-frida — execute functions and read variables
+
+Use Java to call App functions, obtain objects, read fields/accessors or perform other native runtime work. Direct Frida can be used alone or combined with drive, inspect and override; it is not restricted to a fallback path.
+
+For example, call a function to prepare data before drive, read a counter after navigation, or use an App object as the target of override.field. Direct calls verify behavior from the chosen code entry onward; they do not demonstrate an input path that they bypass.
+
+Read [direct Frida](references/direct-frida.md) for function calls, variable/object observations and resource handling. Use source-resolved symbols and respect platform thread and value-conversion requirements.
+
+## Compose the capabilities
+
+A typical exploration establishes required overrides and watchers, drives to the scene, waits for completion, then reads UI/native state and collected records. Choose installation order according to what must be observed. A scene already present may need only inspection; a function-level question may need only direct Frida. Do not require every probe to use all four capabilities.
 
 ## Output mode
 
-Choose one output mode before generating code.
-
-### Inline
-
-Use Inline for temporary, one-off exploration implemented by a small, self-contained snippet. Return one complete async IIFE:
+For small temporary exploration, return a self-contained async IIFE without files, imports or exports:
 
 ```js
 (async () => {
@@ -35,122 +57,20 @@ Use Inline for temporary, one-off exploration implemented by a small, self-conta
 })()
 ```
 
-Do not create files or declarations, and do not use imports or exports. Keep temporary hooks, timers, and listeners scoped to the IIFE and clean them up with `try/finally`. Return only values that Frida RPC can transport.
+For repeated operations, imports or larger exploration, write `probe.js` and `probe.d.ts` in the requested artifact directory. Use named ESM exports; declarations describe only those exports with JSDoc for parameters and results. Never assign rpc.exports, exports or module.exports; the SDK owns RPC. Module top level defines helpers and exports without App actions or installed hooks.
 
-### Module
+Generated code runs in Frida, without Node.js built-ins or npm resolution. Adjacent Host files are not automatically available to runtime imports. Relative source imports require a bundling workflow.
 
-Use Module for larger code, relatively stable exploration, repeated execution, multiple callable operations, shared helpers, imports, reviewable artifacts, or a typed call contract. Write both files into the requested artifact directory:
+## Results and cleanup
 
-```text
-probe.js
-probe.d.ts
-```
+Watcher current returns cumulative records; stop ends observation and returns final records. Results are `{ok, data, error}`, with an array and string/null error. A failed or truncated capture is incomplete evidence, not proof that an event did not occur.
 
-Declare only module exports in `probe.d.ts`. Keep exported names and signatures consistent with `probe.js`, and add JSDoc for every exported method and parameter. Do not declare internal actions, helpers, or SDK globals.
+Use try/finally to stop watchers and await override removal closures. Keep them active through dependent actions and waits. Clean up each acquired resource even if later installation or another cleanup fails; preserve the primary failure and cleanup diagnostics. Unload is a fallback, not normal cleanup.
 
-A module may export multiple scenario or probe methods. Module top level must only define helpers and exports: do not perform business actions or install persistent hooks while loading. Put behavior inside exported functions and clean up temporary hooks before each function settles, because loading changed content does not unload older module versions.
+Default to bounded exports that clean up before settling. If explicitly requested to observe across calls, a module may own its watcher and export start/current/stop operations. Return plain results, not handles or removal functions. Use the same session and module version; stop before replacing the module or disconnecting. Loading changed content does not unload older module versions.
 
-`probe.js` is a standard JavaScript ES Module. Export every callable entry with named ESM syntax:
+Return values are serialized by the transport layer and delivered to Host/Agent; do not stringify ordinary objects yourself. For native objects, prefer extracting the needed JSON-compatible values before returning: their default serialization may provide only a description, not business state. Include screenshot filePath values in results when needed. Select before/after checkpoints explicitly; no action wrapper automatically captures or aggregates them. Do not imitate an internal Host evidence transport protocol.
 
-```js
-export function inspectState() {
-  // ...
-}
+## From exploration to assertions
 
-export async function openTargetPage() {
-  // ...
-}
-```
-
-Never use CommonJS `exports.name = ...` or `module.exports`, and never use Frida
-`rpc.exports`. The Android SDK agent owns `rpc.exports`; probe loading rejects these
-forms with an explicit error.
-
-## Execution thread
-
-- Do not assume the execution thread; generated code generally does not run on the Android main thread.
-- For direct Android UI or another main-thread-only API, wrap the work with `await AndroidExp.runOnMainThread(() => ...)`.
-- Keep non-UI work on its required thread when source or API contracts specify one; never move arbitrary business calls to the main thread merely because they use Java.
-
-## 1. Driver
-
-Unless the caller specifies another initial scene, assume the App starts on its home page. Generate Driver code from that state to each requested scene. Resolve page and control identifiers from source instead of guessing. Prefer high-level input because it reproduces real user behavior; use routing or business methods only when the requested scenario explicitly requires them.
-
-1. Read [references/driver-generation.md](references/driver-generation.md) and `sdk` declarations for `AndroidExp.input`, plus `ui` and `wait` as needed. For direct business calls, also read `bridge`.
-2. In Module mode, export only the entry methods the caller needs. In Inline mode, put the requested flow directly in the IIFE. One operation may compose multiple driver steps.
-3. Stop a flow when an input or wait result has `ok: false`.
-
-## 2. Override
-
-Add Override code only when the requested condition cannot reasonably be established through normal App configuration or Driver actions. Override controls a test precondition; it does not drive the App or prove the result.
-
-Read [references/override-generation.md](references/override-generation.md) and `sdk` declarations for `Override`. Read `bridge` when definitions or the action use Java objects or business methods. Wrap the complete dependent Driver and Evidence work in one `Override.run(definitions, action)` call. Never install an Override at Module top level or leave one active after the generated operation settles.
-
-## 3. Evidence
-
-Add Evidence code only for evidence requested by the user or required to answer the runtime question. Read `sdk` declarations for `Probe.evidence`; read `bridge` when the action, getters, or hook callbacks directly use business classes or methods.
-
-Treat an action as the smallest evidence boundary:
-
-- one action may contain one call or multiple driver steps that express one intent;
-- one generated operation may execute one or multiple actions;
-- use the entire operation as one action when no smaller boundary is needed;
-- define the action first, then wrap it with evidence;
-- include the trigger and required completion wait inside `action`; use a bounded completion condition and propagate failure or timeout;
-- use a concise, non-empty `actionDescription` as the sole aggregation key within the operation: unique per action execution (including repetitions), shared only by wrappers observing that same execution.
-
-Read only the evidence references needed by the probe:
-
-- critical method execution or fixed-TAG logs: [references/critical-chain-evidence.md](references/critical-chain-evidence.md);
-- state snapshots before and after an action: [references/critical-state-evidence.md](references/critical-state-evidence.md);
-- UI snapshots before and after an action: [references/critical-ui-evidence.md](references/critical-ui-evidence.md).
-
-Generate evidence with the matching `Probe.evidence.withChainEvidence()`, `Probe.evidence.withStateEvidence()`, or `Probe.evidence.withUiEvidence()` wrapper. These APIs clean up their temporary instrumentation after the wrapped action returns, throws, or its Promise settles, so the wrapper leaves no active Hook or cleanup work behind. This guarantee applies to the evidence instrumentation, not to effects produced by the wrapped business action.
-
-## 4. Direct Frida
-
-Prefer Driver, Override, and Evidence when they accurately express the request. Do not use Direct Frida merely because it is shorter.
-
-Use `globalThis.Java` or other Frida Gum APIs for runtime work not covered by encapsulated capabilities, including calling App methods to read state, prepare conditions, or trigger business behavior. Use Driver to verify user interaction paths; direct calls verify behavior from the chosen code entry onward. Direct Frida may run alone or compose with Driver, Override, and Evidence.
-
-Read [references/direct-frida-generation.md](references/direct-frida-generation.md). Read `bridge` (`frida-java-bridge`) for Java APIs and `gum` for native Frida APIs; read both when needed.
-
-Follow native Frida semantics; use `Java.registerClass()` to implement Java interfaces. Resolve business symbols from source instead of guessing.
-
-## Composition example
-
-The helpers and definitions below represent source-resolved App code; `submitForm` and `waitForSubmissionCompleted` must throw on failed input or wait results.
-
-```javascript
-const description = 'Submit form under JP region #1';
-
-await Override.run(definitions, () =>
-  Probe.evidence.withUiEvidence(
-    () => Probe.evidence.withStateEvidence(
-      () => Probe.evidence.withChainEvidence(
-        async () => {
-          await submitForm();
-          return await waitForSubmissionCompleted();
-        },
-        description,
-        logTag,
-        methodHooks,
-      ),
-      description,
-      stateGetters,
-    ),
-    description,
-    uiTargets,
-  ),
-);
-```
-
-Override stays active through both checkpoints and the completion wait. Shared descriptions aggregate evidence from the same action execution; chain stays innermost to exclude snapshot collection. Checkpoints are sequential, not simultaneous. Observe methods other than those replaced by Override; same-method composition is not currently guaranteed.
-
-## Code generation constraints
-
-Generated code runs in Frida: use the provided SDK globals and Frida APIs, without Node.js
-built-ins or npm module resolution.
-
-Imports must resolve within the Frida runtime; adjacent Host files are not loaded automatically.
-Use relative source imports only when the code will be bundled before execution, as with presets.
+Reuse the trigger and observations in tests with Test.create().expect. Establish expectations from requirements or confirmed behavior; do not make the current result its own expectation.

@@ -56,6 +56,20 @@ public final class ChainCaptureFixture {
         }
         gate.countDown();
     }
+    public void startLogWorkers(int count) {
+        if (count < 0 || count > 10000) throw new IllegalArgumentException("count bounds");
+        synchronized (this) { workersDone = 0; }
+        for (int id = 1; id <= 2; id++) {
+            final int workerId = id;
+            new Thread(() -> {
+                try {
+                    for (int i = 0; i < count; i++) {
+                        android.util.Log.i("MEU.Context", "stress:" + workerId + ":" + i);
+                    }
+                } finally { synchronized (this) { workersDone++; } }
+            }, "capture-w" + id).start();
+        }
+    }
     public int worker(int id) {
         synchronized (this) { calls++; workersActive++; workersPeak = Math.max(workersPeak, workersActive); }
         android.util.Log.i("MEU.Context", "worker:" + id);

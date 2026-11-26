@@ -1,4 +1,3 @@
-import { collectEvidenceLog } from './evidence.js';
 import { finishOperation } from './operation-result.js';
 
 const ASYNC_IIFE_PATTERN = /^\(\s*async\s*\(\s*\)\s*=>\s*\{[\s\S]*\}\s*\)\s*\(\s*\)\s*;?\s*$/;
@@ -13,12 +12,7 @@ export async function evalScript(owner, { source } = {}) {
     throw new Error('Another operation is already running');
   }
 
-  const evidenceByAction = new Map();
-  const activeCall = {
-    collectLog(text) {
-      collectEvidenceLog(evidenceByAction, text);
-    },
-  };
+  const activeCall = {};
   connection.activeCall = activeCall;
   let result;
   let error;
@@ -35,7 +29,7 @@ export async function evalScript(owner, { source } = {}) {
       didFail = true;
       error = caught;
     }
-    return await finishOperation(owner, evidenceByAction, {
+    return finishOperation({
       didFail,
       error,
       failurePrefix: 'Failed to evaluate script',

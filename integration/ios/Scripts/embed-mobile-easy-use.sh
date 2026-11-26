@@ -61,6 +61,7 @@ mkdir -p "${frameworks_dir}" "${resources_dir}"
 /usr/bin/ditto \
   "${integration_dir}/MobileEasyUseRuntime.config" \
   "${resources_dir}/MobileEasyUseRuntime.config"
+
 /usr/bin/install_name_tool -id \
   "@loader_path/MobileEasyUseRuntime.dylib" \
   "${runtime_destination}"
