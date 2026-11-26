@@ -8,7 +8,7 @@
     },
     "0.2.0": {
       "minimumMcpVersion": "0.2.0",
-      "maximumMcpVersion": "0.2.0"
+      "maximumMcpVersion": "0.2.1"
     }
   }
 }

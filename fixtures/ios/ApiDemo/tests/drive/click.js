@@ -63,7 +63,7 @@ describe('drive.click', () => {
 
   test('click by identifier invokes the native handler exactly once', async () => {
     const result = await drive.click('api.input.click');
-    expect(result.ok, 'Click succeeds').toBe(true);
+    expect(result.ok, result.error?.message ?? 'Click succeeds').toBe(true);
     expect(result.action, 'Reports the click action').toBe('click');
 
     await waitForClickCount(1);
@@ -72,7 +72,7 @@ describe('drive.click', () => {
 
   test('click accepts an array UI path', async () => {
     const result = await drive.click(['identifier::api.input.fixture', 'label::click fixture']);
-    expect(result.ok, 'Click succeeds').toBe(true);
+    expect(result.ok, result.error?.message ?? 'Click succeeds').toBe(true);
     expect(result.action, 'Reports the click action').toBe('click');
 
     await waitForClickCount(1);
@@ -82,7 +82,7 @@ describe('drive.click', () => {
   test('click accepts a native UIView', async () => {
     const view = await runOnMainThread(() => findUiView('api.input.click'));
     const result = await drive.click(view);
-    expect(result.ok, 'Click succeeds').toBe(true);
+    expect(result.ok, result.error?.message ?? 'Click succeeds').toBe(true);
     expect(result.action, 'Reports the click action').toBe('click');
 
     await waitForClickCount(1);
@@ -92,7 +92,7 @@ describe('drive.click', () => {
   test('click accepts screen coordinates in points', async () => {
     const point = await clickTargetCenter();
     const result = await drive.click(point);
-    expect(result.ok, 'Click succeeds').toBe(true);
+    expect(result.ok, result.error?.message ?? 'Click succeeds').toBe(true);
     expect(result.action, 'Reports the click action').toBe('click');
 
     await waitForClickCount(1);
@@ -101,7 +101,7 @@ describe('drive.click', () => {
 
   test('two sequential clicks produce exactly two native callbacks', async () => {
     const result = await drive.click('api.input.click');
-    expect(result.ok, 'Click succeeds').toBe(true);
+    expect(result.ok, result.error?.message ?? 'Click succeeds').toBe(true);
     expect(result.action, 'Reports the click action').toBe('click');
 
     await waitForClickCount(1);
@@ -165,7 +165,7 @@ describe('drive.click', () => {
     expect(await clickCount(), 'Native click count is unchanged').toBe(countBefore);
 
     const result = await drive.click('api.input.click');
-    expect(result.ok, 'Click succeeds').toBe(true);
+    expect(result.ok, result.error?.message ?? 'Click succeeds').toBe(true);
     expect(result.action, 'Reports the click action').toBe('click');
 
     await waitForClickCount(1);

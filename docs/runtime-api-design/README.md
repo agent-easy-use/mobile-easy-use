@@ -11,7 +11,7 @@
 | override | 配合 drive 构造依赖条件 |
 | test / expect | 组织测试，断言取得的值 |
 
-原生对象状态读取和 App 函数调用直接使用 Frida，可与上述能力组合。辅助入口为 element、common、runtimeStatus；Android 另有 Java、顶层 R，iOS 有 ObjC、Swift，common 额外提供 findClass。
+原生对象状态读取和 App 函数调用直接使用 Frida，可与上述能力组合。辅助入口为 element、common、runtimeStatus；Android 另有 Java、顶层 R，iOS 有 ObjC，common 额外提供 findClass。
 
 ## 返回与生命周期
 

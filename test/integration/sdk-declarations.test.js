@@ -118,7 +118,6 @@ for (const platform of ['android', 'ios']) {
       ` : `
       common.findClass('Flags', ['- enabled']);
       const unknownLevel: IOSLogRecord['level'] = null;
-      const swiftAvailable: boolean = Swift.available;
       // @ts-expect-error iOS gesture duration is fixed
       drive.longPress(target, 800);
       // @ts-expect-error iOS gesture distance is fixed

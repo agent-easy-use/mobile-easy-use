@@ -36,10 +36,6 @@ function createEventBackend(ObjC, onMain) {
     entry.event.release();
   }
   function prepare(command) {
-    const major = Number(String(ObjC.classes.UIDevice.currentDevice().systemVersion()).split('.')[0]);
-    if (major !== 18 && major !== 26) {
-      throw new Error(`UNSUPPORTED_SYNTHESIS: iOS ${major}; supported versions are 18 and 26`);
-    }
     const Path = ObjC.classes.XCPointerEventPath;
     const Record = ObjC.classes.XCSynthesizedEventRecord;
     const Device = ObjC.classes.XCUIDevice;

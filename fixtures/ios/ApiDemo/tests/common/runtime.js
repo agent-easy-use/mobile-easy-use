@@ -47,10 +47,9 @@ describe('runtime identity', () => {
   });
 });
 
-// Swift source-level debugging is a different path; this checks the installed Frida bridge.
-describe('Swift bridge export', () => {
-  test('the public Swift bridge initializes in the App runtime', () => {
-    expect(Swift.available, 'ApiDemo links the Swift runtime').toBe(true);
-    expect(typeof Swift.NativeFunction).toBe('function');
+// LLDB Swift debugging does not require loading a Frida Swift bridge.
+describe('runtime bridge loading', () => {
+  test('SDK does not install the Swift bridge', () => {
+    expect(typeof globalThis.Swift).toBe('undefined');
   });
 });

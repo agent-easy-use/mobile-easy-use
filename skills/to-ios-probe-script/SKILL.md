@@ -37,7 +37,7 @@ Read [override generation](references/override.md). Install before the dependent
 
 ## 4. direct-frida — execute functions and read variables
 
-Use ObjC and, where supported, Swift/native APIs to call App functions, obtain objects, read fields/accessors or perform other native runtime work. Direct Frida can be used alone or combined with drive, inspect and override; it is not restricted to a fallback path.
+Use ObjC and known native APIs to call App functions, obtain objects, read fields/accessors or perform other native runtime work. Direct Frida can be used alone or combined with drive, inspect and override; it is not restricted to a fallback path.
 
 For example, call a function to prepare data before drive, read a counter after navigation, or use an App object as the target of override.field. Direct calls verify behavior from the chosen code entry onward; they do not demonstrate an input path that they bypass.
 

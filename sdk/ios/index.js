@@ -1,5 +1,4 @@
 import ObjC from 'frida-objc-bridge';
-import Swift from 'frida-swift-bridge';
 import { installRuntimeRpc } from '../common/runtime.js';
 import { create as createTest } from '../common/test/index.js';
 import { drive } from './drive/index.js';
@@ -16,7 +15,7 @@ const element = Object.freeze({
 const common = Object.freeze({ runOnMainThread, currentThreadName, findClass });
 const Test = { create: () => createTest(inspect.ui) };
 
-Object.assign(globalThis, { drive, override, inspect, element, common, Test, ObjC, Swift });
+Object.assign(globalThis, { drive, override, inspect, element, common, Test, ObjC });
 globalThis.runtimeStatus = () => {
   const available = ObjC.available === true;
   let appId = null;
@@ -45,4 +44,4 @@ globalThis.runtimeStatus = () => {
 
 installRuntimeRpc();
 
-export { drive, override, inspect, element, common, Test, ObjC, Swift };
+export { drive, override, inspect, element, common, Test, ObjC };

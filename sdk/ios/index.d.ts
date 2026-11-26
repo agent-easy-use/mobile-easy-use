@@ -1,13 +1,12 @@
 /// <reference types="frida-gum" />
 
 import ObjCBridge from 'frida-objc-bridge';
-import SwiftBridge from 'frida-swift-bridge';
 
 export {};
 
 /**
  * Canonical API contract for generating iOS probe scripts. Load the built ios.js in Bootstrap,
- * then use ObjC, Swift, drive, override, inspect, element, common, Test, and runtimeStatus as globals; do not import this file at runtime.
+ * then use ObjC, drive, override, inspect, element, common, Test, and runtimeStatus as globals; do not import this file at runtime.
  * Load only this platform declaration; Android and iOS globals belong to separate runtimes.
  * Probe modules should export functions and perform actions when called, not at module load.
  * Await asynchronous SDK calls and check result.ok before relying on an action or wait.
@@ -243,7 +242,6 @@ declare global {
     captureMethod: 'draw-view-hierarchy';
   }
 
-  const Swift: typeof SwiftBridge;
   // The ObjC global namespace is supplied by the frida-gum reference above.
   // The SDK binds it to frida-objc-bridge; UIKit calls retain their own thread requirements.
 
