@@ -17,7 +17,7 @@ if (!completed.ok) throw new Error(completed.error.message);
 return {before, after: Number(session.requestCount())};
 ```
 
-This assumes source confirms these selectors and their calling queue. Direct ObjC method calls use high-level bridge conversion, unlike override.method/inspect.method callbacks. common.findClass searches exact names then module-qualified suffixes; ambiguous matches throw. It only finds ObjC-runtime classes. Pure Swift work needs supported Swift bridge APIs or known native symbols/ABI, not guessed ObjC selectors.
+This assumes source confirms these selectors and their calling queue. Direct ObjC method calls use high-level bridge conversion, unlike override.method/inspect.method callbacks. common.findClass searches exact names then module-qualified suffixes; ambiguous matches throw. It only finds ObjC-runtime classes. The SDK does not load or expose a Swift bridge. Use inspect.code/override.code for LLDB-based Swift source debugging; direct native calls require known symbols and ABI, not guessed ObjC selectors.
 
 Two reads do not reveal intermediate changes or form an atomic snapshot. Read related fields together when consistency matters. Local variables require [inspect.code](inspect.md), not arbitrary object access. A failed read is missing evidence, not unchanged/null state.
 

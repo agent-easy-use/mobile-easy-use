@@ -10,8 +10,10 @@ describe('drive input gestures', () => {
     const result = await drive.input(target, 'ApiDemo 123');
     expect(result.ok, result.error?.message ?? 'input succeeds').toBe(true);
     const completed = await drive.waitUntil(async () => (await readInputText()) === 'ApiDemo 123');
-    expect(completed.ok, 'Native text updated').toBe(true);
-    expect(await readInputText()).toBe('ApiDemo 123');
+    const actualText = await readInputText();
+    const focused = await inspect.ui.isFocused(target);
+    expect(completed.ok, `Native text updated: ${JSON.stringify({ text: actualText, focused, error: completed.error })}`).toBe(true);
+    expect(actualText).toBe('ApiDemo 123');
     expect((await drive.wait(target, 'focused')).ok).toBe(true);
     expect(await inspect.ui.isFocused(target)).toBe(true);
   });

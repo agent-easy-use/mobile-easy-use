@@ -35,7 +35,7 @@
 - Virtual AX elements without a UIView are not addressable by identifier/path.
   Known coordinates remain usable. Coordinates are not continuously updated if the
   target moves after lookup; event completion does not prove the intended target received it.
-- Supported major versions: iOS 18 and 26. Classes/selectors are checked at runtime;
+- No OS major-version allowlist. Required classes/selectors are checked at runtime;
   there is no silent fallback to high-level tap/drag/typeText on unsupported runtimes.
 
 The App and Runner bundles must be refreshed together.
